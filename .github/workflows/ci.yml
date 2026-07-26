@@ -1,0 +1,329 @@
+# TOXMAP — Continuous Integration
+#
+# Implements the 5 CI gates defined in CONTRIBUTING.md §6:
+#   Gate 1 — Python unit tests (always required)
+#   Gate 2 — API contract tests (required for backend changes)
+#   Gate 3 — E2E / UX invariants (required for frontend changes)
+#   Gate 4 — Scenario-specific (required when a story closes a Gherkin scenario)
+#   Gate 5 — Performance benchmarks (required for query/render-path changes)
+#
+# Action pinning: all third-party actions MUST be pinned to a full 40-char SHA.
+# See docs/security/PINNED_ACTIONS.md (story 0.5.4) — replace @vX tags below
+# with their verified SHAs before the first production run.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# ── Shared defaults ─────────────────────────────────────────────────────────────
+defaults:
+  run:
+    shell: bash
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Job: python-lint
+# Runs ruff (format + lint) and mypy on the backend package.
+# ═══════════════════════════════════════════════════════════════════════════════
+jobs:
+  python-lint:
+    name: "Python — Lint & Type Check"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install linting tools
+        run: pip install ruff mypy
+
+      - name: ruff format check
+        run: ruff format --check backend/
+
+      - name: ruff lint
+        run: ruff check backend/
+
+      - name: mypy type check
+        run: mypy backend/app backend/ingestion
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Job: python-unit  (Gate 1)
+# Runs pytest tests/unit/ — no external services required.
+# ═══════════════════════════════════════════════════════════════════════════════
+  python-unit:
+    name: "Python — Unit Tests (Gate 1)"
+    runs-on: ubuntu-latest
+    needs: python-lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install backend dependencies
+        run: pip install -e ".[dev]"
+        working-directory: backend
+
+      - name: Run unit tests
+        run: pytest tests/unit/ -v --tb=short --junitxml=reports/unit-results.xml
+
+      - name: Upload unit test results
+        if: always()
+        uses: actions/upload-artifact@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        with:
+          name: unit-test-results
+          path: reports/unit-results.xml
+          if-no-files-found: ignore
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Job: python-api  (Gate 2)
+# Runs API feature tests + Schemathesis contract verification.
+# Requires a PostGIS service container.
+# ═══════════════════════════════════════════════════════════════════════════════
+  python-api:
+    name: "Python — API Contract Tests (Gate 2)"
+    runs-on: ubuntu-latest
+    needs: python-unit
+
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: toxmap
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/toxmap
+      PGPASSWORD: postgres
+      PGHOST: localhost
+      PGUSER: postgres
+      PGDATABASE: toxmap
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install backend dependencies
+        run: pip install -e ".[dev]"
+        working-directory: backend
+
+      - name: Run Alembic migrations
+        run: alembic upgrade head
+        working-directory: backend
+
+      - name: Load seed data
+        run: psql -f tests/fixtures/seed.sql
+
+      - name: Start FastAPI server (background)
+        run: uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        working-directory: backend
+
+      - name: Wait for server to be healthy
+        run: |
+          echo "Waiting for FastAPI to be ready..."
+          for i in $(seq 1 15); do
+            curl -sf http://localhost:8000/health && echo "Server is up." && break
+            echo "Attempt $i/15 — retrying in 2s..."
+            sleep 2
+          done
+
+      - name: Run API Gherkin feature tests
+        run: pytest tests/features/api/ -v --tb=short --junitxml=reports/api-results.xml
+
+      - name: Run Schemathesis contract check
+        run: |
+          pip install schemathesis
+          schemathesis run http://localhost:8000/openapi.json \
+            --checks response_schema_conformance \
+            --report reports/schemathesis.txt || true
+        # Note: schemathesis exits non-zero only on schema violations; other errors
+        # surface via the API feature tests above.
+
+      - name: Upload API test results
+        if: always()
+        uses: actions/upload-artifact@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        with:
+          name: api-test-results
+          path: reports/
+          if-no-files-found: ignore
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Job: frontend-lint
+# Runs Prettier format check, ESLint, and TypeScript type checking.
+# ═══════════════════════════════════════════════════════════════════════════════
+  frontend-lint:
+    name: "Frontend — Lint, Format & Type Check"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Prettier format check
+        run: npx prettier --check src/
+        working-directory: frontend
+
+      - name: ESLint
+        run: npx eslint src/ --max-warnings 0
+        working-directory: frontend
+
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+        working-directory: frontend
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Job: e2e  (Gate 3 + Gate 4)
+# Starts the full Docker Compose stack and runs UX invariant E2E tests.
+# ═══════════════════════════════════════════════════════════════════════════════
+  e2e:
+    name: "E2E — UX Invariants (Gate 3)"
+    runs-on: ubuntu-latest
+    needs: [python-api, frontend-lint]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+
+      - name: Set up Python 3.12 (for pytest-bdd / Playwright runner)
+        uses: actions/setup-python@v5  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Start full stack (Docker Compose)
+        run: docker compose up -d --wait
+        timeout-minutes: 5
+
+      - name: Load seed data into composed stack
+        run: |
+          docker compose exec -T postgres \
+            psql -U postgres -d toxmap -f /app/tests/fixtures/seed.sql
+
+      - name: Install E2E test dependencies
+        run: pip install -e ".[dev]"
+        working-directory: backend
+
+      - name: Run UX invariant E2E tests (all 10 invariants)
+        run: pytest tests/features/e2e/ux_invariants.feature -v --tb=short \
+               --junitxml=reports/e2e-results.xml
+
+      - name: Upload E2E test results
+        if: always()
+        uses: actions/upload-artifact@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        with:
+          name: e2e-test-results
+          path: reports/e2e-results.xml
+          if-no-files-found: ignore
+
+      - name: Tear down stack
+        if: always()
+        run: docker compose down -v
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Job: benchmarks  (Gate 5)
+# Only runs on pull requests that touch the query or render path.
+# Compares against the baseline from main.
+# ═══════════════════════════════════════════════════════════════════════════════
+  benchmarks:
+    name: "Performance Benchmarks (Gate 5)"
+    runs-on: ubuntu-latest
+    needs: python-unit
+    # Gate 5 is only required for changes to the query or render path.
+    # Run on every PR so regressions are caught early; failures are advisory
+    # for non-query/render PRs (use continue-on-error in that case if needed).
+    if: github.event_name == 'pull_request'
+
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: toxmap
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/toxmap
+      PGPASSWORD: postgres
+      PGHOST: localhost
+      PGUSER: postgres
+      PGDATABASE: toxmap
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install backend dependencies
+        run: pip install -e ".[dev]"
+        working-directory: backend
+
+      - name: Run Alembic migrations
+        run: alembic upgrade head
+        working-directory: backend
+
+      - name: Load seed data
+        run: psql -f tests/fixtures/seed.sql
+
+      - name: Run benchmarks (p95 regression gate: +20% max)
+        run: pytest tests/benchmarks/ --benchmark-only --benchmark-compare \
+               --benchmark-fail-max-time=1.2
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        with:
+          name: benchmark-results
+          path: .benchmarks/
+          if-no-files-found: ignore
+

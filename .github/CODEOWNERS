@@ -1,0 +1,48 @@
+# TOXMAP Code Owners
+#
+# These owners are automatically requested for review when a pull request
+# touches the matching paths. See MAINTAINERS.md for the full maintainer list
+# and GOVERNANCE.md for the decision authority matrix.
+#
+# Syntax: <path-pattern>  <github-username>...
+# More specific rules below override broader ones.
+
+# ── Global fallback ────────────────────────────────────────────────────────────
+*                                               @VictorCannestro
+
+# ── Backend ────────────────────────────────────────────────────────────────────
+/backend/                                       @VictorCannestro
+
+# ── Frontend ───────────────────────────────────────────────────────────────────
+/frontend/                                      @VictorCannestro
+
+# ── Data ingestion + seed data (requires Data Steward review) ──────────────────
+/backend/ingestion/                             @VictorCannestro
+/tests/fixtures/seed.sql                        @VictorCannestro
+
+# ── Tests ──────────────────────────────────────────────────────────────────────
+/tests/                                         @VictorCannestro
+
+# ── CI / DevOps ────────────────────────────────────────────────────────────────
+/docker-compose.yml                             @VictorCannestro
+/.github/workflows/                             @VictorCannestro
+
+# ── Security-sensitive files (require Security Engineer + Maintainer review) ───
+/SECURITY.md                                    @VictorCannestro
+/.github/workflows/security.yml                 @VictorCannestro
+/.github/dependabot.yml                         @VictorCannestro
+/docs/security/                                 @VictorCannestro
+
+# ── Governance / ADRs (require Maintainer review) ──────────────────────────────
+/GOVERNANCE.md                           @VictorCannestro
+/docs/adr/                                      @VictorCannestro
+/CONTRIBUTING.md                                @VictorCannestro
+/MAINTAINERS.md                                 @VictorCannestro
+
+# ── API contract (RFC required before any change; requires Maintainer review) ───
+/docs/api/TOXMAP_API_CONTRACT.md                @VictorCannestro
+
+# ── Agent prompts ──────────────────────────────────────────────────────────────
+/agents/                                        @VictorCannestro
+/AGENTS.md               @VictorCannestro
+

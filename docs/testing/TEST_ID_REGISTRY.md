@@ -1,0 +1,152 @@
+# TOXMAP `data-testid` Registry
+
+**Last updated:** 2026-07-21  
+**Purpose:** Canonical list of every `data-testid` attribute used in Playwright E2E tests and React components. Frontend developers MUST use these exact strings. QA engineers MUST use these exact strings in selectors.
+
+> **Rule:** If a `data-testid` is not in this registry, it does not exist. Add it here before using it in any test or component.
+
+---
+
+## Map Container
+
+| `data-testid`   | Component              | Used in Gherkin Step       |
+|-----------------|------------------------|----------------------------|
+| `map-container` | `<Map>` root `<div>`   | `"I am on the map page"`   |
+| `map-canvas`    | MapLibre GL `<canvas>` | zoom/coordinate assertions |
+
+---
+
+## Sidebar & Panels
+
+| `data-testid`          | Component                | Used in Gherkin Step                                 |
+|------------------------|--------------------------|------------------------------------------------------|
+| `sidebar-panel`        | `<Sidebar>` root element | UX Invariant 1 — single panel check                  |
+| `map-contents-panel`   | `<MapContentsPanel>`     | `"Map Contents panel is NOT visible"`                |
+| `search-panel`         | `<SearchPanel>`          | `"Search Chemical Releases by Location"` label check |
+| `sidebar-collapse-btn` | Sidebar chevron button   | collapse/expand                                      |
+
+> **Note:** To assert the active panel, combine `sidebar-panel` with the **separate** `data-active` attribute:  
+> `[data-testid="sidebar-panel"][data-active="true"]`.  
+> `data-active` is **not** part of the `data-testid` value — it is a distinct HTML attribute added to the same element.
+
+---
+
+## Search Panel Inputs
+
+| `data-testid`                  | Component                                  | Used in Gherkin Step                        |
+|--------------------------------|--------------------------------------------|---------------------------------------------|
+| `location-input`               | Location text field                        | `'I type "{text}" into the location field'` |
+| `chemical-input`               | Chemical text field                        | `'I type "{text}" into the chemical field'` |
+| `chemical-autocomplete-option` | Each autocomplete dropdown item            | `"Wait for autocomplete"` + click           |
+| `year-select`                  | Year `<select>` dropdown                   | `'I select year "{year}"'`                  |
+| `state-select`                 | State `<select>` dropdown                  | state filter tests                          |
+| `restrict-to-state-checkbox`   | "Limit to state" `<input type="checkbox">` | UX Invariant 3                              |
+| `search-submit-btn`            | Search `<button>`                          | `"I click Search"`                          |
+| `dataset-radio-tri`            | TRI radio button                           | T-04 dataset switch                         |
+| `dataset-radio-superfund`      | Superfund radio button                     | T-02, T-04                                  |
+| `dataset-radio-both`           | Both datasets radio                        | combined search                             |
+
+---
+
+## Results Table
+
+| `data-testid`         | Component              | Used in Gherkin Step              |
+|-----------------------|------------------------|-----------------------------------|
+| `results-table`       | `<ResultsTable>` root  | UX Invariant 2 — empty row check  |
+| `results-row`         | Each `<tr>` in results | `"every row has a facility name"` |
+| `results-row-name`    | Facility name `<td>`   | facility name assertions          |
+| `results-row-release` | Release amount `<td>`  | comma-format assertions           |
+
+---
+
+## Facility Detail
+
+| `data-testid`             | Component                    | Used in Gherkin Step                  |
+|---------------------------|------------------------------|---------------------------------------|
+| `facility-detail-panel`   | Facility drawer root         | `"facility detail panel opens"`       |
+| `popup-close-bottom`      | Bottom close link/button     | UX Invariant 9 — close link at bottom |
+| `facility-release-amount` | Release quantity display     | UX Invariant 8 — comma formatting     |
+| `facility-chart-tab-1`    | Top chemicals tab button     | T-01, T-03 chart tab                  |
+| `facility-chart-tab-2`    | Release by medium tab button | T-03 medium distribution              |
+| `facility-chart-tab-3`    | 15-year trend tab button     | trend chart assertions                |
+| `atsdr-link`              | ATSDR ToxFAQ `<a>`           | T-08 external link test               |
+| `pubchem-link`            | PubChem `<a>`                | external link assertions              |
+
+---
+
+## Superfund
+
+| `data-testid`                 | Component                  | Used in Gherkin Step                             |
+|-------------------------------|----------------------------|--------------------------------------------------|
+| `superfund-detail-panel`      | Superfund drawer root      | T-04                                             |
+| `superfund-contaminants-list` | Contaminant `<ul>`         | `"contaminants list containing STYRENE"`         |
+| `superfund-epa-progress-link` | EPA progress profile `<a>` | T-04 — `"link to the EPA site progress profile"` |
+| `superfund-hrs-score`         | HRS score badge            | HRS score assertion                              |
+
+---
+
+## Demographics / Census
+
+| `data-testid`                 | Component                     | Used in Gherkin Step                              |
+|-------------------------------|-------------------------------|---------------------------------------------------|
+| `census-health-panel`         | `<CensusHealthPanel>` root    | T-05, T-06, T-09                                  |
+| `demographic-legend`          | `<InlineLegend>` root         | UX Invariant 5 — inline values                    |
+| `demographic-legend-entry`    | Each legend color+range row   | `"each legend entry has a visible numeric value"` |
+| `clear-layer-btn`             | "Clear layer" `<button>`      | T-06 — `"I click 'Clear layer'"`                  |
+| `cooccurrence-disclaimer`     | Disclaimer `<p>` or `<aside>` | UX Invariant 10 — mortality tab only              |
+| `demo-tab-population`         | Population tab button         | `"I select 'Population'"`                         |
+| `demo-tab-income`             | Income tab button             | T-06                                              |
+| `demo-tab-mortality`          | Mortality tab button          | T-09                                              |
+| `demo-sublayer-pct-under-18`  | % Under 18 radio/button       | T-05                                              |
+| `demo-sublayer-cancer-female` | Cancer Mortality / Female     | T-09                                              |
+
+---
+
+## Layer Toggles (Map Contents Panel)
+
+| `data-testid`             | Component                                          | Used in Gherkin Step                                 |
+|---------------------------|----------------------------------------------------|------------------------------------------------------|
+| `layer-toggle-tri-latest` | Latest TRI year toggle                             | UX Invariant 7 — must include text `"(latest year)"` |
+| `layer-toggle-tri-{year}` | Per-year TRI toggle (e.g. `layer-toggle-tri-2024`) | year filter assertions                               |
+| `layer-toggle-superfund`  | Superfund layer checkbox                           | T-04 Superfund show/hide                             |
+| `layer-toggle-nuclear`    | Nuclear plants checkbox                            | nuclear layer assertions                             |
+
+---
+
+## Release by Medium Chart
+
+> Used in T-03 ("Land medium as the largest bar") and Invariant 8 (comma formatting on release amounts).  
+> Each bar's `data-medium` attribute holds the release category; the `data-release-lbs` attribute holds the numeric value for assertion.
+
+| `data-testid`                                  | Component                             | Used in Gherkin Step                         |
+|------------------------------------------------|---------------------------------------|----------------------------------------------|
+| `release-by-medium-chart`                      | `<ReleaseByMediumChart>` container    | T-03 — chart presence check                  |
+| `release-chart-bar`                            | Individual `<Bar>` element (Recharts) | T-03 — `data-medium="land"` is tallest bar   |
+| `release-chart-bar[data-medium="air"]`         | Air release bar                       | T-03 — assert bar absent or has value 0      |
+| `release-chart-bar[data-medium="water"]`       | Water release bar                     | medium breakdown assertions                  |
+| `release-chart-bar[data-medium="land"]`        | Land release bar                      | T-03 — assert value `8,205`; must be tallest |
+| `release-chart-bar[data-medium="underground"]` | Underground release bar               | medium breakdown assertions                  |
+
+> **Note:** `data-medium` and `data-release-lbs` are **separate** attributes on the same element as `data-testid="release-chart-bar"`.  
+> Example selector: `[data-testid="release-chart-bar"][data-medium="land"]`  
+> Largest-bar assertion: compare `data-release-lbs` values across all `release-chart-bar` elements.
+
+---
+
+## Onboarding & Global
+
+| `data-testid`           | Component                                                                   | Used in Gherkin Step                            |
+|-------------------------|-----------------------------------------------------------------------------|-------------------------------------------------|
+| `interpretation-banner` | Release quantity disclaimer banner                                          | first-load check                                |
+| `onboarding-tooltip`    | Tour tooltip root                                                           | onboarding visible/hidden                       |
+| `data-vintage-label`    | Map footer data vintage indicator (e.g. `"2008 TRI · October 2024 freeze"`) | UX Invariant 11 — vintage visible and non-empty |
+
+---
+
+## Naming Conventions
+
+- Use kebab-case only: `facility-detail-panel` not `facilityDetailPanel`
+- Never use test IDs as CSS selectors for styling — they are exclusively for testing
+- For lists of items, use a base ID on the container and `[data-item-id="{value}"]` on individual items (e.g. `data-testid="results-row" data-facility-id="21219BTHLS3RD"`)
+- Dynamic IDs (e.g. per-year layer toggles) use a predictable template: `layer-toggle-tri-{year}`
+

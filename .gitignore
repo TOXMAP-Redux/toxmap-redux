@@ -1,0 +1,154 @@
+# =============================================================================
+# TOXMAP — .gitignore
+# Stack: Python 3.12 + FastAPI + Node 22 + React/Vite + Docker + pytest
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+
+# mypy / pyright
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyright/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# -----------------------------------------------------------------------------
+# Node / Frontend
+# -----------------------------------------------------------------------------
+node_modules/
+frontend/node_modules/
+
+# Vite build output
+frontend/dist/
+frontend/.vite/
+
+# TypeScript
+*.tsbuildinfo
+
+# Test results (Playwright)
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# -----------------------------------------------------------------------------
+# Data files (large — managed via GitHub Actions / R2, not git)
+# -----------------------------------------------------------------------------
+data/raw/
+data/processed/
+scripts/dist/parquet/
+*.parquet
+*.pmtiles
+
+# Keep meta sidecars and seed data in git — they're small and version-controlled
+!tests/fixtures/seed.sql
+!docs/
+
+# -----------------------------------------------------------------------------
+# Environment & secrets — NEVER commit these
+# -----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+
+# -----------------------------------------------------------------------------
+# Docker
+# -----------------------------------------------------------------------------
+.docker/
+
+# -----------------------------------------------------------------------------
+# Database
+# -----------------------------------------------------------------------------
+*.db
+*.sqlite
+*.sqlite3
+
+# Alembic — keep alembic.ini and versions/ in git; ignore generated upgrade artifacts
+alembic/versions/__pycache__/
+
+# -----------------------------------------------------------------------------
+# IDE
+# -----------------------------------------------------------------------------
+# JetBrains (PyCharm, IntelliJ, WebStorm)
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
+
+# Vim / Emacs
+*.swp
+*.swo
+*~
+\#*\#
+.\#*
+
+# -----------------------------------------------------------------------------
+# OS
+# -----------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V7
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# -----------------------------------------------------------------------------
+# Logs & temp
+# -----------------------------------------------------------------------------
+*.log
+logs/
+tmp/
+temp/
+.tmp/
+
+# -----------------------------------------------------------------------------
+# CI / build artifacts
+# -----------------------------------------------------------------------------
+.allure/
+allure-results/
+allure-report/
+jacoco/
+
+# Cloudflare Wrangler
+.wrangler/
+wrangler.toml.bak
+

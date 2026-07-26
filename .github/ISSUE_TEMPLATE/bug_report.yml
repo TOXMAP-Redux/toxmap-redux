@@ -1,0 +1,119 @@
+name: Bug Report
+description: File a bug report for unexpected behavior in TOXMAP.
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+assignees:
+  - VictorCannestro
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report.  
+        Before submitting, please search [existing issues](https://github.com/VictorCannestro/toxmap/issues)
+        to avoid duplicates.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-flight Checks
+      options:
+        - label: I have searched existing issues and this is not a duplicate.
+          required: true
+        - label: I have read the [Contributing Guidelines](../../CONTRIBUTING.md).
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the Bug
+      description: A clear and concise description of what the bug is.
+      placeholder: When I do X, Y happens instead of Z.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Minimal steps to reproduce the behavior.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened? Include screenshots or logs if applicable.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of the stack is affected?
+      multiple: true
+      options:
+        - Backend (FastAPI / PostGIS)
+        - Frontend (React / MapLibre GL)
+        - Data Ingestion (CSV / Parquet pipeline)
+        - DuckDB WASM (client-side mode)
+        - CI / GitHub Actions
+        - Docker Compose setup
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version / Commit
+      description: Git tag or commit SHA where you observed the bug.
+      placeholder: "e.g. v0.3.1 or abc1234"
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser, OS, Docker version, Python version, Node version — whatever is relevant.
+      placeholder: |
+        - OS: macOS 14.5
+        - Browser: Firefox 128
+        - Docker: 4.32
+        - Python: 3.12.3
+        - Node: 22.1.0
+    validations:
+      required: false
+
+  - type: textarea
+    id: gherkin-scenario
+    attributes:
+      label: Related Gherkin Scenario (if applicable)
+      description: Paste the failing scenario from `tests/features/` if relevant.
+      render: gherkin
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context, links, or references.
+    validations:
+      required: false
+

@@ -1,0 +1,47 @@
+name: Question
+description: Ask a question about TOXMAP (usage, architecture, data, or contributing).
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before asking, please check:
+        - [README](../../README.md)
+        - [CONTRIBUTING.md](../../CONTRIBUTING.md)
+        - [Architecture Decision Records](../../docs/adr/)
+        - [Closed issues](https://github.com/VictorCannestro/toxmap/issues?q=is%3Aissue+is%3Aclosed+label%3Aquestion)
+
+        Maintainers respond within **3 business days**.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Question Category
+      options:
+        - "Usage — how do I run / use TOXMAP?"
+        - "Architecture — why was X designed this way?"
+        - "Data — where does a specific data value come from?"
+        - "Contributing — how do I contribute X?"
+        - "CI / DevOps — how does the pipeline work?"
+        - "Security — security posture question"
+        - "Other"
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: Be as specific as possible. Include relevant file paths, error messages, or context.
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What I've Already Tried
+      description: What docs, issues, or approaches have you already checked?
+    validations:
+      required: false
+

@@ -1,0 +1,74 @@
+# Dependabot configuration
+# See: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# Governance reference: GOVERNANCE.md §8 — "Dependabot | Weekly | — (opens PRs automatically)"
+# Action pinning policy: docs/security/PINNED_ACTIONS.md
+
+version: 2
+updates:
+
+  # ── Python (backend) ─────────────────────────────────────────────────────────
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - python
+    commit-message:
+      prefix: "chore(deps)"
+    reviewers:
+      - VictorCannestro
+    groups:
+      python-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # ── JavaScript / Node.js (frontend) ──────────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - javascript
+    commit-message:
+      prefix: "chore(deps)"
+    reviewers:
+      - VictorCannestro
+    groups:
+      npm-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # ── GitHub Actions ────────────────────────────────────────────────────────────
+  # NOTE: When Dependabot opens a GitHub Actions update PR, the reviewer MUST:
+  #   1. Verify the new SHA on the upstream repository's releases page.
+  #   2. Update docs/security/PINNED_ACTIONS.md with the new SHA + "Last Verified" date.
+  #   3. Only then approve and merge.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: "chore(deps)"
+    reviewers:
+      - VictorCannestro
+

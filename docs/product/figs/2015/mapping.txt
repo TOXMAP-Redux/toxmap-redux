@@ -1,0 +1,11 @@
+PMC4251466 is the article ID for the 2015 Article (Roth SL & Kalis MA, Med Ref Serv Q 2014): 6 figures of redesigned TOXMAP (ArcGIS for Server/Flex era).
+
+The rule is to replace the {N} in the URL with the figure number you want to access.
+
+https://pmc.ncbi.nlm.nih.gov/articles/PMC4251466/figure/F{N}/
+
+maps to local file: nihms644239f{N}.jpg
+
+For instance, if you want to access figure 1, you would use:
+https://pmc.ncbi.nlm.nih.gov/articles/PMC4251466/figure/F1/
+nihms644239f1.jpg

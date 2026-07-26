@@ -1,0 +1,114 @@
+name: "RFC: Feature Request"
+description: Propose a new feature or functional requirement (RFC process — see CONTRIBUTING.md §8).
+title: "RFC: "
+labels: ["rfc", "needs-triage"]
+assignees:
+  - VictorCannestro
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > **Before submitting:** Review [CONTRIBUTING.md §8](../../CONTRIBUTING.md#8-adding-new-features)
+        > and the [Decision Authority Matrix](../../GOVERNANCE.md#3-decision-authority-matrix).
+        >
+        > RFCs are discussed for at least **5 business days** before any code is written.
+        > Maintainers add `rfc-accepted` or `rfc-rejected` labels after discussion.
+        >
+        > For changes to an existing ADR, use the title format: `RFC: Revise ADR-00X — [reason]`
+        > and add the `adr-change` label.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-flight Checks
+      options:
+        - label: This feature is not already in [TOXMAP_DEVELOPMENT_ROADMAP.md](../../docs/product/TOXMAP_DEVELOPMENT_ROADMAP.md).
+          required: true
+        - label: I have searched existing issues and this RFC is not a duplicate.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user problem does this solve? Who is affected?
+      placeholder: "As a [type of user], I want [capability] so that [benefit]."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution
+      description: How would it work at a high level?
+    validations:
+      required: true
+
+  - type: input
+    id: data-source
+    attributes:
+      label: Data Source
+      description: Which EPA/NLM dataset or external source powers this feature?
+      placeholder: "e.g. EPA TRI Basic Data Files, CDC/ATSDR ToxFAQs"
+    validations:
+      required: true
+
+  - type: input
+    id: functional-requirement
+    attributes:
+      label: Functional Requirement
+      description: Proposed F-xx identifier and title for TOXMAP_TECH_STACK_ANALYSIS.md §3.
+      placeholder: "e.g. F-12 — Show facility health demographic overlay"
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria (Gherkin)
+      description: What Gherkin scenario would prove this feature works?
+      render: gherkin
+      placeholder: |
+        Scenario: User sees demographic data overlaid on the map
+          Given the map is showing TRI facilities
+          When the user enables the demographics layer
+          Then census tract polygons are rendered alongside facility markers
+    validations:
+      required: true
+
+  - type: dropdown
+    id: adr-impact
+    attributes:
+      label: ADR Impact
+      description: Does this require changing ADR-001 or ADR-004?
+      options:
+        - "No — fits within existing architecture"
+        - "Yes — requires ADR-001 revision (RFC + ADR change process)"
+        - "Yes — requires ADR-004 revision (RFC + ADR change process)"
+        - "Uncertain — needs maintainer assessment"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: effort
+    attributes:
+      label: Effort Estimate
+      description: Approximate story point estimate.
+      options:
+        - "1 — trivial (< half a day)"
+        - "2 — small (1 day)"
+        - "3 — medium (2–3 days)"
+        - "5 — large (1 week)"
+        - "8 — very large (> 1 week; consider splitting)"
+        - "Unknown"
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Links to reference data, prior art, screenshots, mockups.
+    validations:
+      required: false
+
