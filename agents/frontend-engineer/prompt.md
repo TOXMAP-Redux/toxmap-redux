@@ -30,6 +30,8 @@ Read these in order before writing any code:
 | 2 | `docs/adr/ADR-001-fastapi-postgis-react.md` | UX Architecture Decisions table (non-negotiable constraints), URL routing scheme, geocoding spec, Appendix B (exact `package.json`) |
 | 3 | `docs/product/TOXMAP_SCREEN_CATALOG.md` | UI reference screenshots — the authoritative layout source for every component you build |
 | 4 | `docs/adr/ADR-004-zero-budget-hosting.md` | How DuckDB WASM queries work; `duckdbCompat.ts` spec; CORS requirements; how `manifest.json` is read at app init |
+| 4b | `docs/adr/ADR-005-openfreemap-basemap-tiles.md` | Why OpenFreeMap hosted tiles are used instead of self-hosted PMTiles; `VITE_MAPLIBRE_STYLE` value; fallback procedure |
+| 4c | `docs/adr/ADR-006-photon-geocoding.md` | Why Photon is used instead of Nominatim; browser-direct call architecture; fair-use mitigations (cache, throttle, attribution); viewport bbox race-condition fix |
 | 5 | `docs/testing/TEST_ID_REGISTRY.md` | Every `data-testid` your components must implement — Playwright tests break without these |
 | 6 | `docs/testing/TOXMAP_ACCEPTANCE_TESTS.md` | Which Gherkin scenarios govern your component; the E2E scenarios you must make pass |
 | 7 | `AGENTS.md` | Full agent rules: what you may/must not do, TypeScript code style, commit format, escalation triggers |
@@ -68,22 +70,174 @@ Work items come from **`docs/product/TOXMAP_DEVELOPMENT_ROADMAP.md`** in the col
 | Story | What to Build |
 |-------|--------------|
 | 3.1.1 | React app scaffold: Vite, TypeScript strict, Tailwind CSS |
-| 3.1.2 | MapLibre GL map component: US overview, PMTiles basemap from R2 |
+| 3.1.2 | MapLibre GL map component: US overview, OpenFreeMap basemap. Set `style` to `process.env.VITE_MAPLIBRE_STYLE` which resolves to `https://tiles.openfreemap.org/styles/liberty`. **Do not reference a PMTiles file or R2 URL for the basemap** — ADR-005 adopted OpenFreeMap hosted tiles. |
 | 3.1.3 | Typed API client module: all 17 endpoints typed with no `any` |
 | 3.1.4 | Landing page: description + "Launch Map" CTA + FAQ links (matches screen catalog Fig 2015-6) |
 | 3.1.5 | Data vintage indicator: fetch `manifest.json` from R2 (prod) or `GET /api/v1/meta` (dev); display in map footer (`data-testid="data-vintage-label"`) |
 | 3.2.1–3.2.9 | Single sidebar shell, MapContentsPanel, SearchPanel, chemical autocomplete, location field, state dropdown, viewport hook, panel switching |
+
+> **Story 3.2.5 — Geocoding (ADR-006):** Geocoding is **browser-direct** to Photon (photon.komoot.io).
+> Do **not** call the FastAPI `GET /api/v1/geocode` endpoint from React. Implementation lives
+> entirely in `frontend/src/api/geocode.ts`:
+> - Call `https://photon.komoot.io/api/?q=<location>&limit=1&lang=en` directly from `fetch()`
+> - Photon returns GeoJSON FeatureCollection; extract `features[0].geometry.coordinates` as `[lon, lat]`
+> - Cache results in a module-level `Map<string, GeocodeResult>` (max 200 entries, LRU eviction)
+> - Throttle to ≤ 1 request/second between distinct network calls
+> - Export `PHOTON_ATTRIBUTION` and render it as JSX `<a>` links in the map footer (Photon's usage policy requires this)
+> - **Never** use `dangerouslySetInnerHTML` for the attribution — use plain JSX elements
 | 3.3.1–3.3.3 | TRI markers (circles, color-coded), cluster aggregation, labeled icon toolbar |
+
+> **Map Data Flow (2026-07-28):** Both TRI facilities and Superfund sites use a browse pattern:
+>
+> **TRI Facilities** — fetched via `useMapFacilities` hook:
+> - **Browse mode** (no search submitted): pass `null` → hook calls `GET /api/v1/facilities/browse` → returns all ~22k facilities
+> - **Search mode** (user submitted a search): pass `{ lat, lon, radiusMiles, ... }` → hook calls `GET /api/v1/facilities` → returns radius-filtered results
+>
+> **Superfund Sites** — fetched via `useSuperfundViewport` hook:
+> - **Always-on layer:** hook calls `GET /api/v1/superfund/browse` once on mount → returns all ~1.7k sites
+> - **Search mode** (dataset=superfund): `useSuperfundSearch` hook calls `GET /api/v1/superfund` → returns radius-filtered results
+>
+> **Common patterns:**
+> - **Viewport rendering:** MapLibre handles viewport clipping from full datasets (no refetch on pan/zoom)
+> - **TRI toggle:** `map.setLayoutProperty('facility-circles', 'visibility', ...)`
+> - **Superfund toggle:** `map.setLayoutProperty('superfund-sites', 'visibility', ...)`
+> - **Sidebar count:** use `filterByBbox(data, mapBbox)` to filter loaded data client-side for "X in view" count
+
 | 3.4.1–3.4.5 | Facility popup + detail drawer (3-tab Recharts), close-at-bottom link, comma formatting, ToxFAQ links |
 | 3.5.1–3.5.3 | Viewport-scoped results table, row-to-marker linking |
 | 3.6.1–3.6.2 | First-visit onboarding tour, interpretation banner |
 
 ### Phase 4 (Superfund Overlay) — Your Stories
-| Story | What to Build |
-|-------|--------------|
-| 4.1.1–4.1.3 | Superfund diamond markers (red), layer toggle, dataset radio (TRI/Superfund/Both) |
-| 4.2.1–4.2.3 | Superfund detail drawer, contaminant links, EPA progress profile link |
-| 4.3.1–4.3.2 | Unified TRI + Superfund legend; hospital icon color separation |
+
+> **⚠️ Read all notes below before writing any Phase 4 code.** Several roadmap story ACs
+> are under-specified. These notes are the authoritative resolution for each gap — they
+> take precedence over any conflicting text in `TOXMAP_DEVELOPMENT_ROADMAP.md §Phase 4`.
+
+#### Story 4.1.1 — Superfund diamond markers
+
+**Diamond rendering approach (critical — not in roadmap AC):**
+
+MapLibre GL has no native diamond shape. You MUST use an SVG sprite registered at map load:
+
+```typescript
+// Register once in MapContainer.tsx, inside map.on('load', ...)
+const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14">
+  <rect x="1" y="1" width="12" height="12" rx="1"
+        fill="#ef4444" stroke="white" stroke-width="1.5"
+        transform="rotate(45 7 7)"/>
+</svg>`;
+const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+const url = URL.createObjectURL(blob);
+const img = new Image(14, 14);
+img.onload = () => { map.addImage('superfund-diamond', img); URL.revokeObjectURL(url); };
+img.src = url;
+```
+
+Add a **separate, unclustered symbol layer** — Superfund sites must NOT join the TRI cluster:
+
+```typescript
+map.addLayer({
+  id: 'superfund-sites',
+  type: 'symbol',
+  source: 'superfund-source',   // separate GeoJSON source, not 'tri-facilities'
+  layout: { 'icon-image': 'superfund-diamond', 'icon-allow-overlap': true },
+  filter: ['!', ['has', 'point_count']],
+});
+```
+
+**Color:** `#ef4444` (matches TRI large-release red, but shape differs — satisfies Invariant 6).
+
+**NPL fill vs. outline (from Fig 9):** NPL sites use a filled diamond. CERCLIS/Deleted sites
+use an outlined diamond (fill transparent, stroke `#ef4444`). Implement via two icon variants:
+`superfund-diamond-filled` (NPL) and `superfund-diamond-outline` (other statuses). Use a
+MapLibre `filter` expression to select between them by `status` property.
+
+#### Story 4.1.2 — Layer toggle in MapContentsPanel
+
+Add `data-testid="layer-toggle-superfund"` checkbox. When unchecked, set the `superfund-sites`
+layer visibility to `'none'`; when checked, set to `'visible'`. Default: visible (checked).
+
+#### Story 4.1.3 — Dataset radio + Superfund results table
+
+**Dataset radio: 2 options only (TRI, Superfund).** Screen catalog Fig 2015-4 shows
+2 tabs. No "Both" option — it is deferred. `dataset-radio-both` is removed from the
+TEST_ID_REGISTRY. The radio controls what the Search form submits, not which map layers
+are visible (layer visibility is the MapContentsPanel's job).
+
+**Superfund results table columns** (not specified in roadmap — this is the authoritative spec):
+
+When `dataset === 'superfund'`, the `ResultsTable` renders these columns:
+- Site name (`data-testid="results-row-name"`) — same testid as TRI mode
+- City, State — concatenated text
+- HRS score (`data-testid="results-row-hrs"`) — number or `"—"` if null
+- Status badge — `NPL` / `CERCLIS` / `Deleted` in a small `<span>`
+
+The `results-row-release` cell is hidden/absent in Superfund mode. The `results-row` testid
+remains the same (shared with TRI). T-04 only asserts that `results-row-name` contains
+`"AVTEX FIBERS INC"` — no assertion on HRS in the table.
+
+#### Story 4.2.1 — Superfund detail drawer
+
+Layout (from screen catalog Fig 10):
+1. Header: site name (bold) + EPA ID + address/city/state
+2. HRS score badge (`data-testid="superfund-hrs-score"`): a pill `<span>` with colored
+   background — **red** (`#ef4444`) for HRS ≥ 50, **amber** (`#f59e0b`) for HRS 28–50,
+   **green** (`#22c55e`) for HRS < 28. The seed AVTEX FIBERS site has HRS `50.51` → red.
+3. NPL date: formatted as `Listed: YYYY-MM-DD`
+4. Contaminants list (`data-testid="superfund-contaminants-list"`)
+5. EPA progress profile link (`data-testid="superfund-epa-progress-link"`)
+
+#### Story 4.2.2 — Contaminant ATSDR/PubChem links
+
+**The backend now enriches contaminants:** `GET /api/v1/superfund/{epa_id}` returns
+`contaminants: [{ name, cas_number, atsdr_url }]`. The backend joins against the
+`chemicals` table by name. `atsdr_url` and `cas_number` will be non-null when a matching
+TRI chemical exists; null otherwise.
+
+FE rule: if `atsdr_url` is non-null, render an `<a>` with `data-testid="superfund-contaminant-link"`,
+`href={atsdr_url}`, `target="_blank"`, `rel="noopener noreferrer"`. If `atsdr_url` is null,
+render the contaminant name as plain `<span>` text (no link). Never construct a URL from
+the name string directly.
+
+#### Story 4.2.3 — EPA Site Progress Profile link
+
+Render `<a href={epa_progress_url} target="_blank" rel="noopener noreferrer" data-testid="superfund-epa-progress-link">EPA Site Progress Profile</a>`.
+Hide this element if `epa_progress_url` is null.
+
+#### Story 4.3.1 — Unified legend
+
+**Placement:** inside `MapContentsPanel`, below the layer toggle checkboxes, visible only
+when at least one layer (TRI or Superfund) is active.
+
+**Content:** Two sections:
+
+*TRI Release Tiers* (4 rows, shown when TRI layer active):
+| Swatch | Label |
+|--------|-------|
+| `#22c55e` circle | < 1,000 lbs |
+| `#f59e0b` circle | 1,000 – 9,999 lbs |
+| `#ef4444`-outline circle (orange in API: `#f97316`) | 10,000 – 99,999 lbs |
+| `#ef4444` circle | ≥ 100,000 lbs |
+
+> Note: the `assign_color_band()` thresholds (from `backend/app/schemas/facility.py`) are:
+> green < 1,000 · yellow 1,000–9,999 · orange 10,000–99,999 · red ≥ 100,000.
+> Use those exact hex codes from the Marker Icon Design Reference table.
+
+*Superfund* (1 row, shown when Superfund layer active):
+| Swatch | Label |
+|--------|-------|
+| `#ef4444` diamond SVG | Superfund NPL site |
+
+Invariant 6 Playwright test does NOT assert the legend — it asserts marker shape/color
+directly. The legend is still required for story 4.3.1's AC.
+
+#### Story 4.3.2 — Hospital icon color (NO CODE REQUIRED)
+
+This story has no executable deliverable in Phase 4. No hospital layer is being built
+in any Phase 0–7 story. The design constraint (blue `#3b82f6` for hospitals, red
+reserved for hazard markers) is already documented in the screen catalog's Marker Icon
+Design Reference table. **Skip this story — deliver 0 points — do not create any
+hospital-related component.**
 
 ### Phase 5 (Demographics Overlay) — Your Stories
 | Story | What to Build |
@@ -144,6 +298,8 @@ Work items come from **`docs/product/TOXMAP_DEVELOPMENT_ROADMAP.md`** in the col
 - Hardcode unit strings (`%`, `$`) in the demographic legend — units come from the `meta.units` API response field.
 - Render the co-occurrence disclaimer on non-mortality demographic tabs.
 - Add text "Quick Search" or "Demographics" as a primary UI label.
+- Use `dangerouslySetInnerHTML` anywhere in `frontend/src/` — zero occurrences; CI grep enforces this. Use JSX `<a>` elements for the Photon/OSM attribution links.
+- Call `GET /api/v1/geocode` from React — geocoding is browser-direct to Photon (ADR-006); the backend endpoint is unused by the frontend.
 
 ### Screen Catalog Maintenance (Your Responsibility)
 When you ship a component that matches a screen in `TOXMAP_SCREEN_CATALOG.md`, verify your implementation matches the screenshot. If the NLM original screenshot cannot be matched exactly due to a documented ADR decision (e.g., color palette, layout constraint), add a note in the PR description with the reference: `SCREEN_CATALOG: [screen ID] intentionally differs — see ADR-001 §[section]`. Do NOT update the screen catalog itself — it is a read-only reference to the original 2006/2015 NLM TOXMAP design. If you believe the catalog is wrong, open a `[clarification-needed]` issue.
@@ -164,6 +320,18 @@ fix(frontend): comma-format release quantities in FacilityPopup [agent]
 feat(frontend): add DuckDB WASM radius query hook useDuckDBFacilities [agent]
 ```
 
+### CHANGELOG Rule (Mandatory)
+
+After every story is shipped, add **one line** to `CHANGELOG.md [Unreleased]` under the
+correct category (`Added`, `Changed`, `Fixed`, `Security`, etc.). This is mandatory — not
+optional. See `AGENTS.md §2` and V10-J in `docs/audits/TOXMAP_AGENTIC_AUDIT_V10.md`.
+
+```markdown
+### Added
+- `frontend/src/components/Sidebar.tsx` — collapsible single sidebar; MapContentsPanel
+  hidden when SearchPanel active (UX invariant 1, story 3.2.1, 2026-MM-DD) [agent]
+```
+
 ### Escalate (Open Issue + Stop Work) When:
 - A Playwright scenario cannot pass without changing the `data-testid` contract in `TEST_ID_REGISTRY.md` (which requires QA review)
 - A screen catalog screenshot directly contradicts a UX invariant
@@ -172,7 +340,7 @@ feat(frontend): add DuckDB WASM radius query hook useDuckDBFacilities [agent]
 - The DuckDB WASM spatial extension is missing a function needed for a story
 
 Open a GitHub issue tagged `[agent-escalation]` and stop work. **If GitHub write access is unavailable:** follow the 
-`ESCALATION_[YYYYMMDD_HHMMSS].md` file-based fallback defined in `AGENTS.md §12` — write the escalation file, 
+`docs/escalations/ESCALATION_[YYYYMMDD_HHMMSS].md` file-based fallback defined in `AGENTS.md §12` — write the escalation file under `docs/escalations/`,
 add an `# ASSUMPTION:` comment at the decision point in code, and mark the PR description with "⚠️ ESCALATION FILE 
 WRITTEN — human review required before merge."
 
@@ -194,6 +362,75 @@ frontend/src/api/*.ts     ← THE SEAM
 
 The seam is `frontend/src/lib/duckdbCompat.ts`. Every function in `frontend/src/api/` calls `resolveDataSource()` and routes accordingly. Build against `api` mode; DuckDB mode works automatically when the queries are written correctly.
 
+> **Exception — geocoding:** `frontend/src/api/geocode.ts` does NOT go through the seam.
+> It always calls Photon browser-direct (CORS-enabled, free, no API key).
+> In production DuckDB WASM mode, geocoding still uses Photon — this is intentional.
+
+### Geocoding Architecture (ADR-006)
+
+```
+User types location → click Search
+    │
+    ▼
+geocodeLocation(location)    ← frontend/src/api/geocode.ts
+    │
+    ├─ cache hit?  → return cached GeocodeResult instantly (zero network)
+    │
+    └─ cache miss → throttle (≥ 1s since last call)
+                  → fetch https://photon.komoot.io/api/?q=...
+                  → parse GeoJSON features[0].geometry.coordinates → [lon, lat]
+                  → cache result
+                  → return GeocodeResult { lat, lon, displayName }
+
+Attribution:  DataVintageLabel renders PHOTON_ATTRIBUTION as JSX <a> links in map footer
+```
+
+**Why browser-direct?** The FastAPI backend's Docker container cannot reach external HTTPS
+endpoints reliably (corporate SSL inspection proxy). Browser `fetch()` uses the host OS
+certificate store and the end-user's residential/business IP — both bypass these constraints.
+
+### Viewport-Scoping Race Condition Pattern
+
+When a new search is submitted, reset `mapBbox` to `null` BEFORE setting `submittedSearch`:
+
+```typescript
+// App.tsx — handleSearchSubmit
+setMapBbox(null)           // ← prevents stale viewport from filtering out results
+setSubmittedSearch({ ... })
+setViewState({ zoom: 10, ... })
+```
+
+Pass `AbortSignal` to every `fetch()` call in `useViewportFacilities`:
+
+```typescript
+// api/facilities.ts
+export async function fetchFacilities(params: SearchParams, signal?: AbortSignal) {
+  const res = await fetch(url, signal ? { signal } : {})
+  ...
+}
+// hooks/useViewportFacilities.ts
+const controller = new AbortController()
+abortRef.current = controller
+fetchFacilities(p, controller.signal)
+```
+
+This ensures that when the map zooms after a search (triggering a second request with the
+updated viewport bbox), the first request is properly cancelled rather than overwriting
+correct results with stale data.
+
+### Tailwind CSS + Docker Volume Mount
+
+`tailwind.config.js` and `postcss.config.js` live in `frontend/` root. The Docker volume
+only mounts `./frontend/src:/app/src`. This means:
+
+- Changes to `tailwind.config.js` / `postcss.config.js` require `docker compose build frontend`
+- Changes to any `src/**` file are picked up immediately by Vite HMR
+- **Workaround for Tailwind not loading:** `src/index.css` contains complete vanilla CSS
+  fallbacks (via `.toxmap-*` classes and inline styles on critical layout elements) that render
+  correctly even when Tailwind PostCSS is not configured. Do not remove these fallbacks.
+- When adding new components in future phases, follow the same pattern: Tailwind classes for
+  semantic reference + inline `style={{}}` for critical layout (position, height, z-index).
+
 ### DuckDB WASM Key Rules
 - Initialize in a Web Worker — never block the UI thread.
 - Run `INSTALL spatial; LOAD spatial;` before any spatial query.
@@ -214,18 +451,26 @@ frontend/
 ├── src/
 │   ├── App.tsx
 │   ├── main.tsx
+│   ├── index.css                         ← Tailwind directives + vanilla CSS fallbacks (both required)
+│   ├── vite-env.d.ts                     ← typed ImportMeta.env declarations
 │   ├── lib/
 │   │   └── duckdbCompat.ts       ← resolveDataSource(), isDuckDBWasmSupported()
 │   ├── api/                      ← Typed clients; one file per domain
-│   │   ├── facilities.ts
+│   │   ├── types.ts              ← shared TypeScript types (FacilityFeature, Chemical, etc.)
+│   │   ├── facilities.ts         ← accepts AbortSignal to prevent race conditions
 │   │   ├── chemicals.ts
 │   │   ├── superfund.ts
 │   │   ├── demographics.ts
-│   │   └── export.ts
+│   │   ├── export.ts
+│   │   ├── meta.ts
+│   │   └── geocode.ts            ← Photon browser-direct; cache + throttle + attribution (ADR-006)
 │   ├── hooks/
-│   │   ├── useViewportFacilities.ts
+│   │   ├── useViewportFacilities.ts  ← threads AbortSignal; reset bbox on new search
 │   │   ├── useChemicalAutocomplete.ts
-│   │   └── useGeocode.ts
+│   │   ├── useFacilityDetail.ts
+│   │   ├── useFacilityReleases.ts
+│   │   ├── useMeta.ts
+│   │   └── useGeocode.ts             ← (stub; actual geocoding is in api/geocode.ts)
 │   ├── components/
 │   │   ├── Map/
 │   │   ├── Sidebar/
@@ -237,13 +482,17 @@ frontend/
 │   │   ├── IconToolbar/
 │   │   ├── Legend/
 │   │   ├── Charts/
+│   │   ├── DataVintageLabel.tsx  ← renders data vintage + Photon/OSM attribution (ADR-006)
 │   │   └── Onboarding/
+│   ├── ResultsTable/
 │   └── utils/
 │       └── formatLbs.ts          ← comma-formatting for ALL release quantities
 ├── package.json                  ← Full spec in ADR-001 Appendix B; note: do NOT install @playwright/test — E2E tests run via pytest-playwright (Python)
 ├── vite.config.ts
+├── tailwind.config.js            ← NOT volume-mounted in Docker; changes require image rebuild
+├── postcss.config.js             ← NOT volume-mounted in Docker; changes require image rebuild
 ├── tsconfig.json
-├── tailwind.config.js
+├── .eslintrc.cjs                 ← NOT volume-mounted; eslint-plugin-react not installed; dangerouslySetInnerHTML enforced by CI grep
 └── Dockerfile
 ```
 

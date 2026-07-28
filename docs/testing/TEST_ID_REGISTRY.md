@@ -44,7 +44,7 @@
 | `search-submit-btn`            | Search `<button>`                          | `"I click Search"`                          |
 | `dataset-radio-tri`            | TRI radio button                           | T-04 dataset switch                         |
 | `dataset-radio-superfund`      | Superfund radio button                     | T-02, T-04                                  |
-| `dataset-radio-both`           | Both datasets radio                        | combined search                             |
+| ~~`dataset-radio-both`~~       | *(Deferred — screen catalog Fig 2015-4 shows 2 tabs only; no acceptance test covers a "Both" combined search; Invariant 6 is satisfied via MapContentsPanel layer checkboxes, not the search radio)* | — |
 
 ---
 
@@ -55,7 +55,8 @@
 | `results-table`       | `<ResultsTable>` root  | UX Invariant 2 — empty row check  |
 | `results-row`         | Each `<tr>` in results | `"every row has a facility name"` |
 | `results-row-name`    | Facility name `<td>`   | facility name assertions          |
-| `results-row-release` | Release amount `<td>`  | comma-format assertions           |
+| `results-row-release` | Release amount `<td>` (TRI mode)    | comma-format assertions           |
+| `results-row-hrs`     | HRS score `<td>` (Superfund mode)   | Superfund results — T-04 *(col replaces release when dataset=superfund)* |
 
 ---
 
@@ -80,6 +81,7 @@
 |-------------------------------|----------------------------|--------------------------------------------------|
 | `superfund-detail-panel`      | Superfund drawer root      | T-04                                             |
 | `superfund-contaminants-list` | Contaminant `<ul>`         | `"contaminants list containing STYRENE"`         |
+| `superfund-contaminant-link`  | ATSDR `<a>` per contaminant (rendered when `atsdr_url` non-null) | T-04 ATSDR link per contaminant |
 | `superfund-epa-progress-link` | EPA progress profile `<a>` | T-04 — `"link to the EPA site progress profile"` |
 | `superfund-hrs-score`         | HRS score badge            | HRS score assertion                              |
 

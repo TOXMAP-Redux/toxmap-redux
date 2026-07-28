@@ -1,0 +1,44 @@
+name: Agent Escalation
+description: An AI agent encountered a blocker it cannot resolve autonomously and requires human review
+labels: ["agent-escalation", "needs-human-review"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue was created by an AI coding agent per AGENTS.md §12 (escalation protocol).
+        A human maintainer must review and respond before the agent can continue.
+  - type: input
+    id: agent-role
+    attributes:
+      label: Agent Role
+      description: Which agent filed this escalation? (OPS / BE / DE / FE / QA / SEC / PM)
+      placeholder: e.g., QA
+    validations:
+      required: true
+  - type: input
+    id: story-id
+    attributes:
+      label: Story ID
+      description: Which story is blocked?
+      placeholder: e.g., 1.2.3
+    validations:
+      required: true
+  - type: textarea
+    id: trigger
+    attributes:
+      label: Escalation Trigger
+      description: Which condition from AGENTS.md §12 was met?
+    validations:
+      required: true
+  - type: textarea
+    id: blocked-change
+    attributes:
+      label: Blocked Change
+      description: What exactly cannot proceed?
+    validations:
+      required: true
+  - type: textarea
+    id: recommendation
+    attributes:
+      label: Recommended Resolution
+      description: Agent's suggested path forward for human review

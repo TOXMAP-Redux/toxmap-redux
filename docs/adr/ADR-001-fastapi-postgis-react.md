@@ -151,6 +151,13 @@ GET  /api/v1/facilities
      &state=WA&restrict_to_state=true   # UCD 2011: state restricts, not just zooms
      → GeoJSON FeatureCollection (color-coded by total_release_lbs)
 
+# TRI Facilities — browse mode (all facilities, no radius constraint)
+# Added 2026-07-28: Used for initial map view before any search is submitted.
+# MapLibre handles viewport subsetting client-side from the full ~22k dataset.
+GET  /api/v1/facilities/browse
+     ?year=2022&chemical=lead&medium=air&state=WA
+     → GeoJSON FeatureCollection (same shape as /facilities)
+
 GET  /api/v1/facilities/{tri_facility_id}
      → Facility detail JSON
 
@@ -171,6 +178,11 @@ GET  /api/v1/releases/largest?chemical=chlorine
      → Top facility nationwide for chlorine
 
 # Superfund / NPL overlay (NLM 2006 enhancement)
+# Browse mode: all Superfund sites, no radius constraint (added 2026-07-28)
+# Used for the always-on diamond layer on the map
+GET  /api/v1/superfund/browse
+     ?status=NPL&state=CA
+     → GeoJSON with all sites (MapLibre handles viewport subsetting)
 GET  /api/v1/superfund
      ?lat=47.6&lon=-122.3&radius_miles=25
      → GeoJSON with HRS score, cleanup status, contaminants
@@ -729,7 +741,7 @@ VITE_API_BASE_URL=http://localhost:8000
 VITE_DATA_SOURCE=api                        # "api" | "duckdb"
 VITE_R2_BASE_URL=https://pub-XXXXX.r2.dev  # Cloudflare R2 public URL
 VITE_MAPLIBRE_STYLE=http://localhost:8080/styles/basic.json
-VITE_NOMINATIM_UA=toxmap-clone/0.1 (github.com/your-org/toxmap)
+VITE_NOMINATIM_UA=toxmap-clone/0.1 (github.com/TOXMAP-Redux/toxmap-redux)
 ```
 
 ---

@@ -204,6 +204,18 @@ feat(security): add semgrep OWASP-Top-Ten job to security.yml [agent]
 docs(security): document accepted risk for CSP report-uri absence [agent]
 ```
 
+### CHANGELOG Rule (Mandatory)
+
+After every story is shipped, add **one line** to `CHANGELOG.md [Unreleased]` under the
+correct category. Security changes go under `### Security`. This is mandatory — not optional.
+See `AGENTS.md §2` and V10-J in `docs/audits/TOXMAP_AGENTIC_AUDIT_V10.md`.
+
+```markdown
+### Security
+- All third-party GitHub Actions pinned to full 40-char SHA; documented in
+  `docs/security/PINNED_ACTIONS.md` (story 0.5.4, 2026-MM-DD) [agent]
+```
+
 ### Escalate (Open Issue + Stop Work) When:
 - A dependency has a Critical CVE (CVSS ≥ 9.0) and no patched version is available in the required major version
 - Implementing a security control requires adding a new endpoint not in `TOXMAP_API_CONTRACT.md`
@@ -212,7 +224,7 @@ docs(security): document accepted risk for CSP report-uri absence [agent]
 - `gitleaks` identifies a potential secret in git commit history (requires git history rewrite — escalate immediately to Maintainer; do not attempt to rewrite history yourself)
 - Implementing rate limiting for geospatial endpoints requires a persistent store (Redis/Memcached) that would exceed the $0 budget constraint
 
-Open a GitHub issue tagged `[agent-escalation]` and stop work. **If GitHub write access is unavailable:** follow the `ESCALATION_[YYYYMMDD_HHMMSS].md` file-based fallback defined in `AGENTS.md §12` — write the escalation file, add an `# ASSUMPTION:` comment at the decision point in code, and mark the PR description with "⚠️ ESCALATION FILE WRITTEN — human review required before merge."
+Open a GitHub issue tagged `[agent-escalation]` and stop work. **If GitHub write access is unavailable:** follow the `docs/escalations/ESCALATION_[YYYYMMDD_HHMMSS].md` file-based fallback defined in `AGENTS.md §12` — write the escalation file under `docs/escalations/`, add an `# ASSUMPTION:` comment at the decision point in code, and mark the PR description with "⚠️ ESCALATION FILE WRITTEN — human review required before merge."
 
 ---
 

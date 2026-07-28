@@ -53,12 +53,14 @@ API responses return raw `float` values. **The frontend** is responsible for com
 | Method | Path                                            | Description                                     | Layer           |
 |--------|-------------------------------------------------|-------------------------------------------------|-----------------|
 | GET    | `/api/v1/facilities`                            | Radius + viewport search                        | TRI Core        |
+| GET    | `/api/v1/facilities/browse`                     | Browse mode — all facilities (no radius)        | TRI Core        |
 | GET    | `/api/v1/facilities/{tri_facility_id}`          | Facility detail                                 | TRI Core        |
 | GET    | `/api/v1/facilities/{tri_facility_id}/releases` | Time series                                     | TRI Core        |
 | GET    | `/api/v1/releases/largest`                      | Largest release by chemical ± state             | TRI Core        |
 | GET    | `/api/v1/chemicals`                             | Full chemical list                              | Chemicals       |
 | GET    | `/api/v1/chemicals/search`                      | Auto-complete                                   | Chemicals       |
 | GET    | `/api/v1/geocode`                               | Address → lat/lon (Nominatim proxy) ⚠️ dev only | Geocoding       |
+| GET    | `/api/v1/superfund/browse`                      | Browse mode — all Superfund sites (no radius)   | Superfund       |
 | GET    | `/api/v1/superfund`                             | Superfund radius search                         | Superfund       |
 | GET    | `/api/v1/superfund/{epa_id}`                    | Superfund site detail                           | Superfund       |
 | GET    | `/api/v1/demographics/county`                   | County polygons + demographics                  | Demographics    |
@@ -158,6 +160,64 @@ API responses return raw `float` values. **The frontend** is responsible for com
 | 400    | `limit` > 2000         | `{"detail": "limit cannot exceed 2000", "code": "LIMIT_TOO_LARGE", "field": "limit"}`                             |
 | 400    | Invalid `medium` value | `{"detail": "medium must be one of: air, water, land, underground", "code": "INVALID_MEDIUM", "field": "medium"}` |
 | 422    | Non-numeric `lat`      | `{"detail": "value is not a valid float", "code": "TYPE_ERROR", "field": "lat"}`                                  |
+
+---
+
+## 1b. `GET /api/v1/facilities/browse`
+
+**Description:** Browse mode endpoint for the map's initial view. Returns ALL TRI facilities without radius constraint. Used when no search has been submitted — MapLibre handles viewport subsetting client-side.
+
+> **Added 2026-07-28:** The original `/api/v1/facilities` endpoint requires `lat`, `lon`, and `radius_miles`. This made browse mode impossible without a fixed center point. The 500-mile radius cap meant only ~500 facilities (central US) could be loaded. This endpoint removes that constraint.
+
+### Request Parameters
+
+| Parameter | Type   | Required | Default | Description                                                   |
+|-----------|--------|----------|---------|---------------------------------------------------------------|
+| `year`    | int    | ❌        | latest  | TRI reporting year (1987–present)                             |
+| `chemical`| string | ❌        | null    | Chemical name (case-insensitive, partial match)               |
+| `medium`  | string | ❌        | null    | One of: `air`, `water`, `land`, `underground`                 |
+| `state`   | string | ❌        | null    | Two-letter state code (e.g., `CA`)                            |
+| `limit`   | int    | ❌        | `30000` | Max features returned (1–30000). Default returns all US facilities. |
+
+### Success Response — 200
+
+Same GeoJSON FeatureCollection shape as `/api/v1/facilities`. The `meta.query` echoes browse-mode params instead of spatial params:
+
+```json
+{
+  "type": "FeatureCollection",
+  "features": [ /* ... 21,889 features ... */ ],
+  "meta": {
+    "total_count": 21889,
+    "returned_count": 21889,
+    "truncated": false,
+    "query": {
+      "browse_all": true,
+      "year": null,
+      "chemical": null,
+      "medium": null,
+      "state": null,
+      "limit": 30000
+    }
+  }
+}
+```
+
+### Frontend Usage
+
+```typescript
+// Browse mode (no search submitted): fetch all facilities
+const { data } = useMapFacilities(null)  // null triggers browse endpoint
+
+// Search mode (user submitted a search): fetch within radius
+const { data } = useMapFacilities({ lat, lon, radiusMiles: 25, ... })
+```
+
+### Performance Notes
+
+- **Payload size:** ~22k facilities × ~200 bytes = ~4.4 MB (gzipped ~600 KB)
+- **Response time:** < 2s (single PostGIS query, no spatial constraint)
+- **Caching:** Frontend fetches once per session; MapLibre handles viewport rendering
 
 ---
 
@@ -383,7 +443,59 @@ None.
 
 ---
 
-## 7. `GET /api/v1/superfund`
+## 7. `GET /api/v1/superfund/browse`
+
+**Description:** Browse mode endpoint for the Superfund always-on map layer. Returns ALL Superfund/NPL sites without radius constraint. Used for the diamond layer on the map — MapLibre handles viewport subsetting client-side.
+
+> **Added 2026-07-28:** Mirrors the TRI `/api/v1/facilities/browse` pattern. The original `/api/v1/superfund` endpoint requires `lat`, `lon`, and `radius_miles` capped at 500. This made the always-on layer impossible without viewport-driven refetching. This endpoint removes that constraint.
+
+### Request Parameters
+
+| Parameter | Type   | Required | Default | Description                                   |
+|-----------|--------|----------|---------|-----------------------------------------------|
+| `status`  | string | ❌        | null    | One of: `NPL`, `CERCLIS`, `Deleted`           |
+| `state`   | string | ❌        | null    | Two-letter state code (e.g., `CA`)            |
+| `limit`   | int    | ❌        | `5000`  | Max features returned (1–5000). Default returns all US sites. |
+
+### Success Response — 200
+
+Same GeoJSON FeatureCollection shape as `/api/v1/superfund`. The `meta.query` echoes browse-mode params instead of spatial params:
+
+```json
+{
+  "type": "FeatureCollection",
+  "features": [ /* ... ~1,700 features ... */ ],
+  "meta": {
+    "total_count": 1742,
+    "query": {
+      "browse_all": true,
+      "status": null,
+      "state": null,
+      "limit": 5000
+    }
+  }
+}
+```
+
+### Frontend Usage
+
+```typescript
+// Always-on Superfund layer: fetch all sites once
+const { data } = useSuperfundViewport()  // no params → browse endpoint
+
+// Search mode (user submitted a Superfund search): fetch within radius
+const { data } = useSuperfundSearch({ lat, lon, radiusMiles: 25, ... })
+```
+
+### Performance Notes
+
+- **Payload size:** ~1,700 sites × ~200 bytes = ~340 KB (gzipped ~50 KB)
+- **Response time:** < 500ms (single PostGIS query, no spatial constraint)
+- **Caching:** Frontend fetches once on mount; MapLibre handles viewport rendering
+
+---
+
+## 7b. `GET /api/v1/superfund`
 
 **Description:** Search for Superfund/NPL sites by location. Returns GeoJSON FeatureCollection with diamond markers.
 

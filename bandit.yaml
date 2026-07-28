@@ -1,0 +1,29 @@
+# bandit.yaml — TOXMAP static security analysis configuration
+#
+# Used by: .github/workflows/security.yml bandit job
+# Scope: backend/app/ (production code only)
+# Severity threshold: Medium and above are hard CI failures
+#
+# V10-F (2026-07-25): Created as a pre-Phase-2 deliverable to prevent B101 false positives
+# from blocking Phase 2 CI the moment bandit is activated against ingestion code.
+#
+# To suppress a finding in production code, follow the procedure in AGENTS.md §11:
+#   1. Use inline `# nosec B<RULE_ID>` (specify the rule ID — bare `# nosec` is rejected)
+#   2. Add an entry to docs/security/FINDINGS_REGISTER.md before opening the PR
+#   3. A PR with a `# nosec` comment and no FINDINGS_REGISTER entry will fail CI
+
+skips:
+  # B101: Use of assert detected
+  # Rationale: assert statements in test code (tests/*) are intentional. bandit scans
+  # are run against backend/app/ and backend/ingestion/ — test files are NOT in scope.
+  # This skip covers any assert that may appear in utility/helper code that is also used
+  # by tests. If bandit is ever expanded to scan tests/, reconsider this skip.
+  - B101
+
+# Test-file exclusions (belt-and-suspenders in case scan scope ever widens)
+assert_used:
+  skips:
+    - "*/tests/*"
+    - "*/tests/**/*"
+    - "*_test.py"
+    - "test_*.py"

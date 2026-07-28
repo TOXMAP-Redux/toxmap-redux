@@ -1,0 +1,75 @@
+# TOXMAP — Local Development Stack
+# Usage: docker compose up
+# All services must be healthy within 60 seconds (Phase 0 DoD).
+#
+# Environment: copy backend/.env.example → backend/.env before first run
+# Seed data: loaded automatically on first postgres start from tests/fixtures/seed.sql
+# Note: seed.sql TRUNCATE will fail on first start (tables don't exist until
+#       Phase 1 Alembic migrations run). This is expected and safe to ignore.
+
+services:
+
+  # ── PostgreSQL 16 + PostGIS 3.4 ────────────────────────────────────────────
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: toxmap-postgres
+    environment:
+      POSTGRES_DB: toxmap
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"   # mapped to 5433 to avoid conflict with a local Postgres on 5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./tests/fixtures/seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d toxmap"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  # ── FastAPI Backend ─────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: toxmap-backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/toxmap
+      DATABASE_URL_SYNC: postgresql+psycopg2://postgres:postgres@postgres:5432/toxmap
+      ALLOWED_ORIGINS: "http://localhost:3000"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app        # hot-reload: uvicorn restarts on .py file changes
+      - ./tests:/app/tests    # test suite accessible inside container for pytest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    restart: unless-stopped
+
+  # ── React Frontend (Vite dev server) ────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: toxmap-frontend
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+      VITE_DATA_SOURCE: api
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src  # hot-reload for source files
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

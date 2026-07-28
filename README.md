@@ -129,7 +129,7 @@ All data is public domain or open-access. No synthetic data is ever served to us
 | **EPA Toxic Release Inventory (TRI)** | [EPA TRI Program](https://www.epa.gov/toxics-release-inventory-tri-program) | 1987–present · ~700K records/year | Annual (July; pipeline runs August, October, April) |
 | **EPA Superfund / National Priorities List** | [EPA CERCLIS/SEMS](https://www.epa.gov/superfund/superfund-data-and-reports) | ~1,500 active NPL sites | Quarterly |
 | **U.S. Census Demographics** | [Census TIGER/Line ACS 5-Year](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html) | County + tract level | Decennial + ACS annual |
-| **Basemap tiles** | [Protomaps](https://protomaps.com/) (PMTiles) | US national | Quarterly |
+| **Basemap tiles** | [OpenFreeMap](https://openfreemap.org/) (hosted vector tiles) | Global | Continuous (OSM-derived) |
 
 ### Data Provenance Policy
 
@@ -149,10 +149,10 @@ The project is built in **8 sequential phases** with objective Definition-of-Don
 
 | Phase | Name | Status | Milestone | Story Points |
 |-------|------|--------|-----------|-------------|
-| **0** | Foundation — Repo, Docker, CI, security baseline | 🔄 In Progress | M0 — Dev Environment Ready | 33 |
-| **1** | Data Pipeline — TRI + Superfund + Census → PostGIS + Parquet | ⬜ | M1 — Data Pipeline Working | 48 |
-| **2** | Core API — 17 domain endpoints + `/api/v1/meta` | ⬜ | M2 — Core API Green | 62 |
-| **3** | Core Map UI — Map, search, TRI markers, T-01/T-03/T-08 E2E pass | ⬜ | M3 — First Shareable Demo | 72 |
+| **0** | Foundation — Repo, Docker, CI, security baseline | ✅ | M0 — Dev Environment Ready | 33 |
+| **1** | Data Pipeline — TRI + Superfund + Census → PostGIS + Parquet | ✅ | M1 — Data Pipeline Working | 48 |
+| **2** | Core API — 17 domain endpoints + `/api/v1/meta` | ✅ | M2 — Core API Green | 62 |
+| **3** | Core Map UI — Map, search, TRI markers, T-01/T-03/T-08 E2E pass | 🔄 In Progress | M3 — First Shareable Demo | 72 |
 | **4** | Superfund Overlay — Diamond markers, T-02/T-04 E2E pass | ⬜ | M4 — Superfund Layer | 21 |
 | **5** | Demographics Layer — Census choropleth, T-05/T-06/T-09 E2E pass | ⬜ | M5 — Demographics Layer | 33 |
 | **6** | Full QA Pass — All Gherkin green, SLAs met, security regression | ⬜ | M6 — Feature Complete | 51 |

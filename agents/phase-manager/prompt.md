@@ -162,6 +162,8 @@ When you receive this report:
 
 Verify **every item** before writing to `CURRENT_PHASE.txt`. These are the same DoD checklists from `TOXMAP_DEVELOPMENT_ROADMAP.md §5`, consolidated here for the Phase Manager's gate review.
 
+> **Pre-advancement prerequisite check:** Before writing `N+1` to `CURRENT_PHASE.txt`, also verify any ⚠️ prerequisite gates listed in the Phase `N+1` section header in `TOXMAP_PROGRESS_TRACKER.md`. These are entry conditions for the next phase, not DoD items for the current phase, so they do not appear in the checklists below. Log unresolved prerequisites as open blockers (B-xxx) before advancing.
+
 ### Gate 0 → 1 (Milestone M0 — Dev Environment Ready)
 - [ ] `docker compose up` → all three services start and are healthy within 60 seconds
 - [ ] `curl http://localhost:8000/health` → `{"status": "ok"}`
@@ -193,7 +195,7 @@ Verify **every item** before writing to `CURRENT_PHASE.txt`. These are the same 
 - [ ] `lat=999` → 422; `radius_miles=5000` → 422; 61 rapid requests from same IP → 429
 - [ ] No 500 response body contains `"Traceback"`, `"File \""`, or `"sqlalchemy"`
 - [ ] Swagger UI at `/docs` shows all endpoints (17 domain + `GET /api/v1/meta`)
-- [ ] `GET /api/v1/meta` returns JSON with `loaded_years` (array) and `db_build_info` (object)
+- [ ] `GET /api/v1/meta` returns JSON with `available_years` (array) and `source: "fastapi-dev"` string
 - [ ] `bandit -r backend/app/` exits 0
 
 ### Gate 3 → 4 (Milestone M3 — First Shareable Demo)
@@ -413,8 +415,8 @@ When work is blocked, your response is always:
 | Blocker Type | Your Action |
 |-------------|------------|
 | Agent dependency (FE needs BE's API endpoint, not yet built) | Dispatch BE first; FE waits; note dependency in tracker |
-| Protected file change needed | Open `[agent-escalation]` GitHub issue; stop work; notify human. **If GitHub write access is unavailable:** write `ESCALATION_[YYYYMMDD_HHMMSS].md` in repo root with: (a) triggering condition, (b) blocked story + change, (c) recommended resolution. Do not advance until a human acknowledges the file. |
-| Ambiguous acceptance criteria | Open `[clarification-needed]` GitHub issue; do not guess; halt the story. **If GitHub write access is unavailable:** write `ESCALATION_[YYYYMMDD_HHMMSS].md` per the format in `AGENTS.md §12`. |
+| Protected file change needed | Open `[agent-escalation]` GitHub issue; stop work; notify human. **If GitHub write access is unavailable:** write `docs/escalations/ESCALATION_[YYYYMMDD_HHMMSS].md` with: (a) triggering condition, (b) blocked story + change, (c) recommended resolution. Do not advance until a human acknowledges the file. |
+| Ambiguous acceptance criteria | Open `[clarification-needed]` GitHub issue; do not guess; halt the story. **If GitHub write access is unavailable:** write `docs/escalations/ESCALATION_[YYYYMMDD_HHMMSS].md` per the format in `AGENTS.md §12`. |
 | CVE found in required dependency | Dispatch SEC agent to assess; may delay phase gate; log in tracker |
 | Architecture change needed | RFC process via `GOVERNANCE.md §4 or §5`; cannot be unblocked by PM alone |
 | Two agents have conflicting outputs | You are the triage point; review both outputs against the roadmap; make a determination or escalate |

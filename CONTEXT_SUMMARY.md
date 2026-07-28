@@ -8,15 +8,17 @@
 > - **Full session**: load this file *alongside* files 1–8 — it supplements the full context load, not replaces it
 > - **Always load:** `CURRENT_PHASE.txt` and `TOXMAP_PROGRESS_TRACKER.md` regardless of context size — they are Priority 0
 
-**Last Updated:** 2026-07-21
+**Last Updated:** 2026-07-28
 
 ---
 
 ## Current Phase
 
 ```
-cat CURRENT_PHASE.txt   → 0  (Foundation)
+cat CURRENT_PHASE.txt   → 4  (Superfund Overlay)
 ```
+
+Active milestone: **M4 — Superfund Layer** (Phase 3 complete 2026-07-27; Phase 4 in progress)
 
 Full status: `docs/product/TOXMAP_PROGRESS_TRACKER.md`
 
@@ -26,10 +28,28 @@ Full status: `docs/product/TOXMAP_PROGRESS_TRACKER.md`
 
 - **Backend:** Python 3.12 + FastAPI + SQLAlchemy 2.x async + PostGIS 3.4
 - **Frontend:** React 18 + TypeScript + Vite + MapLibre GL JS + Tailwind CSS
+- **Geocoding:** Photon (photon.komoot.io) — browser-direct, no API key, OSM-backed (ADR-006). Cache + throttle + attribution in `api/geocode.ts`. FastAPI `GET /api/v1/geocode` retained but unused by frontend.
 - **Production:** DuckDB WASM + Cloudflare Pages + Cloudflare R2 ($0/month)
 - **Tests:** pytest-bdd (Gherkin) + pytest-playwright + Schemathesis
 
 Do not deviate from this stack without a new ADR and maintainer RFC.
+
+---
+
+## Map Data Flow (2026-07-28)
+
+```
+TRI Browse mode ────────► GET /api/v1/facilities/browse ────► All ~22k facilities
+Superfund Browse ───────► GET /api/v1/superfund/browse ─────► All ~1.7k sites
+                                                             │
+Search mode (submitted) ► GET /api/v1/{facilities|superfund}?lat=...&radius=... ► Radius-filtered results
+```
+
+- **Browse mode:** Both layers fetch all data once via `/browse` endpoints (no radius constraint)
+- **Search mode:** Frontend passes `{ lat, lon, radiusMiles, ... }` → hooks call radius endpoints
+- **Viewport rendering:** MapLibre handles viewport clipping automatically from full datasets
+- **TRI toggle:** `setLayoutProperty('facility-circles', 'visibility', ...)`
+- **Superfund toggle:** `setLayoutProperty('superfund-sites', 'visibility', ...)`
 
 ---
 
@@ -77,6 +97,10 @@ These come from a peer-reviewed NLM study. Do not alter them under any circumsta
 
 ## 11 Protected Files (Read-Only for Agents)
 
+> **2026-07-28 note:** Maintainer granted permission to update all protected files to
+> reflect Superfund browse endpoint architecture changes (matching TRI browse pattern).
+> Future sessions should treat this list as read-only again.
+
 ```
 TOXMAP_API_CONTRACT.md
 TOXMAP_ACCEPTANCE_TESTS.md
@@ -92,7 +116,7 @@ SECURITY.md
 ```
 
 If a change to any of these seems required, open a `[clarification-needed]` issue (or write
-`ESCALATION_[timestamp].md` if GitHub write access is unavailable) and stop.
+`docs/escalations/ESCALATION_[timestamp].md` if GitHub write access is unavailable) and stop.
 
 ---
 

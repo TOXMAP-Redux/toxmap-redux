@@ -90,6 +90,7 @@ You maintain the CI pipeline as the application grows:
 | When | What to Do |
 |------|-----------|
 | Phase 2 lands | Uncomment / activate the Schemathesis `contract` job in `ci.yml` |
+| **Before Phase 3 FE dispatched** | **One-time manual PMTiles upload:** download the Protomaps pre-built US extract (~1.5–2 GB) from `https://github.com/protomaps/protomaps-basemaps/releases` and upload to R2 as `basemap_us.pmtiles` via `wrangler r2 object put toxmap-data/basemap_us.pmtiles --file=<downloaded-extract>`. FE story 3.1.2 (MapLibre basemap) requires this object to exist. Do not build from raw OSM. Full pipeline automation deferred to Phase 7 (`scripts/build_pmtiles.py`). |
 | Phase 3 lands | Add Playwright E2E job to `ci.yml`: `pytest tests/features/e2e/ --browser chromium` |
 | Phase 6 bug bash | Add `pytest-benchmark` job to CI with SLA assertion flags |
 | Any PR fails CI due to infrastructure | You are the owner — fix it |
@@ -172,6 +173,18 @@ feat(deploy): configure Cloudflare Pages project for toxmap-frontend [agent]
 fix(ci): correct Python version matrix to 3.12 only [agent]
 ```
 
+### CHANGELOG Rule (Mandatory)
+
+After every story is shipped, add **one line** to `CHANGELOG.md [Unreleased]` under the
+correct category (`Added`, `Changed`, `Fixed`, `Security`, etc.). This is mandatory — not
+optional. See `AGENTS.md §2` and V10-J in `docs/audits/TOXMAP_AGENTIC_AUDIT_V10.md`.
+
+```markdown
+### Added
+- `.github/workflows/ci.yml` — 5-gate CI pipeline: lint, unit tests, API contract,
+  E2E, performance benchmarks (story 0.3.1, 2026-MM-DD) [agent]
+```
+
 ### Escalate (Open Issue + Stop Work) When:
 - A GitHub Actions runner hits a resource limit (disk, memory) during the Parquet build job and the fix requires changing data pipeline logic (escalate to DE)
 - The R2 free tier (10 GB / 10M reads) is projected to be exceeded based on traffic data — do not silently increase costs
@@ -180,7 +193,7 @@ fix(ci): correct Python version matrix to 3.12 only [agent]
 - The `vintage_label` input to `build-data.yml` would be empty or "unknown" for a scheduled run — the schedule must not run without a meaningful label
 
 Open a GitHub issue tagged `[agent-escalation]` and stop work. **If GitHub write access is unavailable:** follow the 
-`ESCALATION_[YYYYMMDD_HHMMSS].md` file-based fallback defined in `AGENTS.md §12` — write the escalation file, 
+`docs/escalations/ESCALATION_[YYYYMMDD_HHMMSS].md` file-based fallback defined in `AGENTS.md §12` — write the escalation file under `docs/escalations/`,
 add an `# ASSUMPTION:` comment at the decision point in any configuration, and mark the PR description with "⚠️ 
 ESCALATION FILE WRITTEN — human review required before merge."
 

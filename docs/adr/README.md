@@ -1,6 +1,6 @@
 # ADR Status Index
 
-**Last updated:** 2026-07-16  
+**Last updated:** 2026-07-27  
 **Purpose:** Single source of truth for the current status of every Architecture Decision Record. Agents and contributors MUST consult this file before treating any ADR as authoritative.
 
 ---
@@ -24,6 +24,8 @@
 | [ADR-002](ADR-002-spring-modulith-postgis.md)   | Java · Spring Modulith · PostGIS · React/MapLibre    | **❌ Rejected** | —          | ADR-001       | 2026-07-16 |
 | [ADR-003](ADR-003-nextjs-serverless-postgis.md) | Next.js · Node API · Supabase/PostGIS · MapLibre     | **❌ Rejected** | —          | ADR-001       | 2026-07-16 |
 | [ADR-004](ADR-004-zero-budget-hosting.md)       | Zero-Budget Hosting (Cloudflare Pages + DuckDB WASM) | **✅ Accepted** | —          | —             | 2026-07-16 |
+| [ADR-005](ADR-005-openfreemap-basemap-tiles.md) | OpenFreeMap Hosted Tiles for MapLibre Basemap        | **✅ Accepted** | —          | —             | 2026-07-27 |
+| [ADR-006](ADR-006-photon-geocoding.md)          | Photon (Komoot) for Browser-Direct Geocoding         | **✅ Accepted** | —          | —             | 2026-07-27 |
 
 ---
 

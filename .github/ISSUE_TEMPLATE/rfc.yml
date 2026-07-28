@@ -1,0 +1,37 @@
+name: RFC (Request for Change)
+description: Propose an architecture change, API contract update, or other decision that requires maintainer approval
+labels: ["rfc", "needs-review"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        RFCs require maintainer approval before work begins. See GOVERNANCE.md §4–5 for the RFC process.
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What problem are you solving? Why is a change needed?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Change
+      description: What exactly would change? Include affected files, endpoints, or contracts.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What other approaches did you consider?
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact Level
+      options:
+        - Low (docs or non-breaking config only)
+        - Medium (API change or new dependency)
+        - High (ADR change or data model change)
+    validations:
+      required: true

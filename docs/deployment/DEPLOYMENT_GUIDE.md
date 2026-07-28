@@ -68,8 +68,8 @@ You need these tools on your machine:
 > **Who does what:** The DevOps agent creates the repo structure and branch protection rules in Phase 0 (story 0.1.1). The developer runs `git clone`.
 
 ```bash
-git clone https://github.com/your-org/toxmap.git
-cd toxmap
+git clone https://github.com/TOXMAP-Redux/toxmap-redux.git
+cd toxmap-redux
 ```
 
 ---
@@ -104,8 +104,8 @@ ALLOWED_ORIGINS=http://localhost:3000
 ```bash
 VITE_API_BASE_URL=http://localhost:8000
 VITE_DATA_SOURCE=api
-VITE_MAPLIBRE_STYLE=http://localhost:8080/styles/basic.json
-VITE_NOMINATIM_UA=toxmap-clone/0.1 (github.com/your-org/toxmap)
+VITE_MAPLIBRE_STYLE=https://tiles.openfreemap.org/styles/liberty
+VITE_NOMINATIM_UA=toxmap-clone/0.1 (github.com/TOXMAP-Redux/toxmap-redux)
 ```
 
 > ⚠️ **Never put secrets in `VITE_`-prefixed variables.** Everything prefixed `VITE_` is bundled into the public
@@ -447,7 +447,7 @@ Edit `frontend/.env.production`:
 VITE_DATA_SOURCE=duckdb
 VITE_R2_BASE_URL=https://pub-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.r2.dev
 VITE_MAPLIBRE_STYLE=https://tiles.openfreemap.org/styles/liberty
-VITE_NOMINATIM_UA=toxmap-clone/0.1 (github.com/your-org/toxmap)
+VITE_NOMINATIM_UA=toxmap-clone/0.1 (github.com/TOXMAP-Redux/toxmap-redux)
 ```
 
 Replace the `VITE_R2_BASE_URL` value with the public URL you copied in Step 2.5.

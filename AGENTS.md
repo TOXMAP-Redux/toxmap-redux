@@ -3,7 +3,7 @@
 > **This file is the operational contract for AI coding agents working on the TOXMAP codebase.**  
 > Project governance: see [GOVERNANCE.md](docs/GOVERNANCE.md).
 
-**Version:** 1.3 · **Date:** 2026-07-21 · **Status:** Active
+**Version:** 1.4 · **Date:** 2026-07-28 · **Status:** Active
 
 ---
 
@@ -282,7 +282,7 @@ When requirements are unclear, an agent MUST follow this decision tree:
     Open a GitHub issue tagged [clarification-needed] and halt. Do not proceed.
 
 5b. If GitHub write access is NOT available:
-    Create a file named ESCALATION_[YYYYMMDD_HHMMSS].md in the repo root containing:
+    Create a file named `docs/escalations/ESCALATION_[YYYYMMDD_HHMMSS].md` containing:
     - The story ID and acceptance criterion that is ambiguous
     - The two candidate interpretations (A and B)
     - The interpretation you are proceeding with, and why
@@ -362,7 +362,7 @@ result = await session.execute(
 
 ### Parameter Validation Rules
 - **The `restrict_to_state` parameter must be validated** as a 2-letter uppercase string before reaching the database layer. Reject with 422 for any other value.
-- **The `radius_miles` parameter must be capped at 500** — anything larger triggers an expensive full-table PostGIS scan. Reject with 422 for `radius_miles > 500`.
+- **The `radius_miles` parameter must be capped at 500** on `/api/v1/facilities` and `/api/v1/superfund` — anything larger triggers an expensive full-table PostGIS scan. Reject with 422 for `radius_miles > 500`. **Exception:** The `/api/v1/facilities/browse` and `/api/v1/superfund/browse` endpoints have no radius constraint (return all facilities/sites for browse mode).
 - **The `lat`/`lon` parameters must be validated** to WGS84 bounds (`lat` ∈ [−90, 90], `lon` ∈ [−180, 180]). Reject with 422 for out-of-range values.
 - **All parameter validation must happen in Pydantic schemas** — not in router functions, not in service layer functions. Validation belongs at the API boundary.
 
@@ -407,12 +407,12 @@ Open a GitHub issue tagged `[agent-escalation]` and stop work when:
 
 **If GitHub write access is unavailable**, do not silently stop. Instead:
 
-1. Create a file named `ESCALATION_[YYYYMMDD_HHMMSS].md` in the repo root.
+1. Create a file named `docs/escalations/ESCALATION_[YYYYMMDD_HHMMSS].md`.
 2. The file must contain: (a) the triggering condition from the list above, (b) the exact
    story and change that was blocked, (c) the recommended resolution or the question that
    needs human judgment.
 3. Do not open a PR that merges until a human has acknowledged this file.
-4. In your session output, clearly state: *"ESCALATION_[timestamp].md written — human review
+4. In your session output, clearly state: *"docs/escalations/ESCALATION_[timestamp].md written — human review
    required before proceeding."*
 
 ---
@@ -439,6 +439,7 @@ Open a GitHub issue tagged `[agent-escalation]` and stop work when:
 | Suppressed findings | [docs/security/FINDINGS_REGISTER.md](docs/security/FINDINGS_REGISTER.md) |
 | Accepted risks | [docs/security/ACCEPTED_RISKS.md](docs/security/ACCEPTED_RISKS.md) |
 | `data-testid` values for Playwright | [docs/testing/TEST_ID_REGISTRY.md](docs/testing/TEST_ID_REGISTRY.md) |
+| **Open escalations (human review needed)** | [`docs/escalations/`](docs/escalations/) — one file per blocked story |
 
 ---
 
@@ -476,7 +477,7 @@ Include this at the end of every agent session output or PR description when wor
 
 If an agent discovers it is waiting on another agent who is also waiting on it, this is a **circular dependency blocker**. The agent MUST:
 1. Stop work immediately
-2. Open an `[agent-escalation]` issue (or write `ESCALATION_[timestamp].md`) identifying both agents and the circular dependency
+2. Open an `[agent-escalation]` issue (or write `docs/escalations/ESCALATION_[YYYYMMDD_HHMMSS].md`) identifying both agents and the circular dependency
 3. Propose a resolution: typically, one agent delivers a minimal stub or interface contract so the other can proceed
 4. Surface to the Phase Manager for resolution — do NOT attempt to resolve circular dependencies unilaterally
 

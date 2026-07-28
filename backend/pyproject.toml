@@ -1,0 +1,70 @@
+# backend/pyproject.toml
+[project]
+name = "toxmap-backend"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.111.1",
+    "uvicorn[standard]==0.30.1",
+    "sqlalchemy[asyncio]==2.0.31",
+    "geoalchemy2==0.15.2",
+    "asyncpg==0.29.0",
+    "alembic==1.13.2",
+    "pydantic==2.8.2",
+    "pydantic-settings==2.3.4",
+    "httpx==0.27.0",
+    "python-dotenv==1.0.1",
+    "slowapi==0.1.9",
+]
+
+[project.optional-dependencies]
+ingestion = [
+    "geopandas==0.14.4",
+    "pandas==2.2.2",
+    "pyarrow==16.1.0",
+    "requests==2.32.3",
+    "shapely==2.0.5",
+]
+test = [
+    "pytest==8.2.2",
+    "pytest-bdd==7.2.0",
+    "pytest-asyncio==0.23.7",
+    "pytest-benchmark==4.0.0",
+    "pytest-cov==5.0.0",
+    "psycopg2-binary==2.9.9",
+    "playwright==1.44.0",
+    "pytest-playwright==0.5.0",
+    "schemathesis==3.33.0",
+]
+# dev = test + linting tools; used by CI: pip install -e ".[dev]"
+# Self-referential: toxmap-backend[test] resolves the test extras of this package.
+# pip 21.2+ supports self-referential extras when installed with -e (editable mode).
+dev = [
+    "toxmap-backend[test]",
+    "ruff==0.5.5",
+    "mypy==1.11.1",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+# V10-D: working-directory=backend in CI so this file is discovered by pytest.
+# V10-G: --cov=app --cov-report=xml generates the coverage report consumed by Codecov.
+addopts = "-p no:xdist --base-url http://localhost:3000 --screenshot only-on-failure --cov=app --cov-report=xml:../reports/coverage.xml"
+testpaths = ["tests"]
+bdd_features_base_dir = "tests/features"
+
+[tool.alembic]
+script_location = "alembic"

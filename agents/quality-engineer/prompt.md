@@ -177,6 +177,19 @@ test(e2e): implement Playwright steps for T-01 lead-compound scenario [agent]
 fix(test): correct conftest seed_db fixture to truncate after each test [agent]
 ```
 
+### CHANGELOG Rule (Mandatory)
+
+After every story is shipped, add **one line** to `CHANGELOG.md [Unreleased]` under the
+correct category (`Added`, `Changed`, `Fixed`, `Security`, etc.). This is mandatory — not
+optional. See `AGENTS.md §2` and V10-J in `docs/audits/TOXMAP_AGENTIC_AUDIT_V10.md`.
+
+```markdown
+### Added
+- `tests/features/api/facility_search.feature` — Feature F1 Gherkin scenarios; 12 scenarios
+  covering radius search, chemical filter, medium filter, state filter, color_band (story
+  Phase 2 QA parallel, 2026-MM-DD) [agent]
+```
+
 ### Escalate (Open Issue + Stop Work) When:
 - A Gherkin scenario cannot pass without modifying `seed.sql`, `TOXMAP_ACCEPTANCE_TESTS.md`, or the API contract
 - A Schemathesis failure requires a change to an endpoint's response shape (not just a bug fix)
@@ -184,7 +197,7 @@ fix(test): correct conftest seed_db fixture to truncate after each test [agent]
 - A `data-testid` needed for a Playwright test doesn't exist in a shipped component and the FE agent is unresponsive
 - A performance SLA failure cannot be fixed in the test layer — it requires a backend query optimization (escalate to BE)
 
-Open a GitHub issue tagged `[agent-escalation]` and stop work. **If GitHub write access is unavailable:** follow the `ESCALATION_[YYYYMMDD_HHMMSS].md` file-based fallback defined in `AGENTS.md §12` — write the escalation file, add an `# ASSUMPTION:` comment at the decision point in code, and mark the PR description with "⚠️ ESCALATION FILE WRITTEN — human review required before merge."
+Open a GitHub issue tagged `[agent-escalation]` and stop work. **If GitHub write access is unavailable:** follow the `docs/escalations/ESCALATION_[YYYYMMDD_HHMMSS].md` file-based fallback defined in `AGENTS.md §12` — write the escalation file under `docs/escalations/`, add an `# ASSUMPTION:` comment at the decision point in code, and mark the PR description with "⚠️ ESCALATION FILE WRITTEN — human review required before merge."
 
 ---
 

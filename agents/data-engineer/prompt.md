@@ -59,8 +59,8 @@ insert data. Confirm `alembic upgrade head` succeeds before starting story 1.2.1
 | 1.1.1–1.1.4 | **Wait** — these are BE stories. When 1.1.4 is done, `alembic upgrade head` creates all 7 tables. Verify before proceeding. |
 
 Validate readiness: `SELECT tablename FROM pg_tables WHERE schemaname = 'public';` should
-return: `facilities`, `releases`, `superfund_sites`, `census_tracts`, `demographic_data`,
-`alembic_version`, plus any auxiliary tables in ADR-001.
+return: `facilities`, `chemicals`, `release_events`, `superfund_sites`, `census_county`,
+`nuclear_plants`, `npri_facilities`, `alembic_version`.
 
 ---
 
@@ -98,11 +98,18 @@ return: `facilities`, `releases`, `superfund_sites`, `census_tracts`, `demograph
 
 #### Epic 1.5 — Parquet Build Pipeline
 
+> **Story ID alignment (resolved 2026-07-25):** Stories 1.5.3 and 1.5.4 are mapped to the
+> descriptions in `TOXMAP_PROGRESS_TRACKER.md` (authoritative per `AGENTS.md §1`). Stories
+> 1.5.5 (Census Parquet) and 1.5.6 (PMTiles basemap) are not Phase 1 stories — see phase
+> assignments below. Escalation `docs/escalations/ESCALATION_20260725_000000.md` resolved.
+
 | Story | What to Build |
 |-------|--------------|
 | 1.5.1 | `scripts/build_parquet.py` — reads PostGIS data for a given `vintage_label` and produces: `tri_YYYY.parquet`, `tri_YYYY.meta.json`, `superfund.parquet`, `superfund.meta.json`. The `meta.json` sidecar must include: `vintage_label` (e.g., `"October 2024 freeze"`), `epa_source_url`, `row_count`, `schema_version`, `build_timestamp_utc`. |
-| 1.5.4 | `scripts/build_census_parquet.py` — same pattern for Census data: `census_YYYY.parquet` + `census_YYYY.meta.json`. |
-| 1.5.3 | US basemap tile extraction (Protomaps). Download a pre-built US PMTiles extract from `https://github.com/protomaps/protomaps-basemaps/releases`. **Do not build from raw OSM** in CI — the raw planet extract is ~70 GB. Use a pre-built US extract (~1.5–2 GB). Store as `basemap_us.pmtiles` in the R2 bucket. |
+| 1.5.3 | Validate Parquet output against seed assertions: after `build_parquet.py` runs, query the output `.parquet` with DuckDB and assert `89319BHPCP7MILE` → COPPER → `total_release_lbs = 8205.0` → `land` → year `2008`. If this fails, the Parquet build is incorrect — stop and escalate. |
+| 1.5.4 | `manifest.json` schema and R2 upload pattern: `manifest.json` must contain an array of vintage entries, each with `vintage_label`, `year`, `tri_parquet_key`, `superfund_parquet_key`, `census_parquet_key`, `build_timestamp_utc`, and `epa_vintage_label`. Upload `manifest.json` to the R2 bucket root after each Parquet build. |
+| 1.5.5 | *(Phase 7 prerequisite — not a Phase 1 story)* `scripts/build_census_parquet.py` — Census data: `census_YYYY.parquet` + `census_YYYY.meta.json`. Implement before Phase 7 FE dispatches `useDuckDBDemographics`. Phase 5 FE runs in dev mode against the BE API, so this file is not needed until Phase 7 production validation. |
+| 1.5.6 | *(Phase 3 prerequisite — OPS-owned manual upload, not a Phase 1 story)* Protomaps US PMTiles extract. OPS performs a **one-time manual upload** of the pre-built US extract (~1.5–2 GB) from `https://github.com/protomaps/protomaps-basemaps/releases` to R2 as `basemap_us.pmtiles` before Phase 3 FE is dispatched. Do not build from raw OSM. Full pipeline automation (scripted download + upload) deferred to Phase 7 via `scripts/build_pmtiles.py`. Do not implement the script until Phase 7 — the manual upload is sufficient for Phases 3–6. |
 
 **Note:** Story 1.5.2 (upgrading `build-data.yml` from no-op stub to real pipeline) is OPS-owned — but you must provide OPS with: the exact `python scripts/build_parquet.py --year YYYY --vintage-label "..."` command, the expected output filenames, and the R2 upload pattern. Coordinate with OPS before 1.5.2 begins.
 
@@ -148,6 +155,10 @@ run SQL against the Parquet files you produced. Your Phase 7 responsibility (sto
   `build_parquet.py` (not in the API contract — the contract is a protected file)
 - For `manifest.json`: story 7.4.3 (SEC) adds `integrity` (SHA-256) fields per Parquet file.
   Coordinate with SEC to ensure `build_parquet.py` computes and emits these fields
+- **Implement story 1.5.5** (`scripts/build_census_parquet.py`) in Phase 7 before FE dispatches
+  the `useDuckDBDemographics` hook (story 7.1.7). The Census Parquet file is not needed in
+  dev mode (Phase 5 FE uses the BE API), but it is required for production DuckDB WASM
+  validation.
 
 **Phase 7 Done When (story 7.DE.1):**
 - [ ] All Parquet column names match `TOXMAP_API_CONTRACT.md` field names exactly — verified by cross-referencing the contract against `build_parquet.py` output schema
@@ -501,11 +512,23 @@ fix(ingestion): handle None correctly for total_release_lbs — null vs 0 [agent
 test(ingestion): validate T-03 and T-04 seed values after TRI ingestion [agent]
 ```
 
+### CHANGELOG Rule (Mandatory)
+
+After every story is shipped, add **one line** to `CHANGELOG.md [Unreleased]` under the
+correct category (`Added`, `Changed`, `Fixed`, `Security`, etc.). This is mandatory — not
+optional. See `AGENTS.md §2` and V10-J in `docs/audits/TOXMAP_AGENTIC_AUDIT_V10.md`.
+
+```markdown
+### Added
+- `backend/ingestion/tri_parser.py` — TRI_COLUMN_MAP; column normalization; air/land/
+  underground computed from TRI section 5 individual fields (story 1.2.1, 2026-MM-DD) [agent]
+```
+
 ---
 
 ## Escalation Triggers
 
-Open a GitHub issue tagged `[agent-escalation]` (or write `ESCALATION_[timestamp].md` if
+Open a GitHub issue tagged `[agent-escalation]` (or write `docs/escalations/ESCALATION_[YYYYMMDD_HHMMSS].md` if
 GitHub write access is unavailable) when:
 
 - The T-03 or T-04 seed validation fails after ingestion and the source data appears correct

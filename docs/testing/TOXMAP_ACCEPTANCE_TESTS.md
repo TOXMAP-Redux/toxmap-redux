@@ -1,7 +1,7 @@
 # TOXMAP Acceptance Tests — Gherkin Feature Specifications
 
 **Date:** 2026-07-15  
-**Last Updated:** 2026-07-23 — TRI Data Audit remediation: Feature 2 fields include `unit_of_measure`/`form_type`; Feature 3 adds nullable `cas_number` assertion; Feature 6 CSV headers updated (C-2, H-4, M-4). Gap-fill pass: Feature 1 `unit_of_measure` GeoJSON property assertion; Feature 2 arithmetic invariant + T-03 full breakdown + Form A note; Feature 3 compound-category null CAS auto-complete; Feature 8 Invariants 12a/12b unit label display  
+**Last Updated:** 2026-07-28 — Added Superfund browse mode scenarios (`GET /api/v1/superfund/browse`) matching TRI facilities browse pattern; Feature 4 updated  
 **Format:** Gherkin BDD (pytest-bdd / behave)  
 **Test Runner:** `pytest` + `pytest-bdd` (API layer) · `pytest-playwright` (E2E layer)  
 **Seed Data:** [TOXMAP_TEST_SEED_DATA.md](TOXMAP_TEST_SEED_DATA.md)  
@@ -150,6 +150,34 @@ Feature: TRI Facility Search
     When I GET "/api/v1/facilities?lat=39.2&lon=-76.5&radius_miles=999"
     Then the response status is 400
     And the response has "detail" containing "radius"
+
+  # ── Browse mode (no radius constraint) — added 2026-07-28 ────────────────────
+
+  Scenario: Browse endpoint returns all facilities without radius
+    When I GET "/api/v1/facilities/browse"
+    Then the response status is 200
+    And the response is a GeoJSON FeatureCollection
+    And the response meta has "browse_all" = true
+    And the FeatureCollection contains more than 100 features
+
+  Scenario: Browse endpoint with year filter
+    When I GET "/api/v1/facilities/browse?year=2008"
+    Then the response status is 200
+    And the response is a GeoJSON FeatureCollection
+    And the FeatureCollection contains a feature with property "tri_facility_id" = "21219BTHLS3RD"
+    And the FeatureCollection contains a feature with property "tri_facility_id" = "89319BHPCP7MILE"
+
+  Scenario: Browse endpoint with state filter
+    When I GET "/api/v1/facilities/browse?state=MD"
+    Then the response status is 200
+    And the response is a GeoJSON FeatureCollection
+    And every feature has property "state_code" = "MD"
+
+  Scenario: Browse endpoint with chemical filter
+    When I GET "/api/v1/facilities/browse?chemical=copper"
+    Then the response status is 200
+    And the response is a GeoJSON FeatureCollection
+    And the FeatureCollection contains a feature with property "tri_facility_id" = "89319BHPCP7MILE"
 ```
 
 ---
@@ -301,6 +329,28 @@ Feature: Superfund NPL Site Search
   Background:
     Given the seed database is loaded
     And the API is running at base URL "http://localhost:8000"
+
+  # ── Browse mode (no radius constraint) — added 2026-07-28 ────────────────────
+
+  Scenario: Browse endpoint returns all Superfund sites without radius
+    When I GET "/api/v1/superfund/browse"
+    Then the response status is 200
+    And the response is a GeoJSON FeatureCollection
+    And the FeatureCollection contains a feature with property "epa_id" = "VAD070358684"
+
+  Scenario: Browse endpoint with state filter
+    When I GET "/api/v1/superfund/browse?state=VA"
+    Then the response status is 200
+    And the response is a GeoJSON FeatureCollection
+    And every feature has property "state_code" = "VA"
+
+  Scenario: Browse endpoint with NPL status filter
+    When I GET "/api/v1/superfund/browse?status=NPL"
+    Then the response status is 200
+    And the response is a GeoJSON FeatureCollection
+    And every feature has property "status" = "NPL"
+
+  # ── Radius search ────────────────────────────────────────────────────────────
 
   Scenario: Superfund radius search returns sites within distance
     When I GET "/api/v1/superfund?lat=38.9179&lon=-78.1942&radius_miles=10"

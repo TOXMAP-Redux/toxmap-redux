@@ -1,0 +1,218 @@
+"""Service layer for Superfund site queries.
+
+Phase 2 — stories 2.6.x.
+Phase 4 — story 4.1.1 browse mode (all sites, no radius constraint).
+"""
+
+from __future__ import annotations
+
+import logging
+
+from geoalchemy2 import Geography
+from geoalchemy2.shape import to_shape
+from sqlalchemy import cast, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.chemical import Chemical
+from app.models.superfund_site import SuperfundSite
+from app.schemas.superfund import (
+    SuperfundCollection,
+    SuperfundCollectionMeta,
+    SuperfundContaminant,
+    SuperfundDetail,
+    SuperfundFeature,
+    SuperfundFeatureProperties,
+)
+
+logger = logging.getLogger(__name__)
+
+_MILES_TO_METERS = 1609.344
+
+_VALID_STATUSES = {"NPL", "CERCLIS", "Deleted"}
+
+
+async def get_all_superfund_browse(
+    session: AsyncSession,
+    status: str | None = None,
+    state: str | None = None,
+    limit: int = 5000,
+) -> SuperfundCollection:
+    """Browse mode: fetch ALL Superfund sites without radius constraint.
+    
+    Used for the always-on diamond layer on the map.
+    ~1,700 NPL sites total — fetched once, MapLibre handles viewport subsetting.
+    """
+    stmt = select(SuperfundSite)
+
+    if state:
+        stmt = stmt.where(SuperfundSite.state_code == state.upper()[:2])
+
+    if status and status in _VALID_STATUSES:
+        stmt = stmt.where(SuperfundSite.status == status)
+
+    stmt = stmt.limit(limit)
+    sites = (await session.execute(stmt)).scalars().all()
+
+    features: list[SuperfundFeature] = []
+    for site in sites:
+        shape = to_shape(site.location)
+        geom = {"type": "Point", "coordinates": [shape.x, shape.y]}
+        npl_str: str | None = (
+            str(site.npl_date) if site.npl_date is not None else None
+        )
+        props = SuperfundFeatureProperties(
+            id=site.id,
+            epa_id=site.epa_id,
+            name=site.name,
+            city=site.city,
+            state_code=site.state_code,
+            status=site.status,
+            hrs_score=(
+                float(site.hrs_score) if site.hrs_score is not None else None
+            ),
+            npl_date=npl_str,
+            contaminants=list(site.contaminants) if site.contaminants else [],
+            marker_shape="diamond",
+        )
+        features.append(SuperfundFeature(geometry=geom, properties=props))
+
+    return SuperfundCollection(
+        features=features,
+        meta=SuperfundCollectionMeta(total_count=len(features)),
+    )
+
+
+async def get_superfund_near(
+    session: AsyncSession,
+    lat: float,
+    lon: float,
+    radius_miles: float,
+    chemical: str | None,
+    state: str | None,
+    restrict_to_state: bool,
+    status: str | None,
+) -> SuperfundCollection:
+    """Spatial Superfund search → GeoJSON FeatureCollection."""
+    radius_meters = radius_miles * _MILES_TO_METERS
+    point_geo = cast(
+        func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326), Geography
+    )
+    site_geo = cast(SuperfundSite.location, Geography)
+
+    stmt = select(SuperfundSite).where(
+        func.ST_DWithin(site_geo, point_geo, radius_meters)
+    )
+
+    if state:
+        stmt = stmt.where(SuperfundSite.state_code == state.upper()[:2])
+
+    if status and status in _VALID_STATUSES:
+        stmt = stmt.where(SuperfundSite.status == status)
+
+    if chemical:
+        # Partial case-insensitive search across the contaminants text array
+        stmt = stmt.where(
+            func.array_to_string(SuperfundSite.contaminants, "|").ilike(
+                f"%{chemical}%"
+            )
+        )
+
+    sites = (await session.execute(stmt)).scalars().all()
+
+    features: list[SuperfundFeature] = []
+    for site in sites:
+        shape = to_shape(site.location)
+        geom = {"type": "Point", "coordinates": [shape.x, shape.y]}
+        npl_str: str | None = (
+            str(site.npl_date) if site.npl_date is not None else None
+        )
+        props = SuperfundFeatureProperties(
+            id=site.id,
+            epa_id=site.epa_id,
+            name=site.name,
+            city=site.city,
+            state_code=site.state_code,
+            status=site.status,
+            hrs_score=(
+                float(site.hrs_score) if site.hrs_score is not None else None
+            ),
+            npl_date=npl_str,
+            contaminants=list(site.contaminants) if site.contaminants else [],
+            marker_shape="diamond",
+        )
+        features.append(SuperfundFeature(geometry=geom, properties=props))
+
+    return SuperfundCollection(
+        features=features,
+        meta=SuperfundCollectionMeta(total_count=len(features)),
+    )
+
+
+async def get_superfund_detail(
+    session: AsyncSession,
+    epa_id: str,
+) -> SuperfundDetail | None:
+    """Return full detail for a single Superfund site."""
+    result = await session.execute(
+        select(SuperfundSite).where(SuperfundSite.epa_id == epa_id)
+    )
+    site = result.scalar_one_or_none()
+    if site is None:
+        return None
+
+    shape = to_shape(site.location)
+    npl_str: str | None = (
+        str(site.npl_date) if site.npl_date is not None else None
+    )
+    # Enrich contaminant names with CAS numbers and ATSDR URLs from the
+    # chemicals table via a single batch name-match query.  Contaminants
+    # not present in the TRI chemicals table remain with null fields.
+    contaminant_names: list[str] = list(site.contaminants or [])
+    if contaminant_names:
+        chem_rows = (
+            await session.execute(
+                select(
+                    Chemical.name,
+                    Chemical.cas_number,
+                    Chemical.atsdr_url,
+                ).where(
+                    func.upper(Chemical.name).in_(
+                        [c.upper() for c in contaminant_names]
+                    )
+                )
+            )
+        ).all()
+        chem_map: dict[str, tuple[str | None, str | None]] = {
+            row.name.upper(): (row.cas_number, row.atsdr_url)
+            for row in chem_rows
+        }
+    else:
+        chem_map = {}
+
+    contaminants = [
+        SuperfundContaminant(
+            name=c,
+            cas_number=chem_map.get(c.upper(), (None, None))[0],
+            atsdr_url=chem_map.get(c.upper(), (None, None))[1],
+        )
+        for c in contaminant_names
+    ]
+
+    return SuperfundDetail(
+        id=site.id,
+        epa_id=site.epa_id,
+        name=site.name,
+        address=site.address,
+        city=site.city,
+        state_code=site.state_code,
+        zip_code=site.zip_code,
+        county=site.county,
+        status=site.status,
+        hrs_score=(
+            float(site.hrs_score) if site.hrs_score is not None else None
+        ),
+        npl_date=npl_str,
+        contaminants=contaminants,
+        epa_progress_url=site.epa_progress_url,
+        location={"lat": shape.y, "lon": shape.x},
+    )

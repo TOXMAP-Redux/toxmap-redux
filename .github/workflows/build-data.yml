@@ -1,0 +1,144 @@
+# TOXMAP — Data Build Pipeline
+#
+# Ingests TRI data → PostGIS, builds Parquet files, uploads to Cloudflare R2.
+# Story 1.5.2 (OPS Phase 1): upgraded from no-op stub to real pipeline.
+#
+# Three EPA data checkpoints per year (ADR-004 §GitHub Actions Workflow):
+#   Aug 1  — preliminary release
+#   Oct 1  — data freeze (PRIMARY — authoritative dataset for production)
+#   Apr 1  — spring refresh (retroactive EPA corrections)
+#
+# Required secrets (set in repository Settings → Secrets):
+#   CF_API_TOKEN    — Cloudflare API token with R2 write permission (Phase 7)
+#   CF_ACCOUNT_ID   — Cloudflare account ID (Phase 7)
+#   R2_BUCKET_NAME  — R2 bucket name (Phase 7, default: toxmap-data)
+#
+# See docs/adr/ADR-004-zero-budget-hosting.md for full specification.
+
+name: Build Data Pipeline
+
+on:
+  # Three annual checkpoints aligned with EPA TRI release schedule
+  schedule:
+    - cron: "0 6 1 8 *"   # Aug 1 — preliminary
+    - cron: "0 6 1 10 *"  # Oct 1 — data freeze (PRIMARY)
+    - cron: "0 6 1 4 *"   # Apr 1 — spring refresh
+
+  # Manual trigger for development / backfill runs
+  workflow_dispatch:
+    inputs:
+      vintage_label:
+        description: "Human-readable data vintage label (e.g. 'October 2024 freeze')"
+        required: true
+        type: string
+      year:
+        description: "TRI reporting year to build (e.g. 2022)"
+        required: false
+        default: "2022"
+        type: string
+
+concurrency:
+  group: build-data
+  cancel-in-progress: false  # never cancel a running data build
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Job: build — Real pipeline (Phase 1, story 1.5.2)
+# ═══════════════════════════════════════════════════════════════════════════════
+jobs:
+  build:
+    name: "Build TRI Parquet (year=${{ github.event.inputs.year || '2022' }})"
+    runs-on: ubuntu-latest
+
+    # PostGIS service container — used by alembic migrations + TRI ingestion
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: toxmap
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d toxmap"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL_SYNC: postgresql+psycopg2://postgres:postgres@localhost:5432/toxmap
+      PARQUET_OUTPUT_DIR: ${{ github.workspace }}/data/parquet
+      BUILD_YEAR: ${{ github.event.inputs.year || '2022' }}
+      VINTAGE_LABEL: ${{ github.event.inputs.vintage_label || 'Scheduled build' }}
+
+    steps:
+      # ── Checkout ────────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      # ── Python setup ────────────────────────────────────────────────────────
+      - name: Set up Python 3.12
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install system dependencies (GDAL for geopandas)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libgdal-dev gdal-bin
+
+      - name: Install Python ingestion dependencies
+        run: pip install -e "backend/.[ingestion]"
+
+      # ── Database setup ───────────────────────────────────────────────────────
+      - name: Run database migrations
+        working-directory: backend
+        run: alembic upgrade head
+
+      # ── TRI ingestion ────────────────────────────────────────────────────────
+      - name: Ingest TRI data for year ${{ env.BUILD_YEAR }}
+        working-directory: backend
+        run: python -m ingestion.tri_ingest --year "${{ env.BUILD_YEAR }}"
+
+      # ── Parquet build ────────────────────────────────────────────────────────
+      - name: Create Parquet output directory
+        run: mkdir -p "${{ env.PARQUET_OUTPUT_DIR }}"
+
+      - name: Build Parquet files
+        run: |
+          python scripts/build_parquet.py \
+            --year "${{ env.BUILD_YEAR }}" \
+            --vintage-label "${{ env.VINTAGE_LABEL }}" \
+            --output-dir "${{ env.PARQUET_OUTPUT_DIR }}"
+
+      - name: List built artifacts
+        run: ls -lh "${{ env.PARQUET_OUTPUT_DIR }}"
+
+      # ── R2 upload ────────────────────────────────────────────────────────────
+      # TODO(ops, Phase 7): replace this step with wrangler/rclone R2 upload
+      # once CF_API_TOKEN and CF_ACCOUNT_ID secrets are configured (story 7.2.2).
+      # Skips gracefully when credentials are absent (safe in Phase 1–6).
+      - name: Upload Parquet files to Cloudflare R2
+        if: ${{ env.CF_API_TOKEN != '' }}
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME || 'toxmap-data' }}
+        run: |
+          # TODO(ops, Phase 7): implement with rclone or wrangler CLI
+          # rclone copy "${{ env.PARQUET_OUTPUT_DIR }}/" "r2:${R2_BUCKET_NAME}/" \
+          #   --config /dev/null \
+          #   --s3-provider Cloudflare \
+          #   --s3-access-key-id "${CF_API_TOKEN}" \
+          #   --s3-endpoint "https://${CF_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          echo "R2 upload not yet implemented — implement in story 7.2.2"
+          echo "Parquet files built and ready at: ${{ env.PARQUET_OUTPUT_DIR }}"
+
+      # ── Artifact upload (CI cache) ───────────────────────────────────────────
+      - name: Upload Parquet artifacts
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: tri-parquet-${{ env.BUILD_YEAR }}
+          path: ${{ env.PARQUET_OUTPUT_DIR }}
+          retention-days: 30

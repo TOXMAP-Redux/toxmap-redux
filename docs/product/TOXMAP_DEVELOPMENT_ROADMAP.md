@@ -194,7 +194,7 @@ These are locked before development starts. Any deviation requires a new ADR.
 | 1.5.1 | `scripts/build_parquet.py`: TRI → per-year `.parquet` files. Function signature must accept `vintage_label: str` (e.g. `"October 2024 freeze"`). Produces two outputs per year: `tri_YEAR.parquet` (data) **and** `tri_YEAR.meta.json` (sidecar with `tri_reporting_year`, `epa_vintage_label`, `build_date`, `record_count`). See `build_data.py` in ADR-004 for reference implementation. | 3 | `tri_2022.parquet` < 50 MB; `tri_2022.meta.json` present with valid `epa_vintage_label` field; omitting `vintage_label` raises `ValueError` |
 | 1.5.2 | GitHub Actions `build-data.yml`: 3-checkpoint schedule (Aug 15 preliminary, Oct 20 freeze, Apr 1 spring refresh) + `workflow_dispatch` with `vintage_label` input (required). Runs `build_parquet.py` and uploads `.parquet` **and** `.meta.json` files to R2. See ADR-004 §GitHub Actions Workflow for the full cron + comments. **Do not use a single annual August trigger** — the October freeze dataset is the authoritative source; see ADR-004 Amendment note. | 3 | All 3 scheduled triggers visible in Actions tab; manual trigger with `vintage_label="October 2024 freeze"` → both `tri_2024.parquet` and `tri_2024.meta.json` visible in R2 bucket |
 | 1.5.4 | `manifest.json` at R2 bucket root: machine-readable index of all available TRI years with their current vintage labels and build dates. Written by `build_parquet.py` after each run. Read by the React app at startup to populate the year-picker and display the current data vintage in the UI. Schema: `{ "years": [{ "year": 2022, "vintage_label": "October 2024 freeze", "build_date": "2024-10-20" }] }` | 2 | `manifest.json` present in R2; after a rebuild of year 2022, the manifest entry for 2022 reflects the new vintage label |
-| 1.5.3 | `scripts/build_pmtiles.py`: US basemap tile generation via Protomaps. Steps: (1) download US-only OSM extract (~6 GB) from `download.geofabrik.de/north-america/us-latest.osm.pbf`; (2) run `protomaps build --config protomaps.config.json us-latest.osm.pbf` to produce `us.pmtiles`; (3) upload to Cloudflare R2 with `wrangler r2 object put toxmap-tiles/us.pmtiles --file us.pmtiles`. The `protomaps.config.json` must set minzoom=0, maxzoom=14 for tile detail appropriate to TOXMAP's use case. | 5 | `.pmtiles` file renders in MapLibre GL dev environment at all zoom levels 0–14 |
+| 1.5.3 | ~~`scripts/build_pmtiles.py`: US basemap tile generation via Protomaps~~ **Superseded by ADR-005 (2026-07-27).** The MapLibre basemap is now served from OpenFreeMap hosted tiles (`https://tiles.openfreemap.org/styles/liberty`). No PMTiles file is generated or uploaded as part of the build pipeline. The self-hosting fallback procedure is documented in `docs/deployment/PMTILES_R2_UPLOAD.md` if custom tile hosting is needed in future. | ~~5~~ 0 | *(no acceptance criteria — story removed from scope)* |
 
 **Phase 1 Definition of Done:**
 - [ ] `psql -f tests/fixtures/seed.sql` runs without errors
@@ -301,7 +301,7 @@ These are locked before development starts. Any deviation requires a new ADR.
 | Story | Description | Points | Acceptance Criteria |
 |-------|-------------|--------|---------------------|
 | 3.1.1 | React app scaffold with Vite, TypeScript, Tailwind CSS | 2 | `npm run dev` → app at `:3000` |
-| 3.1.2 | MapLibre GL map component: US overview, PMTiles basemap | 5 | Map renders street names, state/county boundaries |
+| 3.1.2 | MapLibre GL map component: US overview, OpenFreeMap basemap. Configure MapLibre with `style: "https://tiles.openfreemap.org/styles/liberty"` (set via `VITE_MAPLIBRE_STYLE` env var). **Do not use a self-hosted PMTiles file** — ADR-005 adopted OpenFreeMap hosted tiles; no R2 upload required for the basemap. | 5 | Map renders street names, state/county boundaries; `VITE_MAPLIBRE_STYLE` controls the tile source |
 | 3.1.3 | Typed API client module: `api/facilities.ts`, `api/chemicals.ts` | 2 | All 17 endpoints typed; no `any` |
 | 3.1.4 | Landing page (`/`): description + "Launch Map" CTA + FAQ/Glossary links | 2 | Matches Fig 2015-6 in screen catalog |
 | 3.1.5 | Data vintage indicator: on app init, fetch `manifest.json` from R2 (prod) or `/api/v1/meta` (dev); display current vintage as an unobtrusive label (e.g. `"2022 TRI · October 2024 freeze"`) in the map footer. In dev mode (`VITE_DATA_SOURCE=api`), FastAPI serves a `/api/v1/meta` endpoint returning the loaded year and DB build info. See ADR-004 Amendment for why vintage transparency is required. | 2 | Vintage label visible in map footer without hover; `data-testid="data-vintage-label"` present; correct vintage string shown for the active TRI year |
@@ -315,7 +315,7 @@ These are locked before development starts. Any deviation requires a new ADR.
 | 3.2.2 | MapContentsPanel: TRI layer toggles, year checkboxes with `(latest year)` label | 3 | Most-recent year shows `(latest year)` text (UX invariant 7) |
 | 3.2.3 | SearchPanel: labeled **"Search Chemical Releases by Location"** (not "Quick Search") | 1 | No element with text "Quick Search" (UX invariant 4) |
 | 3.2.4 | Chemical auto-complete input: triggers `GET /api/v1/chemicals/search?q=` on keystroke | 3 | Dropdown appears within 100ms; `data-testid="chemical-autocomplete-option"` |
-| 3.2.5 | Location field: city/state text input | 2 | Typing "Sparrows Point, MD" populates geocoder |
+| 3.2.5 | Location field: city/state text input with Photon browser-direct geocoding (ADR-006). Cache results (max 200, LRU); throttle to ≤ 1 req/s; render `PHOTON_ATTRIBUTION` as JSX links in map footer | 2 | Typing "Sparrows Point, MD" → resolves to lat=39.219, lon=-76.476; Photon/OSM credit visible in footer; repeated searches hit cache (zero network calls) |
 | 3.2.6 | State dropdown + "Limit to state" checkbox | 2 | Checkbox triggers `restrict_to_state=true` in query (UX invariant 3) |
 | 3.2.7 | Year dropdown: 1987–present + "All years" | 1 | Selected year passed as `year=` parameter |
 | 3.2.8 | `useViewportFacilities` hook: re-fetches on map move with `bbox=` param | 5 | Moving map updates results; zero empty rows (UX invariant 2) |
@@ -354,6 +354,13 @@ These are locked before development starts. Any deviation requires a new ADR.
 | 3.6.1 | First-visit tooltip tour (Shepherd.js or React Joyride): 4-step overlay | 3 | Tour runs once; `localStorage["onboarding-seen"]` prevents repeat |
 | 3.6.2 | Interpretation banner (persistent, dismissible): "Release quantity does not indicate health risk" | 1 | Banner visible below map on first load |
 
+**Epic 3.7 — Sidebar Layout & Popup Collision Handling** `FE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 3.7.1 | Popup visible when sidebar is open: pass `sidebarWidth` (collapsed=40 px, expanded=320 px) to `MapContainer`; set MapLibre camera padding via declarative `padding` prop on `<Map>` after `{...viewState}` spread so it always wins; add `panBy` guard `useEffect` that pans map right when selected marker falls within `sidebarWidth + gutter + popupHalfWidth` zone | 2 | With sidebar open, no popup hidden beneath sidebar; `easeTo`/`flyTo` centers facility in usable viewport; sidebar toggle re-applies padding without camera jump |
+| 3.7.2 | Interpretation banner text right-justified: change `justify-content` from `space-between` to `flex-end` so text and dismiss button are anchored to the visible map area regardless of sidebar state | 1 | Banner text fully visible at all sidebar states (open, collapsed); no text obscured by sidebar |
+
 **E2E Tests — Phase 3 Target:**
 
 | Scenario | Implemented By | Passing After |
@@ -375,7 +382,20 @@ These are locked before development starts. Any deviation requires a new ADR.
 - [ ] T-08 Playwright scenario passes
 - [ ] UX invariants 1, 2, 3, 4, 7, 8, 9 pass in Playwright
 - [ ] Data vintage label visible in map footer (`data-testid="data-vintage-label"`)
+- [ ] `npx tsc --noEmit` → zero TypeScript errors
 - [ ] App is demoable: someone can search for a chemical and see colored markers
+
+**Technical Decisions Made in Phase 3:**
+- **Geocoding — Photon browser-direct (ADR-006):** Nominatim was blocked by server IP and
+  Docker SSL inspection; replaced with Photon (photon.komoot.io) called directly from the browser.
+  CORS-enabled, no API key, OSM-backed. Fair-use mitigations: 200-entry LRU cache, 1s throttle,
+  attribution rendered in map footer. FastAPI `GET /api/v1/geocode` is retained but unused by frontend.
+- **Viewport bbox race condition:** Two concurrent facility-search requests fired on each new search
+  (pre-zoom and post-zoom viewport). Fix: `setMapBbox(null)` before `setSubmittedSearch` in
+  `handleSearchSubmit`; `AbortSignal` threaded through `fetchFacilities` to cancel stale requests.
+- **Tailwind volume mount:** `tailwind.config.js` and `postcss.config.js` are baked into the Docker
+  image (not volume-mounted). `src/index.css` contains vanilla CSS fallbacks so the app renders
+  correctly even when Tailwind PostCSS is not configured (e.g. running against an old image).
 
 **Milestone M3 — First shareable demo**
 
@@ -423,6 +443,31 @@ These are locked before development starts. Any deviation requires a new ADR.
 - [ ] T-02 and T-04 Playwright scenarios pass
 - [ ] UX invariant 6 passes
 - [ ] Milestone M4
+
+**Technical Decisions Made in Phase 4:**
+- **Superfund browse endpoint (2026-07-28):** The original `/api/v1/superfund` endpoint required `lat`, `lon`,
+  and `radius_miles` (capped at 500). This made the always-on diamond layer impossible without viewport-driven
+  refetching, which caused different subsets to appear at different zoom levels. Added `/api/v1/superfund/browse`
+  endpoint that returns all ~1,700 sites without radius constraint. Frontend `useSuperfundViewport` hook now
+  fetches once on mount; MapLibre handles viewport clipping. Mirrors the TRI `/api/v1/facilities/browse` pattern.
+- **Layer structure:** Single `superfund-sites` symbol layer with two icon sprites: `superfund-diamond-filled`
+  (NPL sites) and `superfund-diamond-outline` (CERCLIS/Deleted). Icon selection via MapLibre expression on
+  `status` property. Toggle via `setLayoutProperty('superfund-sites', 'visibility', ...)`.
+- **React StrictMode compatibility (2026-07-28):** Data-fetching hooks must set their "has fetched" ref AFTER
+  the fetch succeeds, not before. React 18 StrictMode double-invokes effects; if the ref is set before the
+  fetch completes, the first fetch is aborted and the second mount skips fetching entirely. Pattern:
+  `hasSucceededRef.current = true` inside `.then()`, not before the fetch call.
+
+**Epic 4.BUG — Bug Fixes & Regressions** `FE + QA`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 4.BUG.1 | Fix: `useSuperfundViewport` StrictMode bug — `hasFetchedRef` set before fetch completion | 2 | Superfund diamonds appear on initial page load; regression test passes |
+| 4.BUG.2 | Fix: `conftest.py` teardown — tuples → lists for `ANY()`; sync facility IDs with `seed.sql` | 1 | `pytest -k Regression` passes without `WrongObjectType` error |
+| 4.BUG.3 | Fix: `seed.sql` idempotency — replace `TRUNCATE` with surgical `DELETE` | 2 | Real ingested data preserved after test runs; script is idempotent |
+| 4.BUG.4 | Add: Regression tests for TRI circle and Superfund diamond visibility | 2 | 5 new Gherkin scenarios pass; MapLibre layer assertions verify data loaded |
+
+**Milestone M4 — Superfund Layer**
 
 ---
 
@@ -678,11 +723,11 @@ A story is **Done** when:
 | Phase 1 — Data Pipeline | 10 | 0 | 33 | 0 | 3 | 2 | **48** |
 | Phase 2 — Core API | 44 | 0 | 0 | 8 | 0 | 10 | **62** |
 | Phase 3 — Core Map UI | 0 | 54 | 0 | 15 | 0 | 3 | **72** |
-| Phase 4 — Superfund | 0 | 16 | 0 | 5 | 0 | 0 | **21** |
+| Phase 4 — Superfund | 0 | 18 | 0 | 10 | 0 | 0 | **28** |
 | Phase 5 — Demographics | 0 | 25 | 0 | 8 | 0 | 0 | **33** |
 | Phase 6 — Full QA | 5 | 5 | 0 | 26 | 0 | 15 | **51** |
 | Phase 7 — Production | 0 | 22 | 5 | 6 | 10 | 8 | **51** |
-| **Total** | **63** | **124** | **38** | **76** | **25** | **45** | **371** |
+| **Total** | **63** | **126** | **38** | **81** | **25** | **45** | **378** |
 
 > At a team velocity of ~20 points/week (2 devs), this is approximately **19 weeks** to MVP.  
 > At 30 points/week (3 devs), approximately **12 weeks**.

@@ -42,12 +42,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout (full history for gitleaks)
-        uses: actions/checkout@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
 
       - name: Run gitleaks
-        uses: gitleaks/gitleaks-action@v2  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # GITLEAKS_LICENSE is only required for org-level scans; not needed here.
@@ -62,10 +62,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
         with:
           python-version: "3.12"
           cache: pip
@@ -74,7 +74,7 @@ jobs:
         run: pip install pip-audit
 
       - name: Install backend dependencies (for accurate dependency graph)
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,ingestion]"
         working-directory: backend
 
       - name: Audit Python dependencies
@@ -85,7 +85,7 @@ jobs:
 
       - name: Upload pip-audit report
         if: always()
-        uses: actions/upload-artifact@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: pip-audit-report
           path: backend/pip-audit-report.json
@@ -100,12 +100,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
-      - name: Set up Node.js 22
-        uses: actions/setup-node@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+      - name: Set up Node.js 24
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
-          node-version: "22"
+          node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -127,10 +127,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
         with:
           python-version: "3.12"
           cache: pip
@@ -171,7 +171,7 @@ jobs:
 
       - name: Upload bandit report
         if: always()
-        uses: actions/upload-artifact@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: bandit-report
           path: bandit-report.json
@@ -192,7 +192,7 @@ jobs:
       image: returntocorp/semgrep:latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Run semgrep OWASP Top 10
         run: |
@@ -208,7 +208,7 @@ jobs:
 
       - name: Upload semgrep report
         if: always()
-        uses: actions/upload-artifact@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: semgrep-report
           path: semgrep-report.json

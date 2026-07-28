@@ -47,6 +47,12 @@ Work items come from **`docs/product/TOXMAP_DEVELOPMENT_ROADMAP.md`** in the col
 |-------|--------------|
 | 1.1.1–1.1.4 | All 7 tables from ADR-001 §Data Model as SQLAlchemy ORM models + GIST indexes + Alembic migration |
 
+> **Story 1.1.4 — first step (V10-H fix):** The `alembic/` directory does not yet exist.
+> Run `alembic init alembic` from `backend/` **before** creating any migration scripts.
+> Then: `alembic revision --autogenerate -m "initial_schema"` to generate the migration,
+> and `alembic upgrade head` to apply it. Verify with
+> `SELECT tablename FROM pg_tables WHERE schemaname = 'public';` — must list all 7 tables.
+
 > **Note:** Ingestion stories 1.2.x (TRI), 1.3.x (Superfund), 1.4.x (Census), and 1.5.x (Parquet pipeline) are **DE-owned**. Your Phase 1 role is to ship the schema first — DE cannot ingest until `alembic upgrade head` succeeds. Confirm with the Phase Manager when 1.1.4 is done so DE can be dispatched.
 
 ### Phase 2 (Core API) — Your Stories
@@ -59,7 +65,7 @@ Work items come from **`docs/product/TOXMAP_DEVELOPMENT_ROADMAP.md`** in the col
 | 2.5.1–2.5.2 | `GET /api/v1/demographics/county` + `GET /api/v1/demographics/tract` with `meta.units` |
 | 2.6.1–2.6.3 | Nuclear plants layer, CSV export (streaming), map-metadata export |
 | 2.7.1–2.7.2 | FastAPI auto-generates `/openapi.json`; Schemathesis CI job passes `--checks all` |
-| 2.7.3 | `GET /api/v1/meta` — returns `{"loaded_years": [...], "db_build_info": {...}}` used by FE vintage label in dev mode (story 3.1.5 depends on this endpoint existing) |
+| 2.7.3 | `GET /api/v1/meta` — returns `{"available_years": [...], "vintage_label": "...", "source": "fastapi-dev"}` used by FE vintage label in dev mode (story 3.1.5 depends on this endpoint existing) |
 
 ### Phases 3–7 — Support Role
 Phases 3–7 are frontend-led. Your backend is done. You support by:
@@ -88,7 +94,7 @@ Phases 3–7 are frontend-led. Your backend is done. You support by:
 - [ ] `schemathesis run http://localhost:8000/openapi.json --checks all` → zero failures
 - [ ] `GET /api/v1/facilities?lat=39.2197&lon=-76.4785&radius_miles=10&chemical=LEAD+COMPOUNDS&year=2008` returns facility `21219BTHLS3RD` with `total_release_lbs=12485.0` and `color_band="orange"`
 - [ ] `GET /api/v1/releases/largest?chemical=CHLORINE&state=SC` returns `85000.0` lbs; nationwide returns `342500.0` lbs
-- [ ] `GET /api/v1/meta` returns a valid JSON body with `loaded_years` (array) and `db_build_info` (object) fields
+- [ ] `GET /api/v1/meta` returns a valid JSON body with `available_years` (array) and `source: "fastapi-dev"` string fields
 - [ ] All response shapes match `TOXMAP_API_CONTRACT.md` field-for-field (no extra fields, no missing fields)
 - [ ] Performance benchmarks pass: radius search p95 < 500ms, chemical search < 100ms
 
@@ -123,6 +129,18 @@ fix(api): return null instead of 0 for missing total_release_lbs [agent]
 feat(ingestion): add vintage_label sidecar output to build_parquet.py [agent]
 ```
 
+### CHANGELOG Rule (Mandatory)
+
+After every story is shipped, add **one line** to `CHANGELOG.md [Unreleased]` under the
+correct category (`Added`, `Changed`, `Fixed`, `Security`, etc.). This is mandatory — not
+optional. See `AGENTS.md §2` and V10-J in `docs/audits/TOXMAP_AGENTIC_AUDIT_V10.md`.
+
+```markdown
+### Added
+- `backend/app/routers/facilities.py` — GET /api/v1/facilities radius + chemical + year
+  filters; ST_DWithin query with GIST index; color_band computation (story 2.1.1, 2026-MM-DD) [agent]
+```
+
 ### Escalate (Open Issue + Stop Work) When:
 - A Gherkin scenario cannot pass without modifying seed data or the API contract
 - A Schemathesis failure requires changing an endpoint shape (not just a bug fix)
@@ -130,7 +148,7 @@ feat(ingestion): add vintage_label sidecar output to build_parquet.py [agent]
 - A dependency has a known CVE in the version required by `pyproject.toml`
 - Two stories have directly contradictory acceptance criteria
 
-Open a GitHub issue tagged `[agent-escalation]` and stop work. **If GitHub write access is unavailable:** follow the `ESCALATION_[YYYYMMDD_HHMMSS].md` file-based fallback defined in `AGENTS.md §12` — write the escalation file, add an `# ASSUMPTION:` comment at the decision point in code, and mark the PR description with "⚠️ ESCALATION FILE WRITTEN — human review required before merge."
+Open a GitHub issue tagged `[agent-escalation]` and stop work. **If GitHub write access is unavailable:** follow the `docs/escalations/ESCALATION_[YYYYMMDD_HHMMSS].md` file-based fallback defined in `AGENTS.md §12` — write the escalation file under `docs/escalations/`, add an `# ASSUMPTION:` comment at the decision point in code, and mark the PR description with "⚠️ ESCALATION FILE WRITTEN — human review required before merge."
 
 ---
 

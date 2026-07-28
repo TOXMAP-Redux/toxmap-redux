@@ -38,10 +38,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
         with:
           python-version: "3.12"
           cache: pip
@@ -68,10 +68,10 @@ jobs:
     needs: python-lint
     steps:
       - name: Checkout
-        uses: actions/checkout@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
         with:
           python-version: "3.12"
           cache: pip
@@ -81,14 +81,35 @@ jobs:
         working-directory: backend
 
       - name: Run unit tests
-        run: pytest tests/unit/ -v --tb=short --junitxml=reports/unit-results.xml
+        # V10-D: working-directory=backend so pyproject.toml [tool.pytest.ini_options] is
+        # discovered (asyncio_mode=auto, -p no:xdist, bdd_features_base_dir). Path is relative
+        # to backend/ — ../tests/unit/ resolves to the repo-root tests/unit/ directory.
+        # V10-G: --cov=app --cov-report=xml feeds the Codecov upload step below.
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend
+        run: |
+          mkdir -p ../reports
+          pytest ../tests/unit/ -v --tb=short \
+            --cov=app --cov-report=xml:../reports/coverage.xml \
+            --junitxml=../reports/unit-results.xml
+        working-directory: backend
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4.6.0
+        if: always()
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: reports/coverage.xml
+          fail_ci_if_error: false
 
       - name: Upload unit test results
         if: always()
-        uses: actions/upload-artifact@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: unit-test-results
-          path: reports/unit-results.xml
+          path: |
+            reports/unit-results.xml
+            reports/coverage.xml
           if-no-files-found: ignore
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -118,6 +139,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/toxmap
+      TESTING: "1"
       PGPASSWORD: postgres
       PGHOST: localhost
       PGUSER: postgres
@@ -125,10 +147,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
         with:
           python-version: "3.12"
           cache: pip
@@ -164,14 +186,13 @@ jobs:
         run: |
           pip install schemathesis
           schemathesis run http://localhost:8000/openapi.json \
-            --checks response_schema_conformance \
-            --report reports/schemathesis.txt || true
-        # Note: schemathesis exits non-zero only on schema violations; other errors
-        # surface via the API feature tests above.
+            --checks all \
+            --report reports/schemathesis.txt
+        # Story 2.OPS.1 — Schemathesis gate activated; --checks all enforced.
 
       - name: Upload API test results
         if: always()
-        uses: actions/upload-artifact@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: api-test-results
           path: reports/
@@ -186,12 +207,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
-      - name: Set up Node.js 22
-        uses: actions/setup-node@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+      - name: Set up Node.js 24
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
-          node-version: "22"
+          node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -221,10 +242,10 @@ jobs:
     needs: [python-api, frontend-lint]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Set up Python 3.12 (for pytest-bdd / Playwright runner)
-        uses: actions/setup-python@v5  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
         with:
           python-version: "3.12"
           cache: pip
@@ -236,22 +257,41 @@ jobs:
       - name: Load seed data into composed stack
         run: |
           docker compose exec -T postgres \
-            psql -U postgres -d toxmap -f /app/tests/fixtures/seed.sql
+            psql -U postgres -d toxmap -f /docker-entrypoint-initdb.d/seed.sql || \
+          docker compose exec -T postgres \
+            psql -U postgres -d toxmap < tests/fixtures/seed.sql
 
       - name: Install E2E test dependencies
         run: pip install -e ".[dev]"
         working-directory: backend
 
-      - name: Run UX invariant E2E tests (all 10 invariants)
-        run: pytest tests/features/e2e/ux_invariants.feature -v --tb=short \
-               --junitxml=reports/e2e-results.xml
+      - name: Install Playwright browsers
+        run: playwright install --with-deps chromium
+        working-directory: backend
+
+      - name: Run UX invariant E2E tests (Phase 3: Invariants 1–4, 7–9)
+        run: |
+          pytest tests/features/e2e/ux_invariants.feature -v --tb=short \
+            --junitxml=reports/e2e-invariants.xml
+        env:
+          DATABASE_URL_SYNC: postgresql+psycopg2://postgres:postgres@localhost:5432/toxmap
+
+      - name: Run UCD task scenario E2E tests (Phase 3: T-01, T-03, T-08)
+        run: |
+          pytest tests/features/e2e/ucd_task_scenarios.feature -v --tb=short \
+            -k "T-01 or T-03 or T-08" \
+            --junitxml=reports/e2e-ucd.xml
+        env:
+          DATABASE_URL_SYNC: postgresql+psycopg2://postgres:postgres@localhost:5432/toxmap
 
       - name: Upload E2E test results
         if: always()
-        uses: actions/upload-artifact@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: e2e-test-results
-          path: reports/e2e-results.xml
+          path: |
+            reports/e2e-invariants.xml
+            reports/e2e-ucd.xml
           if-no-files-found: ignore
 
       - name: Tear down stack
@@ -296,10 +336,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
         with:
           python-version: "3.12"
           cache: pip
@@ -321,7 +361,7 @@ jobs:
 
       - name: Upload benchmark results
         if: always()
-        uses: actions/upload-artifact@v4  # TODO(sec): pin to SHA per docs/security/PINNED_ACTIONS.md story 0.5.4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: benchmark-results
           path: .benchmarks/

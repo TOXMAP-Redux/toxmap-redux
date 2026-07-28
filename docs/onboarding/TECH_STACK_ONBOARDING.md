@@ -345,16 +345,17 @@ queries practical — you're not downloading 800 MB to answer one query.
 
 ---
 
-### PMTiles + Protomaps
+### OpenFreeMap (Basemap Tiles)
 
-**What it is:** PMTiles is a single-file archive format for map tiles. Instead of serving thousands of individual tile 
-files from a tile server, all tiles are packed into one file and the client fetches just the tiles it needs using HTTP
-range requests. Protomaps is the open-source tool that generates PMTiles from OpenStreetMap data.
+**What it is:** [OpenFreeMap](https://openfreemap.org) is a free, open-source hosted vector tile service operated by a single developer (Tilen Mrak). It publishes global vector tiles derived from OpenStreetMap data under the ODbL licence, served from a CDN. No API key is required.
 
-**Why we use it:** Map tiles are the basemap (roads, borders, labels) under our data overlay. Commercial tile services 
-(Google Maps, Mapbox) cost money at scale. PMTiles lets us host our own basemap on Cloudflare R2 for free.
+**Why we use it:** Map tiles are the basemap (roads, borders, labels) under our data overlay. Commercial tile services (Google Maps, Mapbox) cost money at scale. OpenFreeMap provides the same quality tiles at $0 with no signup or API key. MapLibre GL JS points at their Liberty style URL directly.
 
-**Learn more:** [PMTiles spec](https://protomaps.com/docs/pmtiles/)
+**ADR:** [ADR-005](../adr/ADR-005-openfreemap-basemap-tiles.md) documents why self-hosted PMTiles on R2 (the original plan in ADR-004) was abandoned: the Protomaps world build is 127 GiB; the US extract is ~2.5 GiB; Wrangler has a 300 MiB upload limit; working upload requires a separate S3 API credential flow. OpenFreeMap eliminates all of this.
+
+**Self-hosting fallback:** If OpenFreeMap ever becomes unavailable, the complete procedure for extracting and uploading a US basemap tile file to R2 is documented in `docs/deployment/PMTILES_R2_UPLOAD.md`.
+
+**Learn more:** [OpenFreeMap GitHub](https://github.com/hyperknot/openfreemap) · [MapLibre GL JS style spec](https://maplibre.org/maplibre-style-spec/)
 
 ---
 
@@ -362,7 +363,7 @@ range requests. Protomaps is the open-source tool that generates PMTiles from Op
 
 **What they are:**
 - **Cloudflare Pages** — static website hosting (like GitHub Pages, but global CDN). Hosts the compiled React app bundle.
-- **Cloudflare R2** — S3-compatible object storage. Hosts the Parquet files and PMTiles. Free tier: 10 GB storage + 10M reads/month, forever.
+- **Cloudflare R2** — S3-compatible object storage. Hosts the Parquet data files. Free tier: 10 GB storage + 10M reads/month, forever. Note: the basemap tiles are served from OpenFreeMap (ADR-005), not R2, so the full 10 GB is available for Parquet files.
 
 **Why we use them:** They're genuinely free with no expiry, and Cloudflare's global CDN means fast load times for all users. The combination of Pages + R2 is what achieves the $0/month goal.
 
@@ -569,8 +570,8 @@ Here's what happens when a user searches for "lead compounds near Sparrows Point
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/your-org/toxmap.git
-cd toxmap
+git clone https://github.com/TOXMAP-Redux/toxmap-redux.git
+cd toxmap-redux
 
 # 2. Start the full stack
 docker compose up
