@@ -27,7 +27,8 @@ DELETE FROM release_events WHERE facility_id IN (
     '29801DSTLR0001',  -- Borden Chemicals
     '70663ENTGR0001',  -- Enterprise Gas
     '77536EXXO00001',  -- ExxonMobil
-    '77536LYND00001'   -- LyondellBasell
+    '77536LYND00001',  -- LyondellBasell
+    '99501ANCHO0001'   -- Alaska Mining (CONUS filter test)
   )
 );
 
@@ -39,7 +40,8 @@ DELETE FROM facilities WHERE tri_facility_id IN (
   '29801DSTLR0001',
   '70663ENTGR0001',
   '77536EXXO00001',
-  '77536LYND00001'
+  '77536LYND00001',
+  '99501ANCHO0001'
 );
 
 -- Seed Superfund sites
@@ -63,7 +65,8 @@ DELETE FROM chemicals WHERE id IN (1, 2, 3, 4, 5, 6)
     WHERE re.chemical_id = chemicals.id
     AND f.tri_facility_id NOT IN (
       '21219BTHLS3RD', '89319BHPCP7MILE', '22630FRTRY0001',
-      '29801DSTLR0001', '70663ENTGR0001', '77536EXXO00001', '77536LYND00001'
+      '29801DSTLR0001', '70663ENTGR0001', '77536EXXO00001', '77536LYND00001',
+      '99501ANCHO0001'
     )
   );
 
@@ -90,7 +93,8 @@ INSERT INTO facilities (id, tri_facility_id, name, address, city, state_code, zi
   (4, '29801DSTLR0001',  'BORDEN CHEMICALS AND PLASTICS INC',     '1000 BORDEN DR',               'AIKEN',          'SC', '29801', 'AIKEN',      '325211', 'Plastics Material Manufacturing',         ST_GeomFromText('POINT(-81.7198 33.5601)', 4326)),
   (5, '70663ENTGR0001',  'ENTERPRISE GAS PROCESSING LLC',         '4500 ENTERPRISE BLVD',         'SULPHUR',        'LA', '70663', 'CALCASIEU',  '486210', 'Pipeline Transportation of Natural Gas',  ST_GeomFromText('POINT(-93.2044 30.1944)', 4326)),
   (6, '77536EXXO00001',  'EXXONMOBIL CHEMICAL PLANT',             '5200 BAYWAY DR',               'BAYTOWN',        'TX', '77536', 'HARRIS',     '324110', 'Petroleum Refineries',                    ST_GeomFromText('POINT(-95.0215 29.7424)', 4326)),
-  (7, '77536LYND00001',  'LYONDELLBASELL REFINERY',               '12000 LAWNDALE ST',            'HOUSTON',        'TX', '77536', 'HARRIS',     '324110', 'Petroleum Refineries',                    ST_GeomFromText('POINT(-95.2100 29.7380)', 4326));
+  (7, '77536LYND00001',  'LYONDELLBASELL REFINERY',               '12000 LAWNDALE ST',            'HOUSTON',        'TX', '77536', 'HARRIS',     '324110', 'Petroleum Refineries',                    ST_GeomFromText('POINT(-95.2100 29.7380)', 4326)),
+  (8, '99501ANCHO0001',  'ALASKA MINING CO',                      '100 NORTHERN BLVD',            'ANCHORAGE',      'AK', '99501', 'ANCHORAGE',  '212234', 'Copper Ore and Nickel Ore Mining',        ST_GeomFromText('POINT(-149.9003 61.2181)', 4326));
 
 -- 3. Release events
 INSERT INTO release_events (facility_id, chemical_id, reporting_year, total_release_lbs, air_release_lbs, water_release_lbs, land_release_lbs, underground_release_lbs, unit_of_measure, form_type) VALUES
@@ -107,7 +111,8 @@ INSERT INTO release_events (facility_id, chemical_id, reporting_year, total_rele
   (6, 5, 2008, 28400.0, 27100.0,   900.0,  400.0,    0.0, 'Pounds', 'R'),
   (6, 5, 2007, 31200.0, 30000.0,   800.0,  400.0,    0.0, 'Pounds', 'R'),
   (6, 5, 2006, 35600.0, 34100.0,  1000.0,  500.0,    0.0, 'Pounds', 'R'),
-  (7, 5, 2008, 19750.0, 18900.0,     0.0,  850.0,    0.0, 'Pounds', 'R');
+  (7, 5, 2008, 19750.0, 18900.0,     0.0,  850.0,    0.0, 'Pounds', 'R'),
+  (8, 2, 2008,  3500.0,     0.0,     0.0, 3500.0,    0.0, 'Pounds', 'R');
 
 -- 4. Superfund sites
 INSERT INTO superfund_sites (id, epa_id, name, address, city, state_code, zip_code, county, status, hrs_score, npl_date, epa_progress_url, contaminants, location) VALUES
@@ -115,9 +120,9 @@ INSERT INTO superfund_sites (id, epa_id, name, address, city, state_code, zip_co
   (2, 'VAD980554587', 'ARLINGTON SCRAP YARD', '4200 LEE HWY',         'ARLINGTON',   'VA', '22204', 'ARLINGTON', 'NPL', 28.74, '1989-02-21', 'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=0304032', ARRAY['LEAD COMPOUNDS','CADMIUM'],           ST_GeomFromText('POINT(-77.1089 38.8823)', 4326));
 
 -- 5. Census county demographics
-INSERT INTO census_county (id, fips_code, name, state_code, census_year, total_pop, median_income, pct_under_18, pct_over_65, pct_nonwhite, cancer_mortality_female_per_100k, boundary) VALUES
-  (1, '51187', 'Warren County', 'VA', 2000,   31584,  41246.00, 24.7, 11.2,  8.4, 148.7, ST_GeomFromText('POLYGON((-78.40 38.76, -78.40 38.99, -78.00 38.99, -78.00 38.76, -78.40 38.76))', 4326)),
-  (2, '48201', 'Harris County', 'TX', 2000, 3400578,  42890.00, 28.3,  7.9, 55.4, 162.4, ST_GeomFromText('POLYGON((-95.79 29.52, -95.79 30.11, -94.91 30.11, -94.91 29.52, -95.79 29.52))', 4326)),
-  (3, '45003', 'Aiken County',  'SC', 2000,  142552,  38100.00, 25.1, 13.6, 34.2,  NULL, ST_GeomFromText('POLYGON((-81.97 33.35, -81.97 33.84, -81.42 33.84, -81.42 33.35, -81.97 33.35))', 4326));
+INSERT INTO census_county (id, fips_code, name, state_code, census_year, total_pop, median_income, pct_under_18, pct_over_65, pct_nonwhite, cancer_mortality_female_per_100k, cancer_mortality_male_per_100k, heart_disease_mortality_per_100k, boundary) VALUES
+  (1, '51187', 'Warren County', 'VA', 2000,   31584,  41246.00, 24.7, 11.2,  8.4, 148.7, 175.2, 189.4, ST_GeomFromText('POLYGON((-78.40 38.76, -78.40 38.99, -78.00 38.99, -78.00 38.76, -78.40 38.76))', 4326)),
+  (2, '48201', 'Harris County', 'TX', 2000, 3400578,  42890.00, 28.3,  7.9, 55.4, 162.4, 194.8, 215.6, ST_GeomFromText('POLYGON((-95.79 29.52, -95.79 30.11, -94.91 30.11, -94.91 29.52, -95.79 29.52))', 4326)),
+  (3, '45003', 'Aiken County',  'SC', 2000,  142552,  38100.00, 25.1, 13.6, 34.2, 155.3, 186.1, 228.7, ST_GeomFromText('POLYGON((-81.97 33.35, -81.97 33.84, -81.42 33.84, -81.42 33.35, -81.97 33.35))', 4326));
 
 COMMIT;

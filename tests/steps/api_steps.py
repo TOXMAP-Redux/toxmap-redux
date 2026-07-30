@@ -249,6 +249,20 @@ def step_feature_count_more_than(count, step_context):
     assert actual > count, f"Expected more than {count} features, got {actual}"
 
 
+@then(parsers.parse("the FeatureCollection contains at least {count:d} features"))
+def step_feature_count_at_least(count, step_context):
+    body = step_context["response"].json()
+    actual = len(body.get("features", []))
+    assert actual >= count, f"Expected at least {count} features, got {actual}"
+
+
+@then(parsers.parse("the FeatureCollection contains exactly {count:d} features"))
+def step_feature_count_exactly(count, step_context):
+    body = step_context["response"].json()
+    actual = len(body.get("features", []))
+    assert actual == count, f"Expected exactly {count} features, got {actual}"
+
+
 # ─── Then: every feature property assertions ──────────────────────────────────
 
 

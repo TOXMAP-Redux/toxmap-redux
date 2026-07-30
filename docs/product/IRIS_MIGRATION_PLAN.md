@@ -1,41 +1,128 @@
-# IRIS Migration Plan — ATSDR ToxFAQ → EPA IRIS ChemicalLanding
+# Chemical Health Resources Migration Plan
+## ATSDR ToxFAQs/ToxProfiles + EPA IRIS ChemicalLanding
 
-**Status:** Draft · **Date:** 2026-07-27  
+**Status:** Draft · **Date:** 2026-07-29 (updated)  
 **Author:** Research spike  
-**Source data:** `scripts/iris_substance_nmbr_map.csv` (572 records, scraped 2026-07-27)
+**Source data:**
+- `scripts/atsdr_toxid_map.csv` (205 records, scraped 2026-07-29)
+- `scripts/iris_substance_nmbr_map.csv` (572 records, scraped 2026-07-27)
 
 ---
 
 ## 1. Background
 
-The current codebase links each chemical to its ATSDR ToxFAQ page via an opaque
-`toxid` parameter:
+TOXMAP links chemicals to external health resources via opaque URL parameters
+that cannot be derived from CAS numbers or chemical names alone. Both ATSDR
+and EPA IRIS use non-sequential, non-derivable identifiers.
+
+### 1.1 ATSDR ToxFAQs and ToxProfiles
+
+ATSDR provides two related resources:
+- **ToxFAQs:** Consumer-friendly 2-page summaries (PDF format available)
+- **ToxProfiles:** Comprehensive toxicological profiles (detailed health data)
+
+Both use a shared `toxid`/`tid` parameter as the cross-reference key:
 
 ```
-https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=22   ← Lead Compounds
+# ToxFAQs URL pattern:
+https://wwwn.cdc.gov/TSP/ToxFAQs/ToxFAQsDetails.aspx?faqid=4&toxid=1    ← Acetone
+
+# ToxProfiles URL pattern:
+https://wwwn.cdc.gov/TSP/ToxProfiles/ToxProfiles.aspx?id=5&tid=1        ← Acetone
 ```
 
-EPA's IRIS (Integrated Risk Information System) is a larger, more authoritative
-dataset covering 572 substances with quantitative toxicological assessments (RfD,
-RfC, slope factors). IRIS ChemicalLanding URLs use a similarly opaque
-`substance_nmbr` parameter:
+The `toxid` (ToxFAQs) and `tid` (ToxProfiles) parameters are identical for the
+same chemical. The `faqid` and `id` parameters differ between systems.
+
+### 1.2 EPA IRIS (Integrated Risk Information System)
+
+EPA IRIS is a larger, more authoritative dataset covering 572 substances with
+quantitative toxicological assessments (RfD, RfC, slope factors). IRIS URLs
+use an opaque `substance_nmbr` parameter:
 
 ```
 https://iris.epa.gov/ChemicalLanding/&substance_nmbr=277         ← Lead (inorganic)
 ```
 
-Neither ID is derivable from a CAS number or chemical name alone — both must be
-scraped from their respective A-Z indexes.
+Neither ATSDR nor IRIS IDs are derivable from CAS numbers or chemical names —
+both must be scraped from their respective A-Z indexes.
 
 ---
 
-## 2. Mapping Methodology
+## 2. ATSDR Mapping Methodology
+
+### 2.1 Data Extraction Process
+
+The ATSDR mapping required two different extraction approaches:
+
+**ToxProfiles (static HTML):** The A-Z Index page at
+`https://www.atsdr.cdc.gov/toxicological-profiles/glossary/index.html` is
+server-rendered HTML. Standard regex extraction works:
+
+```
+Pattern: ToxProfiles.aspx?id=(\d+)&tid=(\d+)">([^<]+)
+```
+
+**ToxFAQs (JavaScript-rendered):** The page at
+`https://wwwn.cdc.gov/TSP/ToxFAQs/ToxFAQsLanding.aspx` uses JavaScript to load
+content dynamically when clicking A-Z letter buttons. Static HTML scraping
+captures only Letter A. Playwright automation was required to iterate through
+all 26 letters and extract chemical links.
+
+### 2.2 ATSDR Data Quality
+
+| Metric | Value |
+|--------|-------|
+| Total ToxProfiles entries | 187 |
+| Total ToxFAQs entries | 202 |
+| Combined unique chemicals | 205 |
+| With both ToxProfiles + ToxFAQs | 187 |
+| ToxFAQs only (no ToxProfile) | 18 |
+
+The `toxid` parameter range is 1–293 (non-contiguous).
+
+### 2.3 ToxFAQs-Only Chemicals
+
+These 18 chemicals have ToxFAQs pages but no corresponding ToxProfile:
+
+| Chemical | toxid | faqid |
+|----------|-------|-------|
+| Aniline | 79 | 449 |
+| Blister Agents (Nitrogen Mustards) | 189 | 921 |
+| Blister Agents (Lewisite) | 190 | 923 |
+| Blister Agents (Sulfur Mustard) | 191 | 926 |
+| Calcium Hypochlorite/Sodium Hypochlorite | 192 | 928 |
+| Chlordecone | 118 | 642 |
+| Crotonaldehyde | 197 | 948 |
+| Diborane | 202 | 965 |
+| Hydrogen Chloride | 147 | 759 |
+| Hydrogen Peroxide | 55 | 305 |
+| Methyl Isocyanate | 116 | 629 |
+| Nerve Agents (GA, GB, GD, VX) | 93 | 524 |
+| Nitrogen Oxides | 69 | 396 |
+| Phosgene | 182 | 1479 |
+| Phosgene Oxime | 213 | 1011 |
+| Phosphine | 214 | 1014 |
+| Selenium Hexafluoride | 215 | 1016 |
+| Sodium Hydroxide | 45 | 248 |
+
+### 2.4 Cross-Reference Key
+
+The `toxid` parameter is the canonical cross-reference key:
+- In ToxFAQs URLs: `?faqid=XXX&toxid=YYY` — use `toxid`
+- In ToxProfiles URLs: `?id=XXX&tid=YYY` — use `tid` (same value as `toxid`)
+
+The scraper maps chemicals by `toxid` and merges both URLs where available.
+
+---
+
+## 3. IRIS Mapping Methodology
 
 The scrape of `https://iris.epa.gov/AtoZ/alpha/` (server-rendered HTML table)
 extracted all 572 IRIS entries. Full mapping is at
 [`scripts/iris_substance_nmbr_map.csv`](../../scripts/iris_substance_nmbr_map.csv).
 
-### 2.1 Primary match key: CAS Registry Number
+### 3.1 Primary match key: CAS Registry Number
 
 | TRI field | IRIS field | Notes |
 |-----------|-----------|-------|
@@ -56,7 +143,7 @@ benzene) should be normalised to the CAS form (`/compound/71-43-2`) during
 migration — this makes them human-readable and independent of PubChem internal
 ID changes.
 
-### 2.2 Resolving TRI compound categories (N-codes) via PubChem Synonyms
+### 3.2 Resolving TRI compound categories (N-codes) via PubChem Synonyms
 
 TRI compound categories (e.g. "LEAD COMPOUNDS", internal ID N420) carry no
 single CAS number.  The resolution chain is:
@@ -89,7 +176,7 @@ as a fallback: the IRIS typically has an entry for the element (e.g., "Copper"
 at CAS 7440-50-8) that covers compound categories. A small hardcoded override
 table is needed only for categories where PubChem resolution fails.
 
-### 2.3 Seed chemical mapping (verified)
+### 3.3 Seed chemical mapping (verified)
 
 All 6 test seed chemicals have confirmed IRIS entries:
 
@@ -102,7 +189,7 @@ All 6 test seed chemicals have confirmed IRIS entries:
 | BENZENE | 71-43-2 | **276** | direct CAS |
 | AMMONIA | 7664-41-7 | **422** | direct CAS |
 
-### 2.4 Edge cases
+### 3.4 Edge cases
 
 | Situation | Count | Resolution |
 |-----------|-------|------------|
@@ -114,7 +201,7 @@ All 6 test seed chemicals have confirmed IRIS entries:
 
 ---
 
-## 3. IRIS Data Quality Notes
+## 4. IRIS Data Quality Notes
 
 | Metric | Value |
 |--------|-------|
@@ -130,9 +217,9 @@ deleted or merged entries over time. The scraped IDs are the live canonical set.
 
 ---
 
-## 4. Required Codebase Changes
+## 5. Required Codebase Changes
 
-### 4.1 Database — new column
+### 5.1 Database — new column
 
 Add `iris_url TEXT` to the `chemicals` table via Alembic:
 
@@ -147,7 +234,7 @@ No existing data is affected; column defaults to `NULL`.
 > `TOXMAP_API_CONTRACT.md` **before** the column is added. This requires
 > human approval per AGENTS.md §3.
 
-### 4.2 Ingestion — populate iris_url and normalise pubchem_url
+### 5.2 Ingestion — populate iris_url and normalise pubchem_url
 
 **IRIS lookup table** — generated from the CSV via a helper in `tri_ingest.py`:
 
@@ -193,7 +280,7 @@ def normalise_pubchem_url(cas: str | None, existing_url: str | None) -> str | No
     return existing_url  # keep CID-based URL for compound categories until resolved
 ```
 
-### 4.3 Backend schemas
+### 5.3 Backend schemas
 
 Add `iris_url` to `ChemicalSummary` and `ChemicalSearch` in
 `backend/app/schemas/chemical.py`:
@@ -206,13 +293,13 @@ class ChemicalSummary(BaseModel):
     pubchem_url: str | None = None
 ```
 
-### 4.4 API contract update (**human approval required**)
+### 5.4 API contract update (**human approval required**)
 
 `TOXMAP_API_CONTRACT.md` must be updated to add `iris_url` to the
 `GET /api/v1/chemicals` and `GET /api/v1/chemicals/{id}` response shapes.
 This is a **protected file** (AGENTS.md §4) — agent cannot modify it.
 
-### 4.5 Frontend — add IRIS link
+### 5.5 Frontend — add IRIS link
 
 In `SearchPanel` and `FacilityDrawer`, render an IRIS link alongside or in
 place of the ATSDR link wherever `chemical.iris_url` is non-null.
@@ -234,34 +321,72 @@ Suggested label: **"EPA IRIS"** (consistent with EPA branding).
 
 ---
 
-## 5. Decision Required: Replace or Supplement ATSDR?
+## 6. Decision Required: ATSDR + IRIS Integration Strategy
 
-Two options:
+Now that we have complete ATSDR ToxFAQs/ToxProfiles mapping (205 chemicals) alongside
+the IRIS mapping (572 chemicals), the question is how to present these links to users.
+
+### 6.1 Coverage Analysis
+
+| Resource | Total Chemicals | TRI Coverage (est.) | Unique Content |
+|----------|----------------|---------------------|----------------|
+| ATSDR ToxFAQs | 202 | ~150 | Consumer-friendly 2-page summaries |
+| ATSDR ToxProfiles | 187 | ~150 | Detailed toxicological profiles |
+| EPA IRIS | 572 | ~320 | Quantitative risk assessments (RfD, RfC) |
+
+### 6.2 Options
 
 | Option | Pros | Cons |
 |--------|------|------|
-| **A — Supplement:** keep `atsdr_url`, add `iris_url` | No data loss; ATSDR has different chemical coverage | Two external link columns; wider API surface |
-| **B — Replace:** rename `atsdr_url` → `iris_url`; drop ATSDR | Simpler schema | ATSDR covers ~300+ chemicals not in IRIS (e.g., many CERCLA priority list substances); those chemicals lose their health link |
+| **A — Show all three:** ToxFAQs + ToxProfiles + IRIS | Maximum information; different audiences | Cluttered UI; may overwhelm users |
+| **B — ATSDR unified + IRIS:** Single "ATSDR" link (prefer ToxProfiles) + IRIS | Cleaner; two link categories | Loses ToxFAQs consumer format |
+| **C — Smart fallback:** IRIS primary, ATSDR fallback for non-IRIS chemicals | IRIS is authoritative; ATSDR fills gaps | IRIS UI is less consumer-friendly |
 
-**Recommendation:** Option A (supplement). IRIS does not cover all TRI chemicals,
-so removing ATSDR links would leave ~480+ chemicals with no health resource link.
-Show IRIS link where available; fall back to ATSDR.
+**Recommendation:** Option B (ATSDR unified + IRIS). Show:
+- **"ATSDR"** link → ToxProfiles URL where available, fallback to ToxFAQs
+- **"EPA IRIS"** link → IRIS URL where available
 
----
-
-## 6. Rollout Order
-
-1. **Human:** Approve API contract addition of `iris_url` field
-2. **Human:** Approve new `iris_map.py` lookup table data (derived from scrape)
-3. **DE:** Alembic migration + `iris_map.py` generation script
-4. **BE:** Add `iris_url` to ORM model, schema, and service layer
-5. **DE:** Update ingestion to populate `iris_url` during TRI ingest
-6. **FE:** Render IRIS link in SearchPanel and FacilityDrawer
-7. **QA:** Add Gherkin scenario for T-08 variant: IRIS link opens in new tab
+This gives users access to both consumer-friendly ATSDR content and authoritative
+IRIS risk assessments without overwhelming the UI.
 
 ---
 
-## 7. Mapping Artifact
+## 7. Rollout Order
+
+1. **Human:** Approve API contract addition of `iris_url` and `atsdr_toxprofiles_url` fields
+2. **Human:** Approve ATSDR mapping data (`scripts/atsdr_toxid_map.csv`)
+3. **Human:** Approve IRIS mapping data (`scripts/iris_substance_nmbr_map.csv`)
+4. **DE:** Alembic migration + lookup table generation
+5. **BE:** Add URL fields to ORM model, schema, and service layer
+6. **DE:** Update ingestion to populate URLs during TRI ingest
+7. **FE:** Render ATSDR and IRIS links in SearchPanel and FacilityDrawer
+8. **QA:** Add Gherkin scenarios for external link validation
+
+---
+
+## 8. Mapping Artifacts
+
+### 8.1 ATSDR ToxFAQs/ToxProfiles Mapping
+
+The complete `toxid` → (name, toxprofiles_url, toxfaqs_url) table is persisted at:
+
+```
+scripts/atsdr_toxid_map.csv
+scripts/atsdr_toxfaqs_raw.csv   # Raw ToxFAQs data (Playwright extraction)
+```
+
+Re-generation command:
+
+```bash
+# Requires saved HTML files in docs/product/
+python scripts/scrape_atsdr_toxfaqs.py --output scripts/atsdr_toxid_map.csv
+```
+
+**Note:** ToxFAQs extraction requires Playwright automation since the page uses
+JavaScript to load content dynamically. The `atsdr_toxfaqs_raw.csv` file was
+generated via browser automation clicking through all A-Z letters.
+
+### 8.2 EPA IRIS Mapping
 
 The complete `substance_nmbr` → (name, CASRN, iris_url) table is persisted at:
 

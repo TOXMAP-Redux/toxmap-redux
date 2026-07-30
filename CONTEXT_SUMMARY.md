@@ -8,17 +8,17 @@
 > - **Full session**: load this file *alongside* files 1–8 — it supplements the full context load, not replaces it
 > - **Always load:** `CURRENT_PHASE.txt` and `TOXMAP_PROGRESS_TRACKER.md` regardless of context size — they are Priority 0
 
-**Last Updated:** 2026-07-28
+**Last Updated:** 2026-07-29
 
 ---
 
 ## Current Phase
 
 ```
-cat CURRENT_PHASE.txt   → 4  (Superfund Overlay)
+cat CURRENT_PHASE.txt   → 6  (Full QA Pass)
 ```
 
-Active milestone: **M4 — Superfund Layer** (Phase 3 complete 2026-07-27; Phase 4 in progress)
+Active milestone: **M6 — Feature Complete** (Phase 5 complete 2026-07-29; Phase 6 in progress)
 
 Full status: `docs/product/TOXMAP_PROGRESS_TRACKER.md`
 
@@ -61,7 +61,7 @@ Search mode (submitted) ► GET /api/v1/{facilities|superfund}?lat=...&radius=..
 |---|------|------------------|
 | 1 | **Single sidebar** — Map Contents and Search Results never visible simultaneously | `map-contents-panel` hidden when search active |
 | 2 | **No empty table rows** — Results table shows only in-viewport facilities (`useViewportFacilities`; re-fetch on map move with `bbox=`) | `results-table` |
-| 3 | **State filter restricts, not only zooms** — "Limit to state" checkbox triggers `restrict_to_state=true` | `restrict-to-state-checkbox` |
+| 3 | **State filter restricts, not only zooms** — State dropdown labeled "Filter to state (optional)" filters results when set | `state-select` |
 | 4 | **Correct panel labels** — "Search Chemical Releases by Location" (not "Quick Search"); "US Census & Health Data" (not "Demographics") | `search-panel` label check |
 | 5 | **Inline demographic legend** — Legend values and units visible at all times, not mouse-over only | `inline-legend` |
 | 6 | **Distinct icon shapes** — TRI = circle, Superfund = diamond; no icon reuse with hospitals | marker `marker_shape` from API |
@@ -145,5 +145,6 @@ If a change to any of these seems required, open a `[clarification-needed]` issu
 | 4 | FE | Superfund diamond markers → T-02, T-04 E2E pass |
 | 5 | FE | Census overlays → T-05, T-06, T-09 E2E pass |
 | 6 | QA | All Gherkin pass + SLAs + security regression |
-| 7 | FE+OPS | Cloudflare Pages + DuckDB WASM + $0 deploy |
+| 7 | FE+OPS | Cloudflare Pages + DuckDB WASM + $0 deploy — **MVP** |
+| 8 | DE | Tribal lands data — `bia_code`/`tribe_name` columns, tribal filter (post-MVP) |
 

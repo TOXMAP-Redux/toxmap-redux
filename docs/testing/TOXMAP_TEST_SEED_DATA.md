@@ -1,7 +1,7 @@
 # TOXMAP Test Seed Data
 
 **Date:** 2026-07-15  
-**Last Updated:** 2026-07-23 — TRI Data Audit remediation: `unit_of_measure` and `form_type` added to all `release_events` seed records (C-2, H-4); Section 3 note added clarifying `total_release_lbs` = on-site only (A-047); Section 9 assertion table updated  
+**Last Updated:** 2026-07-29 — Added Alaska facility (`99501ANCHO0001`) for Continental US filter regression testing  
 **Purpose:** Deterministic fixture data that makes every Gherkin scenario in [TOXMAP_ACCEPTANCE_TESTS.md](TOXMAP_ACCEPTANCE_TESTS.md) pass without hitting the real EPA dataset.  
 **Usage:** Load via `psql -f tests/fixtures/seed.sql` or the `seed_db` pytest fixture in `conftest.py`.
 
@@ -20,6 +20,7 @@
 | `70663ENTGR0001`  | Fictional                                           | T-07 scenario                  |
 | `77536EXXO00001`  | Fictional                                           | T-09 scenario                  |
 | `77536LYND00001`  | Fictional                                           | T-09 scenario                  |
+| `99501ANCHO0001`  | Fictional                                           | CONUS filter test (Alaska)     |
 | `VAD070358684`    | **Real** EPA Superfund ID                           | UCD 2011 study, Task 4 (exact) |
 | `51187`           | Real FIPS (Warren County VA)                        | T-05 scenario                  |
 | `48201`           | Real FIPS (Harris County TX)                        | T-09 scenario                  |
@@ -71,15 +72,16 @@ INSERT INTO chemicals (id, cas_number, name, category, atsdr_url, pubchem_url) V
 
 ### 2.1 Seed Records
 
-| id | tri_facility_id   | name                                    | city             | state | zip     | naics    | lat       | lon         | Scenario |
-|----|-------------------|-----------------------------------------|------------------|-------|---------|----------|-----------|-------------|----------|
-| 1  | `21219BTHLS3RD`   | `BETHLEHEM STEEL CORP - SPARROWS POINT` | `SPARROWS POINT` | `MD`  | `21219` | `331110` | `39.2197` | `-76.4785`  | T-01     |
-| 2  | `89319BHPCP7MILE` | `ROBINSON NEVADA MINING CO`             | `RUTH`           | `NV`  | `89319` | `212234` | `39.2919` | `-115.0319` | T-03     |
-| 3  | `22630FRTRY0001`  | `FRONT ROYAL PLASTICS INC`              | `FRONT ROYAL`    | `VA`  | `22630` | `326130` | `38.9241` | `-78.1856`  | T-05     |
-| 4  | `29801DSTLR0001`  | `BORDEN CHEMICALS AND PLASTICS INC`     | `AIKEN`          | `SC`  | `29801` | `325211` | `33.5601` | `-81.7198`  | T-07     |
-| 5  | `70663ENTGR0001`  | `ENTERPRISE GAS PROCESSING LLC`         | `SULPHUR`        | `LA`  | `70663` | `486210` | `30.1944` | `-93.2044`  | T-07     |
-| 6  | `77536EXXO00001`  | `EXXONMOBIL CHEMICAL PLANT`             | `BAYTOWN`        | `TX`  | `77536` | `324110` | `29.7424` | `-95.0215`  | T-09     |
-| 7  | `77536LYND00001`  | `LYONDELLBASELL REFINERY`               | `HOUSTON`        | `TX`  | `77536` | `324110` | `29.7380` | `-95.2100`  | T-09     |
+| id | tri_facility_id   | name                                    | city             | state | zip     | naics    | lat       | lon         | Scenario    |
+|----|-------------------|-----------------------------------------|------------------|-------|---------|----------|-----------|-------------|-------------|
+| 1  | `21219BTHLS3RD`   | `BETHLEHEM STEEL CORP - SPARROWS POINT` | `SPARROWS POINT` | `MD`  | `21219` | `331110` | `39.2197` | `-76.4785`  | T-01        |
+| 2  | `89319BHPCP7MILE` | `ROBINSON NEVADA MINING CO`             | `RUTH`           | `NV`  | `89319` | `212234` | `39.2919` | `-115.0319` | T-03        |
+| 3  | `22630FRTRY0001`  | `FRONT ROYAL PLASTICS INC`              | `FRONT ROYAL`    | `VA`  | `22630` | `326130` | `38.9241` | `-78.1856`  | T-05        |
+| 4  | `29801DSTLR0001`  | `BORDEN CHEMICALS AND PLASTICS INC`     | `AIKEN`          | `SC`  | `29801` | `325211` | `33.5601` | `-81.7198`  | T-07        |
+| 5  | `70663ENTGR0001`  | `ENTERPRISE GAS PROCESSING LLC`         | `SULPHUR`        | `LA`  | `70663` | `486210` | `30.1944` | `-93.2044`  | T-07        |
+| 6  | `77536EXXO00001`  | `EXXONMOBIL CHEMICAL PLANT`             | `BAYTOWN`        | `TX`  | `77536` | `324110` | `29.7424` | `-95.0215`  | T-09        |
+| 7  | `77536LYND00001`  | `LYONDELLBASELL REFINERY`               | `HOUSTON`        | `TX`  | `77536` | `324110` | `29.7380` | `-95.2100`  | T-09        |
+| 8  | `99501ANCHO0001`  | `ALASKA MINING CO`                      | `ANCHORAGE`      | `AK`  | `99501` | `212234` | `61.2181` | `-149.9003` | CONUS test  |
 
 ### 2.2 SQL
 
@@ -91,7 +93,8 @@ INSERT INTO facilities (id, tri_facility_id, name, address, city, state_code, zi
   (4, '29801DSTLR0001', 'BORDEN CHEMICALS AND PLASTICS INC',    '1000 BORDEN DR',                   'AIKEN',          'SC', '29801', 'AIKEN',      '325211', 'Plastics Material Manufacturing',          ST_GeomFromText('POINT(-81.7198 33.5601)', 4326)),
   (5, '70663ENTGR0001', 'ENTERPRISE GAS PROCESSING LLC',        '4500 ENTERPRISE BLVD',             'SULPHUR',        'LA', '70663', 'CALCASIEU',  '486210', 'Pipeline Transportation of Natural Gas',   ST_GeomFromText('POINT(-93.2044 30.1944)', 4326)),
   (6, '77536EXXO00001', 'EXXONMOBIL CHEMICAL PLANT',           '5200 BAYWAY DR',                   'BAYTOWN',        'TX', '77536', 'HARRIS',     '324110', 'Petroleum Refineries',                     ST_GeomFromText('POINT(-95.0215 29.7424)', 4326)),
-  (7, '77536LYND00001', 'LYONDELLBASELL REFINERY',             '12000 LAWNDALE ST',                'HOUSTON',        'TX', '77536', 'HARRIS',     '324110', 'Petroleum Refineries',                     ST_GeomFromText('POINT(-95.2100 29.7380)', 4326));
+  (7, '77536LYND00001', 'LYONDELLBASELL REFINERY',             '12000 LAWNDALE ST',                'HOUSTON',        'TX', '77536', 'HARRIS',     '324110', 'Petroleum Refineries',                     ST_GeomFromText('POINT(-95.2100 29.7380)', 4326)),
+  (8, '99501ANCHO0001', 'ALASKA MINING CO',                    '100 NORTHERN BLVD',                'ANCHORAGE',      'AK', '99501', 'ANCHORAGE',  '212234', 'Copper Ore and Nickel Ore Mining',         ST_GeomFromText('POINT(-149.9003 61.2181)', 4326));
 ```
 
 ---
@@ -124,6 +127,7 @@ INSERT INTO facilities (id, tri_facility_id, name, address, city, state_code, zi
 | 7 (LyondellBasell TX) | 5 (Benzene)  | 2008 | 19,750      | 18,900  | 0         | 850       | 0               | T-09                              |
 | 6 (ExxonMobil TX)     | 5 (Benzene)  | 2007 | 31,200      | 30,000  | 800       | 400       | 0               | T-09 trend                        |
 | 6 (ExxonMobil TX)     | 5 (Benzene)  | 2006 | 35,600      | 34,100  | 1,000     | 500       | 0               | T-09 trend                        |
+| 8 (Alaska Mining AK)  | 2 (Copper)   | 2008 | 3,500       | 0       | 0         | 3,500     | 0               | CONUS filter exclusion test       |
 
 ### 3.2 SQL
 
@@ -148,7 +152,9 @@ INSERT INTO release_events (facility_id, chemical_id, reporting_year, total_rele
   (6, 5, 2008, 28400.0, 27100.0,   900.0,  400.0, 0.0, 'Pounds', 'R'),
   (6, 5, 2007, 31200.0, 30000.0,   800.0,  400.0, 0.0, 'Pounds', 'R'),
   (6, 5, 2006, 35600.0, 34100.0,  1000.0,  500.0, 0.0, 'Pounds', 'R'),
-  (7, 5, 2008, 19750.0, 18900.0,     0.0,  850.0, 0.0, 'Pounds', 'R');
+  (7, 5, 2008, 19750.0, 18900.0,     0.0,  850.0, 0.0, 'Pounds', 'R'),
+  -- CONUS filter test: Alaska copper (non-continental US)
+  (8, 2, 2008,  3500.0,     0.0,     0.0, 3500.0, 0.0, 'Pounds', 'R');
 ```
 
 ---
@@ -245,7 +251,8 @@ INSERT INTO facilities (id, tri_facility_id, name, address, city, state_code, zi
   (4, '29801DSTLR0001',  'BORDEN CHEMICALS AND PLASTICS INC',     '1000 BORDEN DR',              'AIKEN',          'SC', '29801', 'AIKEN',      '325211', 'Plastics Material Manufacturing',         ST_GeomFromText('POINT(-81.7198 33.5601)', 4326)),
   (5, '70663ENTGR0001',  'ENTERPRISE GAS PROCESSING LLC',         '4500 ENTERPRISE BLVD',        'SULPHUR',        'LA', '70663', 'CALCASIEU',  '486210', 'Pipeline Transportation of Natural Gas',  ST_GeomFromText('POINT(-93.2044 30.1944)', 4326)),
   (6, '77536EXXO00001',  'EXXONMOBIL CHEMICAL PLANT',             '5200 BAYWAY DR',              'BAYTOWN',        'TX', '77536', 'HARRIS',     '324110', 'Petroleum Refineries',                    ST_GeomFromText('POINT(-95.0215 29.7424)', 4326)),
-  (7, '77536LYND00001',  'LYONDELLBASELL REFINERY',               '12000 LAWNDALE ST',           'HOUSTON',        'TX', '77536', 'HARRIS',     '324110', 'Petroleum Refineries',                    ST_GeomFromText('POINT(-95.2100 29.7380)', 4326));
+  (7, '77536LYND00001',  'LYONDELLBASELL REFINERY',               '12000 LAWNDALE ST',           'HOUSTON',        'TX', '77536', 'HARRIS',     '324110', 'Petroleum Refineries',                    ST_GeomFromText('POINT(-95.2100 29.7380)', 4326)),
+  (8, '99501ANCHO0001',  'ALASKA MINING CO',                      '100 NORTHERN BLVD',           'ANCHORAGE',      'AK', '99501', 'ANCHORAGE',  '212234', 'Copper Ore and Nickel Ore Mining',        ST_GeomFromText('POINT(-149.9003 61.2181)', 4326));
 
 -- 3. Release events
 INSERT INTO release_events (facility_id, chemical_id, reporting_year, total_release_lbs, air_release_lbs, water_release_lbs, land_release_lbs, underground_release_lbs, unit_of_measure, form_type) VALUES
@@ -262,7 +269,8 @@ INSERT INTO release_events (facility_id, chemical_id, reporting_year, total_rele
   (6, 5, 2008, 28400.0, 27100.0,   900.0,  400.0,    0.0, 'Pounds', 'R'),
   (6, 5, 2007, 31200.0, 30000.0,   800.0,  400.0,    0.0, 'Pounds', 'R'),
   (6, 5, 2006, 35600.0, 34100.0,  1000.0,  500.0,    0.0, 'Pounds', 'R'),
-  (7, 5, 2008, 19750.0, 18900.0,     0.0,  850.0,    0.0, 'Pounds', 'R');
+  (7, 5, 2008, 19750.0, 18900.0,     0.0,  850.0,    0.0, 'Pounds', 'R'),
+  (8, 2, 2008,  3500.0,     0.0,     0.0, 3500.0,    0.0, 'Pounds', 'R');
 
 -- 4. Superfund sites
 INSERT INTO superfund_sites (id, epa_id, name, address, city, state_code, zip_code, county, status, hrs_score, npl_date, epa_progress_url, contaminants, location) VALUES

@@ -1,9 +1,12 @@
 /**
- * MapContentsPanel — stories 3.2.2, 4.1.2, 4.3.1.
+ * MapContentsPanel — stories 3.2.2, 4.1.2, 4.3.1, 5.1.1–5.1.5.
  * UX Invariant 7: year toggle shows "(latest year)" on most-recent year.
  * UX Invariant 1: this panel is hidden when SearchPanel is active.
  * UX Invariant 6: Superfund toggle + legend entry distinct from TRI circles.
+ * UX Invariant 4: Label is "US Census & Health Data" (NOT "Demographics").
  */
+import { CensusHealthPanel } from '../Demographics/CensusHealthPanel'
+import type { DemographicLayer } from '../../api/types'
 
 interface MapContentsPanelProps {
   latestYear: number | null
@@ -20,6 +23,10 @@ interface MapContentsPanelProps {
   /** Number of Superfund sites currently loaded in viewport */
   superfundCount: number | null
   superfundLoading: boolean
+  /** Currently selected demographic layer (story 5.2.1) */
+  selectedDemographicLayer: DemographicLayer | null
+  /** Handler for demographic layer selection */
+  onDemographicLayerSelect: (layer: DemographicLayer | null) => void
 }
 
 /** Small inline status badge: "loading…", "N sites", or empty */
@@ -52,6 +59,8 @@ export function MapContentsPanel({
   triLoading,
   superfundCount,
   superfundLoading,
+  selectedDemographicLayer,
+  onDemographicLayerSelect,
 }: MapContentsPanelProps): JSX.Element {
   return (
     <div data-testid="map-contents-panel" className="toxmap-map-contents" style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '14px', overflowY: 'auto', flex: 1 }}>
@@ -138,6 +147,15 @@ export function MapContentsPanel({
           </>
         )}
       </section>
+
+      {/* Divider before Census panel */}
+      <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '4px 0' }} />
+
+      {/* US Census & Health Data panel (stories 5.1.1–5.1.5) */}
+      <CensusHealthPanel
+        selectedLayer={selectedDemographicLayer}
+        onLayerSelect={onDemographicLayerSelect}
+      />
     </div>
   )
 }

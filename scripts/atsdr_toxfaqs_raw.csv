@@ -1,0 +1,205 @@
+chemical_name,letter,faqid,toxid
+Acetone,A,4,1
+Acrolein,A,555,102
+Acrylamide,A,1162,236
+Acrylonitrile,A,446,78
+Aldrin/Dieldrin,A,316,56
+Aluminum,A,190,34
+Americium,A,810,158
+Ammonia,A,10,2
+Aniline,A,449,79
+Antimony,A,331,58
+Arsenic,A,19,3
+Asbestos,A,29,4
+Atrazine,A,854,59
+"1,3-Butadiene",B,458,81
+1-Bromopropane,B,1473,285
+"2,3-Benzofuran",B,914,187
+2-Butanone,B,342,60
+2-Butoxyethanol and 2-Butoxyethanol Acetate,B,346,61
+Barium,B,326,57
+Benzene,B,38,14
+Benzidine,B,568,105
+Beryllium,B,184,33
+Bis(2-chloroethyl) Ether,B,816,159
+Bis(chloromethyl) Ether,B,918,188
+Blister Agents HN-1HN-2HN-3 Nitrogen Mustards,B,921,189
+"Blister Agents: Lewisite (L), Mustard-Lewisite Mixture (HL)",B,923,190
+"Blister Agents: Sulfur Mustard Agent H/HD, Sulfur Mustard Agent HT",B,926,191
+Boron,B,452,80
+Bromodichloromethane,B,707,127
+Bromoform & Dibromochloromethane,B,712,128
+Bromomethane,B,821,160
+Cadmium,C,47,15
+Calcium Hypochlorite/Sodium Hypochlorite,C,928,192
+Carbon Disulfide,C,473,84
+Carbon Monoxide,C,1163,253
+Carbon Tetrachloride,C,195,35
+Cesium,C,576,107
+Chlordane,C,354,62
+Chlordecone,C,642,118
+Chlorfenvinphos,C,931,193
+Chlorinated Dibenzo-p-dioxins (CDDs),C,363,63
+Chlorine,C,200,36
+Chlorine Dioxide & Chlorite,C,581,108
+Chlorobenzene,C,488,87
+Chlorodibenzofurans (CDFs),C,937,194
+Chloroethane,C,826,161
+Chloroform,C,52,16
+Chloromethane,C,586,109
+Chlorophenols,C,940,195
+Chlorpyrifos,C,494,88
+Chromium,C,61,17
+Cobalt,C,372,64
+Copper,C,205,37
+Creosote,C,65,18
+Cresols,C,945,196
+Crotonaldehyde,C,948,197
+Cyanide,C,71,19
+"1,1-Dichloroethane",D,717,129
+"1,1-Dichloroethene",D,721,130
+"1,2-Dibromo-3-Chloropropane",D,851,166
+"1,2-Dibromoethane",D,725,131
+"1,2-Dichloroethane",D,591,110
+"1,2-Dichloroethene",D,463,82
+"1,2-Dichloropropane",D,830,162
+"1,2-Diphenylhydrazine",D,951,198
+"1,3 Dinitrobenzene & 1,3,5 Trinitrobenzene",D,841,164
+"1,4-Dioxane",D,954,199
+"2,4-Dichlorophenoxyacetic Acid (2,4-D)",D,1501,288
+"3,3'-Dichlorobenzidine",D,958,200
+"DDT, DDE, DDD",D,80,20
+"DEET (N,N-diethyl-meta-toluamide)",D,1035,201
+Di(2-Ethylhexyl)Phthalate (DEHP),D,377,65
+Di-n-butyl Phthalate,D,858,167
+Di-n-octylphthalate (DNOP),D,972,204
+Diazinon,D,506,90
+Diborane,D,965,202
+Dichlorobenzenes,D,703,126
+Dichloropropenes,D,835,163
+Dichlorvos,D,596,111
+Diethyl phthalate,D,602,112
+Diisopropyl Methylphosphonate (DIMP),D,968,203
+Dinitrocresols,D,1024,218
+Dinitrophenols,D,728,132
+Dinitrotoluenes,D,846,165
+Disulfoton,D,977,205
+Endosulfan,E,608,113
+Endrin,E,616,114
+Ethion,E,982,206
+Ethylbenzene,E,382,66
+Ethylene Glycol,E,85,21
+Ethylene Oxide,E,733,133
+"Fluorides, Hydrogen Fluoride, and Fluorine",F,211,38
+Formaldehyde,F,219,39
+Fuel Oils / Kerosene,F,515,91
+"Gasoline, Automotive",G,467,83
+Glutaraldehyde,G,1469,284
+Glyphosate,G,1489,293
+Guthion,G,987,207
+2-Hexanone,H,737,134
+Heptachlor/Heptachlor Epoxide,H,744,135
+Hexachlorobenzene,H,626,115
+Hexachlorobutadiene,H,864,168
+Hexachlorocyclohexane (HCH),H,753,138
+Hexachlorocyclopentadiene (HCCPD),H,991,208
+Hexachloroethane,H,869,169
+Hexamethylene Diisocyanate (HDI),H,873,170
+HMX (Octogen),H,876,171
+Hydraulic Fluids,H,756,141
+Hydrazines,H,500,89
+Hydrogen Chloride,H,759,147
+Hydrogen Peroxide,H,305,55
+Hydrogen Sulfide  Carbonyl Sulfide : Hydrogen Sulfide,H,388,67
+Hydrogen Sulfide  Carbonyl Sulfide : Carbonyl Sulfide,H,1429,67
+n-Hexane,H,392,68
+Iodine,I,478,85
+Ionizing Radiation,I,483,86
+Isophorone,I,762,148
+Jet Fuels JP-4 and JP-7,J,767,149
+"JP-5, JP-8, and Jet A",J,772,150
+Lead,L,93,22
+"4,4'-Methylenebis(2-Chloroaniline) (MBOCA)",M,996,209
+"4,4'-Methylenedianiline",M,1000,210
+Malathion,M,521,92
+Manganese,M,101,23
+Mercury : Mercury,M,113,24
+Mercury : Metallic Mercury,M,1195,24
+Methoxychlor,M,777,151
+Methyl Isocyanate,M,629,116
+Methyl Mercaptan,M,223,40
+Methyl Parathion,M,635,117
+Methyl tert-Butyl Ether (MTBE),M,227,41
+Methylene Chloride,M,233,42
+Mirex,M,1188,276
+Molybdenum,M,1499,289
+n-Nitrosodi-n-propylamine,N,1004,211
+n-Nitrosodimethylamine (NDMA),N,883,173
+n-Nitrosodiphenylamine,N,1008,212
+"Naphthalene, 1-Methylnapthalene, 2-Methylnapthalene",N,239,43
+"Nerve Agents (GA, GB, GD, VX)",N,524,93
+Nickel,N,244,44
+Nitrate and Nitrite,N,1186,258
+Nitrobenzene,N,531,95
+Nitrogen Oxides,N,396,69
+Nitrophenols,N,879,172
+Otto Fuel II and its Components,O,780,152
+Parathion,P,1426,246
+Pentachlorophenol,P,401,70
+Perchlorates,P,893,181
+Perfluoroalkyls,P,1116,237
+Phenol,P,147,27
+Phosgene,P,1479,182
+Phosgene Oxime,P,1011,213
+Phosphate Ester Flame Retardants,P,1164,239
+Phosphine,P,1014,214
+Plutonium,P,647,119
+Polybrominated Biphenyls (PBBs),P,528,94
+Polybrominated Diphenyl Ethers (PBDEs),P,1462,183
+Polychlorinated Biphenyls (PCBs),P,140,26
+Polycyclic Aromatic Hydrocarbons (PAHs),P,121,25
+Propylene Glycol,P,1121,240
+Pyrethrins and Pyrethroids,P,786,153
+Pyridine,P,534,96
+Radium,R,790,154
+Radon,R,406,71
+RDX (Cyclonite),R,411,72
+"S,S,S-Tributyl Phosphorotrithioate",S,1485,292
+Selenium,S,152,28
+Selenium Hexafluoride,S,1016,215
+Silica,S,1492,290
+Silver,S,538,97
+Sodium Hydroxide,S,248,45
+Stoddard Solvent,S,415,73
+Strontium,S,655,120
+Styrene,S,420,74
+Sulfur Dioxide,S,252,46
+Sulfur Mustard,S,904,184
+Sulfur Trioxide & Sulfuric Acid,S,255,47
+Synthetic Vitreous Fibers,S,907,185
+"1,1,1-Trichloroethane",T,431,76
+"1,1,2,2-Tetrachloroethane",T,800,156
+"1,1,2-Trichloroethane",T,795,155
+"1,2,3-Trichloropropane",T,911,186
+"2,4,6-Trinitrotoluene (TNT)",T,676,125
+Tetrachloroethylene (PERC),T,264,48
+Tetryl,T,1018,216
+Thallium,T,308,49
+Thorium,T,659,121
+Tin and Compounds,T,542,98
+Titanium Tetrachloride,T,663,122
+Toluene,T,160,29
+Toluene Diisocyanate  Methylenediphenyl Diisocyanate,T,1454,245
+Total Petroleum Hydrocarbons (TPH),T,423,75
+Toxaphene,T,547,99
+Trichlorobenzenes,T,1169,255
+Trichloroethylene (TCE),T,172,30
+Tungsten,T,805,157
+Uranium,U,439,77
+Used Mineral-based Crankcase Oil,U,666,123
+Vanadium,V,275,50
+Vinyl Acetate,V,670,124
+Vinyl Chloride,V,281,51
+White Phosphorus,W,284,52
+Xylenes,X,295,53
+Zinc,Z,301,54

@@ -1,19 +1,22 @@
 /**
- * TOXMAP Application Root — Phase 4: Superfund Overlay
+ * TOXMAP Application Root — Phase 5: Demographics Overlay
  *
- * Stories: 4.1.1–4.3.1 (Epics 4.1–4.3)
- * New in Phase 4:
- *   - Superfund diamond markers on map (always-on layer) — story 4.1.1
- *   - Superfund layer toggle in MapContentsPanel — story 4.1.2
- *   - Superfund search results in dataset=superfund mode — story 4.1.3
- *   - SuperfundDrawer: EPA ID, HRS score, contaminants, EPA progress link — 4.2.1–4.2.3
- *   - Unified TRI + Superfund legend — story 4.3.1
- *   - UX Invariant 6: distinct TRI circles vs Superfund diamonds
+ * Stories: 5.1.1–5.4.2 (Epics 5.1–5.4)
+ * New in Phase 5:
+ *   - CensusHealthPanel: "US Census & Health Data" (UX Invariant 4) — story 5.1.1
+ *   - Year/Category/Sub-layer tabs — stories 5.1.2–5.1.5
+ *   - County choropleth fill layer — story 5.2.1
+ *   - Zoom notice for zoomed-in views — story 5.2.2
+ *   - InlineLegend with always-visible values (UX Invariant 5) — story 5.3.1
+ *   - Clear layer button — story 5.3.3
+ *   - Co-occurrence disclaimer on mortality tabs only (UX Invariant 10) — story 5.4.1
+ *   - Male/Female breakdown for mortality — story 5.4.2
  *
  * DATA FLOW (2026-07-28):
  * TRI circles: useMapFacilities fetches ALL facilities once via /browse endpoint.
  * Superfund diamonds: useSuperfundViewport fetches ALL sites once via /browse endpoint.
- *   → Both layers: MapLibre handles viewport rendering, toggle via setLayoutProperty.
+ * Demographics: useDemographics fetches county polygons for choropleth layer.
+ *   → All layers: MapLibre handles viewport rendering, toggle via setLayoutProperty.
  * Sidebar count: filterByBbox filters map data client-side by current viewport.
  *   → "X in view" updates without refetching.
  */
@@ -26,14 +29,17 @@ import { FacilityDrawer } from './components/FacilityDetail/FacilityDrawer'
 import { SuperfundDrawer } from './components/FacilityDetail/SuperfundDrawer'
 import { DataVintageLabel } from './components/DataVintageLabel'
 import { InterpretationBanner } from './components/Onboarding/InterpretationBanner'
+import { InlineLegend, ZoomNotice } from './components/Demographics'
 import { useMapFacilities, filterByBbox, type MapSearchParams } from './hooks/useMapFacilities'
 import { useSuperfundViewport } from './hooks/useSuperfundViewport'
 import { useSuperfundSearch } from './hooks/useSuperfundSearch'
+import { useDemographics } from './hooks/useDemographics'
 import { useMeta } from './hooks/useMeta'
 import { geocodeLocation } from './api/geocode'
-import type { FacilityFeature, SubmittedSearch, SuperfundFeature } from './api/types'
+import type { FacilityFeature, SubmittedSearch, SuperfundFeature, SuperfundCollection, DemographicLayer } from './api/types'
 import type { SuperfundSearchParams } from './api/superfund'
 import type { SearchFormValues } from './components/Sidebar/SearchPanel'
+import { isContinentalUS, CONUS_FILTER } from './components/Sidebar/SearchPanel'
 
 /** Default US overview viewport */
 const INITIAL_VIEW: ViewState = {
@@ -70,6 +76,9 @@ export default function App(): JSX.Element {
   const [showSuperfundLayer, setShowSuperfundLayer] = useState(true)
   const [showTRILayer, setShowTRILayer] = useState(true)
 
+  // ── Demographics layer (Phase 5) ──────────────────────────────────────────
+  const [selectedDemographicLayer, setSelectedDemographicLayer] = useState<DemographicLayer | null>(null)
+
   // ── Data ──────────────────────────────────────────────────────────────────
   const { meta } = useMeta()
 
@@ -78,31 +87,45 @@ export default function App(): JSX.Element {
   // - Search mode: search location + radius + filters
   // MapLibre handles viewport subsetting client-side from the fetched data.
   const triMapParams = useMemo<MapSearchParams | null>(() => {
-    if (submittedSearch?.dataset === 'tri') {
+    if (submittedSearch?.dataset === 'tri' || submittedSearch?.dataset === 'both') {
+      // CONUS filter is handled client-side; don't pass state to API
+      const isConusFilter = submittedSearch.state === CONUS_FILTER
+      const stateForApi = isConusFilter ? undefined : (submittedSearch.state || undefined)
+      const hasStateFilter = Boolean(stateForApi)
       return {
         lat: submittedSearch.lat,
         lon: submittedSearch.lon,
         radiusMiles: submittedSearch.radiusMiles,
         chemical: submittedSearch.chemical || undefined,
         year: submittedSearch.year || undefined,
-        state: submittedSearch.state || undefined,
-        restrictToState: submittedSearch.restrictToState,
+        state: stateForApi,
+        // Option C: state dropdown = filter. Always restrict when state is selected.
+        restrictToState: hasStateFilter,
       }
     }
     // Browse mode: null → fetch ALL facilities without radius constraint
     return null
   }, [submittedSearch])
 
-  // Build Superfund search params when dataset=superfund and a search was submitted.
+  // Build Superfund search params when dataset=superfund or both and a search was submitted.
+  // Returns null for nationwide searches (lat/lon = null) — the always-on Superfund layer
+  // will show all sites, and the results table will display filtered viewport sites.
   const superfundSearchParams = useMemo<SuperfundSearchParams | null>(() => {
-    if (!submittedSearch || submittedSearch.dataset !== 'superfund') return null
+    if (!submittedSearch || (submittedSearch.dataset !== 'superfund' && submittedSearch.dataset !== 'both')) return null
+    // Nationwide mode: use the always-on layer instead of radius search
+    if (submittedSearch.lat === null || submittedSearch.lon === null) return null
+    // CONUS filter is handled client-side; don't pass state to API
+    const isConusFilter = submittedSearch.state === CONUS_FILTER
+    const stateForApi = isConusFilter ? undefined : (submittedSearch.state || undefined)
+    const hasStateFilter = Boolean(stateForApi)
     return {
       lat: submittedSearch.lat,
       lon: submittedSearch.lon,
       radiusMiles: submittedSearch.radiusMiles,
       chemical: submittedSearch.chemical || undefined,
-      state: submittedSearch.state || undefined,
-      restrictToState: submittedSearch.restrictToState,
+      state: stateForApi,
+      // Option C: state dropdown = filter. Always restrict when state is selected.
+      restrictToState: hasStateFilter,
     }
   }, [submittedSearch])
 
@@ -111,28 +134,202 @@ export default function App(): JSX.Element {
   const { data: triMapFacilities, loading, error } = useMapFacilities(triMapParams)
 
   // TRI facilities filtered by current viewport (for sidebar "X in view" count)
-  const triViewportFacilities = useMemo(
-    () => filterByBbox(triMapFacilities, mapBbox),
-    [triMapFacilities, mapBbox],
-  )
+  // Also applies CONUS filter if selected (client-side filtering for Continental US)
+  const triViewportFacilities = useMemo(() => {
+    let filtered = filterByBbox(triMapFacilities, mapBbox)
+    // Apply CONUS filter client-side
+    if (filtered && submittedSearch?.state === CONUS_FILTER) {
+      filtered = {
+        ...filtered,
+        features: filtered.features.filter((f) => isContinentalUS(f.properties.state_code)),
+        meta: {
+          ...filtered.meta,
+          total_count: filtered.features.filter((f) => isContinentalUS(f.properties.state_code)).length,
+        },
+      }
+    }
+    return filtered
+  }, [triMapFacilities, mapBbox, submittedSearch?.state])
 
-  // Results table only gets data when a TRI search has been submitted (not in browse mode)
-  const triSearchResults = submittedSearch?.dataset === 'tri' ? triViewportFacilities : null
+  // For nationwide searches (no location), show ALL matching facilities, not just viewport
+  // For location-based searches, continue showing viewport-filtered results
+  const triAllResults = useMemo(() => {
+    if (!triMapFacilities) return null
+    // Apply CONUS filter if selected
+    if (submittedSearch?.state === CONUS_FILTER) {
+      const filtered = triMapFacilities.features.filter((f) => isContinentalUS(f.properties.state_code))
+      return {
+        ...triMapFacilities,
+        features: filtered,
+        meta: {
+          ...triMapFacilities.meta,
+          total_count: filtered.length,
+        },
+      }
+    }
+    return triMapFacilities
+  }, [triMapFacilities, submittedSearch?.state])
+
+  // Results table: 
+  // - Nationwide search (lat/lon = null): show ALL results (not viewport-filtered)
+  // - Location search: show viewport-filtered results
+  const triSearchResults = useMemo(() => {
+    if (submittedSearch?.dataset !== 'tri' && submittedSearch?.dataset !== 'both') return null
+    // Nationwide search: show all results
+    if (submittedSearch.lat === null || submittedSearch.lon === null) {
+      return triAllResults
+    }
+    // Location search: show viewport-filtered results
+    return triViewportFacilities
+  }, [submittedSearch, triAllResults, triViewportFacilities])
 
   // Always-on Superfund layer: fetches ALL sites once (no bbox/radius constraint)
   const { data: superfundViewportSites } = useSuperfundViewport()
 
-  // Superfund search results (only active in superfund dataset mode)
+  // Superfund search results (only active in superfund or both dataset mode)
   const { data: superfundSearchResults, loading: superfundLoading, error: superfundError } = useSuperfundSearch(superfundSearchParams)
 
+  // For nationwide chemical searches, filter Superfund sites client-side by contaminant name
+  // (since /api/v1/superfund/browse doesn't support chemical filtering)
+  // Also applies CONUS filter if selected (client-side filtering for Continental US)
+  const superfundResultsForDisplay = useMemo<SuperfundCollection | null>(() => {
+    const isConusFilter = submittedSearch?.state === CONUS_FILTER
+    
+    // Helper to apply CONUS filter to a collection
+    const applyConusFilter = (collection: SuperfundCollection): SuperfundCollection => {
+      if (!isConusFilter) return collection
+      const filtered = collection.features.filter((f) => isContinentalUS(f.properties.state_code))
+      return {
+        ...collection,
+        features: filtered,
+        meta: {
+          ...collection.meta,
+          total_count: filtered.length,
+        },
+      }
+    }
+    
+    // If we have location-based search results, use those (with CONUS filter if applicable)
+    if (superfundSearchResults) {
+      return applyConusFilter(superfundSearchResults)
+    }
+    
+    // If not in superfund or both mode, no results
+    if (!submittedSearch || (submittedSearch.dataset !== 'superfund' && submittedSearch.dataset !== 'both')) {
+      return null
+    }
+    
+    // Nationwide mode: filter the always-on layer by chemical (and CONUS if applicable)
+    if (submittedSearch.lat === null && submittedSearch.chemical && superfundViewportSites) {
+      const chemicalUpper = submittedSearch.chemical.toUpperCase()
+      let filtered = superfundViewportSites.features.filter((f) =>
+        f.properties.contaminants.some((c) => c.toUpperCase().includes(chemicalUpper))
+      )
+      // Apply CONUS filter
+      if (isConusFilter) {
+        filtered = filtered.filter((f) => isContinentalUS(f.properties.state_code))
+      }
+      return {
+        type: 'FeatureCollection' as const,
+        features: filtered,
+        meta: {
+          total_count: filtered.length,
+          query: {
+            lat: 0,
+            lon: 0,
+            radius_miles: 0,
+            chemical: submittedSearch.chemical,
+            state: submittedSearch.state || null,
+            restrict_to_state: false,
+            status: null,
+          },
+        },
+      }
+    }
+    
+    return null
+  }, [superfundSearchResults, submittedSearch, superfundViewportSites])
+
+  // Superfund sites to show on the map:
+  // - Browse mode (no search): all Superfund sites
+  // - Search with dataset "both" or "superfund": filtered results only
+  // - Search with dataset "tri" only: no Superfund (user only wants TRI)
+  const superfundSitesForMap = useMemo<SuperfundCollection | null>(() => {
+    // No search active: browse mode, show all sites
+    if (!submittedSearch) {
+      return superfundViewportSites
+    }
+    // Search active with TRI only: don't show Superfund markers
+    if (submittedSearch.dataset === 'tri') {
+      return null
+    }
+    // Search active with "both" or "superfund": show filtered results
+    return superfundResultsForDisplay
+  }, [submittedSearch, superfundViewportSites, superfundResultsForDisplay])
+
+  // Demographics data for choropleth layer (story 5.2.1)
+  // Fetch all counties when demographic layer is selected
+  // If a search has been performed, filter to the searched state
+  const { data: demographicsData } = useDemographics(
+    selectedDemographicLayer
+      ? submittedSearch?.state ? { state: submittedSearch.state } : {}
+      : undefined
+  )
+
   // Determine which results to show and loading/error state
-  const activeLoading = submittedSearch?.dataset === 'superfund' ? superfundLoading : loading
-  const activeError = submittedSearch?.dataset === 'superfund' ? superfundError : error
+  const activeLoading = submittedSearch?.dataset === 'superfund' ? superfundLoading
+    : submittedSearch?.dataset === 'both' ? (loading || superfundLoading)
+    : loading
+  const activeError = submittedSearch?.dataset === 'superfund' ? superfundError
+    : submittedSearch?.dataset === 'both' ? (error || superfundError)
+    : error
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleSearchSubmit = useCallback(async (values: SearchFormValues) => {
     setGeocodeError(null)
+    
+    const locationTrimmed = values.location.trim()
+    
+    // Nationwide search: no location provided
+    if (!locationTrimmed) {
+      // Need at least a chemical for nationwide search
+      if (!values.chemical.trim()) {
+        setGeocodeError('Please enter a chemical or location to search.')
+        return
+      }
+      
+      // Reset bbox and set nationwide search (lat/lon = null)
+      setMapBbox(null)
+      
+      setSubmittedSearch({
+        lat: null,
+        lon: null,
+        chemical: values.chemical,
+        chemicalObj: values.chemicalObj,
+        year: values.year,
+        state: values.state || '',
+        radiusMiles: 25, // Not used for nationwide, but required by interface
+        dataset: values.dataset,
+      })
+
+      // Zoom map to US overview for nationwide search
+      setViewState((prev) => ({
+        ...prev,
+        latitude: 38.5,
+        longitude: -96,
+        zoom: 4,
+      }))
+
+      // Switch sidebar to search results (UX Invariant 1)
+      setActivePanel('search')
+      setSelectedFacility(null)
+      setDetailFacilityId(null)
+      setHighlightedFacilityId(null)
+      return
+    }
+    
+    // Location-based search: geocode and search within radius
     const geocoded = await geocodeLocation(values.location)
     if (!geocoded) {
       setGeocodeError(`Could not geocode "${values.location}". Try a different location.`)
@@ -149,8 +346,8 @@ export default function App(): JSX.Element {
       chemical: values.chemical,
       chemicalObj: values.chemicalObj,
       year: values.year,
-      state: values.state,
-      restrictToState: values.restrictToState,
+      // Use explicit state filter if set, otherwise use geocoded state
+      state: values.state || geocoded.state || '',
       radiusMiles: 25,
       dataset: values.dataset,
     })
@@ -167,6 +364,7 @@ export default function App(): JSX.Element {
     setActivePanel('search')
     setSelectedFacility(null)
     setDetailFacilityId(null)
+    setHighlightedFacilityId(null)
   }, [])
 
   const handleFacilityClick = useCallback((facility: FacilityFeature) => {
@@ -181,8 +379,8 @@ export default function App(): JSX.Element {
     setDetailFacilityId(null)
   }, [])
 
-  const handleOpenDetail = useCallback((id: string) => {
-    if (submittedSearch?.dataset === 'superfund') {
+  const handleOpenDetail = useCallback((id: string, type: 'tri' | 'superfund') => {
+    if (type === 'superfund') {
       setSelectedSuperfundEpaId(id)
       setDetailFacilityId(null)
     } else {
@@ -190,7 +388,7 @@ export default function App(): JSX.Element {
       setSelectedSuperfundEpaId(null)
     }
     setSelectedFacility(null)
-  }, [submittedSearch?.dataset])
+  }, [])
 
   const handleClosePopup = useCallback(() => {
     setSelectedFacility(null)
@@ -228,10 +426,13 @@ export default function App(): JSX.Element {
         highlightedFacilityId={highlightedFacilityId}
         onFacilityClick={handleFacilityClick}
         showTRILayer={showTRILayer}
-        superfundSites={superfundViewportSites}
+        superfundSites={superfundSitesForMap}
         showSuperfundLayer={showSuperfundLayer}
         onSuperfundSiteClick={handleSuperfundSiteClick}
-        sidebarWidth={sidebarWidth}      >
+        sidebarWidth={sidebarWidth}
+        demographics={demographicsData}
+        demographicLayer={selectedDemographicLayer}
+      >
         {/* Facility popup — shown on marker click */}
         {selectedFacility && (
           <FacilityPopup
@@ -250,7 +451,7 @@ export default function App(): JSX.Element {
         onPanelChange={setActivePanel}
         onSearch={handleSearchSubmit}
         facilities={triSearchResults}
-        superfundResults={superfundSearchResults}
+        superfundResults={superfundResultsForDisplay}
         loading={activeLoading}
         error={combinedError}
         highlightedFacilityId={highlightedFacilityId}
@@ -265,6 +466,8 @@ export default function App(): JSX.Element {
         triViewportLoading={loading}
         superfundViewportCount={superfundViewportSites?.meta.total_count ?? null}
         superfundViewportLoading={false}
+        selectedDemographicLayer={selectedDemographicLayer}
+        onDemographicLayerSelect={setSelectedDemographicLayer}
       />
 
       {/* Facility detail drawer (right panel — TRI mode) */}
@@ -282,6 +485,30 @@ export default function App(): JSX.Element {
           onClose={handleCloseSuperfundDrawer}
         />
       )}
+
+      {/* Demographic layer legend — bottom left overlay (stories 5.3.1–5.3.3) */}
+      {selectedDemographicLayer && demographicsData && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '40px',
+            left: sidebarWidth + 16,
+            zIndex: 20,
+          }}
+        >
+          <InlineLegend
+            layer={selectedDemographicLayer}
+            units={demographicsData.meta.units}
+            onClear={() => setSelectedDemographicLayer(null)}
+          />
+        </div>
+      )}
+
+      {/* Zoom notice for demographics — when zoomed in past county level (story 5.2.2) */}
+      <ZoomNotice
+        zoom={viewState.zoom}
+        isLayerActive={selectedDemographicLayer !== null}
+      />
 
       {/* Data vintage label — map footer (story 3.1.5) */}
       <DataVintageLabel

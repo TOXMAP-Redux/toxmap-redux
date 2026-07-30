@@ -71,26 +71,138 @@ Feature: UCD 2011 Task Scenarios
     And the EPA site progress profile link is present
 
   # ── T-05 (Phase 5 — Demographics) ────────────────────────────────────────
-  @skip
-  Scenario: T-05 TRI styrene sites and under-18 demographic overlay
-    Given I open the TOXMAP application
-    Then a demographics scenario stub exists
+  # Full spec: TOXMAP_ACCEPTANCE_TESTS.md Feature 7 §T-05
+  Scenario: T-05 TRI styrene sites and under-18 demographic overlay work together
+    Given I am on the map page
+    When I search for TRI facilities releasing "STYRENE" near "Front Royal, VA" in year "2008"
+    Then at least one TRI facility marker is visible on the map
+    And the results sidebar shows TRI results without a simultaneous Map Contents panel
+    When I open the "US Census & Health Data" panel
+    And I select "Population" > "% Under 18" > "Census 2000"
+    Then the map shows county-level color shading
+    And the sidebar switches to show the demographic panel only
+    And the TRI facility markers remain visible on the map
+    And a legend is visible with inline percentage values and the unit "%"
 
   # ── T-06 (Phase 5 — Demographics) ────────────────────────────────────────
-  @skip
-  Scenario: T-06 Income demographic layer applied
-    Given I open the TOXMAP application
-    Then a demographics scenario stub exists
+  # Full spec: TOXMAP_ACCEPTANCE_TESTS.md Feature 7 §T-06
+  Scenario: T-06 Income range overlay applied units shown and layer removable
+    Given I am on the map page
+    When I open the "US Census & Health Data" panel
+    And I select "Income" > "Median Household Income" > "Census 2000"
+    Then the map shows county-level color shading
+    And the legend shows dollar values with the unit "$"
+    And each legend range label includes a "$" symbol
+    When I click "Clear layer" in the demographic panel
+    Then the county color shading is removed from the map
+    And the legend disappears
 
   # ── T-07 (Phase 3 — API verified; E2E optional) ───────────────────────────
+  # Full spec: TOXMAP_ACCEPTANCE_TESTS.md Feature 7 §T-07
+  # Note: T-07 is verified at API layer; E2E is optional but available
+  # Updated for Option C: state dropdown is now a filter (no checkbox)
   @skip
-  Scenario: T-07 Largest chlorine release SC vs nationwide
-    Given I open the TOXMAP application
-    Then a chlorine scenario stub exists
+  Scenario: T-07 Largest chlorine release in SC and nationwide are both queryable
+    Given I am on the map page
+    When I search for "CHLORINE" with state filter "SC"
+    Then the results show only SC facilities
+    And the top result has "85,000 lbs" total release
+    And the top result facility is "BORDEN CHEMICALS AND PLASTICS INC"
+    When I clear the state filter
+    And I click "Search"
+    Then the top result has total release greater than "85,000 lbs"
+    And the top result facility is "ENTERPRISE GAS PROCESSING LLC"
 
   # ── T-09 (Phase 5 — Demographics) ────────────────────────────────────────
-  @skip
-  Scenario: T-09 Benzene releases and cancer mortality co-occurrence
-    Given I open the TOXMAP application
-    Then a demographics scenario stub exists
+  # Full spec: TOXMAP_ACCEPTANCE_TESTS.md Feature 7 §T-09
+  Scenario: T-09 Benzene releases and cancer mortality overlay with disclaimer
+    Given I am on the map page
+    When I search for "BENZENE" near "Houston, TX" in year "2008"
+    Then at least two benzene TRI facility markers appear in the Houston area
+    When I open the "US Census & Health Data" panel
+    And I select "Mortality" > "Cancer Mortality" > "Female" > "Census 2000"
+    Then the map shows cancer mortality choropleth shading
+    And a co-occurrence disclaimer is visible reading "Correlation does not imply causation"
+    When I switch to the "Population" tab in the demographic panel
+    Then the co-occurrence disclaimer is NOT visible
 
+  # ── Nationwide Search Regression Tests ──────────────────────────────────────
+  # Regression tests for the nationwide chemical search feature (no location required).
+  # These catch the bug where Superfund sites matching a chemical were not shown
+  # in nationwide search results because the /api/v1/superfund/browse endpoint
+  # doesn't support chemical filtering — client-side filtering is required.
+
+  Scenario: Nationwide chemical search shows both TRI and Superfund results
+    Given I am on the map page
+    When I select the "Both" dataset
+    And I type "LEAD COMPOUNDS" into the chemical field
+    And I leave the location field empty
+    And I click "Search"
+    Then the results sidebar shows "BETHLEHEM STEEL CORP - SPARROWS POINT"
+    And the results sidebar shows "ARLINGTON SCRAP YARD"
+    And the results summary shows "1 TRI facilities · 1 Superfund sites"
+
+  Scenario: Nationwide TRI-only chemical search excludes Superfund sites
+    Given I am on the map page
+    When I select the "TRI" dataset
+    And I type "LEAD COMPOUNDS" into the chemical field
+    And I leave the location field empty
+    And I click "Search"
+    Then the results sidebar shows "BETHLEHEM STEEL CORP - SPARROWS POINT"
+    And the results summary shows "1 TRI facilities"
+    And the results summary does not show "Superfund"
+
+  Scenario: Nationwide Superfund-only chemical search shows matching sites by contaminant
+    Given I am on the map page
+    When I select the "Superfund" dataset
+    And I type "LEAD" into the chemical field
+    And I leave the location field empty
+    And I click "Search"
+    Then the results sidebar shows "ARLINGTON SCRAP YARD"
+    And the results summary shows "1 Superfund sites"
+    And the results summary does not show "TRI"
+
+  Scenario: Nationwide chemical search zooms to US overview
+    Given I am on the map page
+    When I select the "Both" dataset
+    And I type "COPPER" into the chemical field
+    And I leave the location field empty
+    And I click "Search"
+    Then the map is zoomed to US continental view
+
+  # ── State Filter Regression Tests ────────────────────────────────────────────
+  # Tests for the "Filter to state (optional)" dropdown.
+  # Default is "All" (all US states + territories).
+  # "Continental US" filter excludes AK, HI, and territories (client-side filtering).
+  #
+  # NOTE: Full CONUS exclusion testing (verify AK/HI/territories are excluded)
+  # requires seed data in non-CONUS locations. Current seed data is all CONUS.
+
+  Scenario: State filter default is "All" and includes all results
+    Given I am on the map page
+    When I click the search panel tab
+    Then the state filter dropdown shows "All" as the selected option
+    When I type "BENZENE" into the chemical field
+    And I type "Houston, TX" into the location field
+    And I click "Search"
+    Then the results sidebar shows at least one facility
+
+  Scenario: Continental US filter option is available and selectable
+    Given I am on the map page
+    When I click the search panel tab
+    Then the state filter dropdown contains "Continental US" option
+    When I select "Continental US" from the state filter
+    And I type "BENZENE" into the chemical field
+    And I type "Houston, TX" into the location field
+    And I click "Search"
+    Then the results sidebar shows at least one facility
+    And all results are from continental US states
+
+  Scenario: Continental US filter excludes Alaska facilities
+    Given I am on the map page
+    When I click the search panel tab
+    And I select "Continental US" from the state filter
+    And I type "COPPER" into the chemical field
+    And I click "Search"
+    Then all results are from continental US states
+    And no result shows "ALASKA MINING" in the facility name

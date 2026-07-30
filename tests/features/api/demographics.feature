@@ -8,7 +8,27 @@ Feature: Demographics County Overlay
     Then the response status is 200
     And the response is a GeoJSON FeatureCollection
     And the response meta contains "units"
+    And the FeatureCollection contains exactly 1 features
+    And every feature has property "state_fips" = "51"
 
-  Scenario: Demographics missing state returns 422
+  Scenario: County demographics without state returns all counties
+    # Regression test: state parameter must be optional for choropleth to
+    # render when user selects a demographic layer without searching first.
     When I GET "/api/v1/demographics/county"
-    Then the response status is 422
+    Then the response status is 200
+    And the response is a GeoJSON FeatureCollection
+    And the response meta contains "units"
+    And the FeatureCollection contains at least 3 features
+
+  Scenario: County demographics for TX returns Harris County
+    When I GET "/api/v1/demographics/county?state=TX"
+    Then the response status is 200
+    And the response is a GeoJSON FeatureCollection
+    And the FeatureCollection contains exactly 1 features
+    And every feature has property "state_fips" = "48"
+
+  Scenario: County demographics for non-existent state returns empty collection
+    When I GET "/api/v1/demographics/county?state=ZZ"
+    Then the response status is 200
+    And the response is a GeoJSON FeatureCollection
+    And the FeatureCollection contains exactly 0 features

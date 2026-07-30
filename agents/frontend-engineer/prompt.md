@@ -46,7 +46,7 @@ These are hardcoded product constraints. Every invariant has a corresponding Pla
 |---|-----------|-------------|
 | 1 | **Single sidebar** — Map Contents and Search Results never visible simultaneously | `data-testid="map-contents-panel"` must be hidden when search is active |
 | 2 | **No empty table rows** — Results table shows only in-viewport facilities | `useViewportFacilities` hook; re-fetch on map move with `bbox=` param |
-| 3 | **State filter restricts, not only zooms** — "Limit to state" checkbox triggers `restrict_to_state=true` | Checkbox present; `data-testid="restrict-to-state-checkbox"` |
+| 3 | **State filter restricts, not only zooms** — State dropdown labeled "Filter to state (optional)" filters results when set | `data-testid="state-select"` present with filter label |
 | 4 | **Correct panel labels** — "Search Chemical Releases by Location" (not "Quick Search"); "US Census & Health Data" (not "Demographics") | No element with text "Quick Search" or "Demographics" as primary label in DOM |
 | 5 | **Inline demographic legend** — Legend values and units visible at all times, not mouse-over only | `data-testid="inline-legend"` visible without hover; at least 3 color-range entries showing |
 | 6 | **Distinct icon shapes** — TRI = circle, Superfund = diamond; no icon reuse with hospitals | Marker `marker_shape` property from API determines MapLibre layer type |

@@ -35,7 +35,52 @@ import Map, {
 } from 'react-map-gl/maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import maplibregl from 'maplibre-gl'
-import type { FacilityCollection, FacilityFeature, SuperfundCollection, SuperfundFeature } from '../../api/types'
+import type { FacilityCollection, FacilityFeature, SuperfundCollection, SuperfundFeature, DemographicCollection, DemographicLayer } from '../../api/types'
+import { getColorScale } from '../Demographics/InlineLegend'
+
+/**
+ * Generate color stops for MapLibre interpolate expression.
+ * Returns [value1, color1, value2, color2, ...] array.
+ */
+function getDemographicColorStops(layer: DemographicLayer): (number | string)[] {
+  const colors = getColorScale(layer)
+  
+  // Define breakpoints based on layer type
+  let breaks: number[]
+  switch (layer) {
+    case 'pct_under_18':
+      breaks = [0, 15, 20, 25, 30]
+      break
+    case 'pct_over_65':
+      breaks = [0, 10, 15, 20, 25]
+      break
+    case 'pct_nonwhite':
+      breaks = [0, 10, 25, 40, 60]
+      break
+    case 'median_income':
+      breaks = [0, 30000, 45000, 60000, 80000]
+      break
+    case 'cancer_mortality_male_per_100k':
+    case 'cancer_mortality_female_per_100k':
+      breaks = [0, 100, 150, 200, 250]
+      break
+    case 'heart_disease_mortality_per_100k':
+      breaks = [0, 100, 150, 200, 300]
+      break
+    case 'total_pop':
+      breaks = [0, 10000, 50000, 100000, 500000]
+      break
+    default:
+      breaks = [0, 25, 50, 75, 100]
+  }
+  
+  // Interleave breaks and colors: [break1, color1, break2, color2, ...]
+  const stops: (number | string)[] = []
+  for (let i = 0; i < colors.length; i++) {
+    stops.push(breaks[i], colors[i])
+  }
+  return stops
+}
 
 /**
  * Always-visible attribution appended to the tile source's own attribution.
@@ -75,6 +120,10 @@ interface MapContainerProps {
   /** Sidebar width in pixels. MapLibre camera padding is set to this value so
    * easeTo/flyTo and popup auto-pan target the usable viewport area. */
   sidebarWidth?: number
+  /** Demographics GeoJSON for choropleth layer (story 5.2.1) */
+  demographics: DemographicCollection | null
+  /** Currently selected demographic layer (null = no overlay) */
+  demographicLayer: DemographicLayer | null
   children?: ReactNode
 }
 
@@ -112,6 +161,8 @@ export function MapContainer({
   showSuperfundLayer,
   onSuperfundSiteClick,
   sidebarWidth = 0,
+  demographics,
+  demographicLayer,
   children,
 }: MapContainerProps): JSX.Element {
   const mapRef = useRef<MapRef>(null)
@@ -364,6 +415,41 @@ export function MapContainer({
 
         {/* TRI facility layers are managed imperatively in handleLoad/useEffect
             to avoid react-map-gl Source calling setData on every render. */}
+
+        {/* Demographics choropleth layer (story 5.2.1) — rendered BELOW point layers.
+            TRI circles and Superfund diamonds remain visible above the fill layer. */}
+        {demographics && demographicLayer && (
+          <Source
+            id="demographics-source"
+            type="geojson"
+            data={{ type: 'FeatureCollection', features: demographics.features }}
+          >
+            <Layer
+              id="demographics-fill"
+              type="fill"
+              beforeId={mapLoaded && mapRef.current?.getMap()?.getLayer('facility-circles') ? 'facility-circles' : undefined}
+              paint={{
+                'fill-color': [
+                  'interpolate',
+                  ['linear'],
+                  ['coalesce', ['get', demographicLayer], 0],
+                  ...getDemographicColorStops(demographicLayer),
+                ] as unknown as string,
+                'fill-opacity': 0.6,
+              }}
+            />
+            <Layer
+              id="demographics-outline"
+              type="line"
+              beforeId={mapLoaded && mapRef.current?.getMap()?.getLayer('facility-circles') ? 'facility-circles' : undefined}
+              paint={{
+                'line-color': '#666',
+                'line-width': 0.5,
+                'line-opacity': 0.5,
+              }}
+            />
+          </Source>
+        )}
 
         {/* Superfund sites — separate, unclustered symbol layer (story 4.1.1).
             Only rendered after diamond sprites are registered (spritesReady),

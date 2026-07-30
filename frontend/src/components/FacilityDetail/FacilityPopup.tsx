@@ -10,7 +10,7 @@ import type { FacilityFeature } from '../../api/types'
 interface FacilityPopupProps {
   facility: FacilityFeature
   onClose: () => void
-  onOpenDetail: (id: string) => void
+  onOpenDetail: (id: string, type: 'tri' | 'superfund') => void
 }
 
 /**
@@ -59,7 +59,7 @@ export function FacilityPopup({ facility, onClose, onOpenDetail }: FacilityPopup
 
         <button
           type="button"
-          onClick={() => onOpenDetail(props.tri_facility_id)}
+          onClick={() => onOpenDetail(props.tri_facility_id, 'tri')}
           className="toxmap-popup-btn"
           style={{ display: 'block', width: '100%', padding: '7px 10px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', textAlign: 'center', marginBottom: '8px', fontFamily: 'inherit' }}
         >

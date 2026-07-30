@@ -149,6 +149,60 @@ export interface SuperfundDetail {
   location: { lat: number; lon: number }
 }
 
+// ── Demographics / Census ──────────────────────────────────────────────────
+
+/** Properties on a county GeoJSON Feature from GET /api/v1/demographics/county */
+export interface DemographicProperties {
+  fips_code: string
+  name: string
+  state_code: string
+  total_pop: number | null
+  median_income: number | null
+  pct_under_18: number | null
+  pct_over_65: number | null
+  pct_nonwhite: number | null
+  cancer_mortality_male_per_100k: number | null
+  cancer_mortality_female_per_100k: number | null
+  heart_disease_mortality_per_100k: number | null
+}
+
+export interface DemographicFeature {
+  type: 'Feature'
+  geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon
+  properties: DemographicProperties
+}
+
+/** Units metadata for rendering legend with proper labels */
+export interface DemographicUnits {
+  total_pop: string
+  median_income: string
+  pct_under_18: string
+  pct_over_65: string
+  pct_nonwhite: string
+  cancer_mortality_male_per_100k: string
+  cancer_mortality_female_per_100k: string
+  heart_disease_mortality_per_100k: string
+}
+
+export interface DemographicCollection {
+  type: 'FeatureCollection'
+  features: DemographicFeature[]
+  meta: {
+    units: DemographicUnits
+  }
+}
+
+/** Demographic sub-layer type — determines color scale and property to render */
+export type DemographicLayer =
+  | 'total_pop'
+  | 'pct_under_18'
+  | 'pct_over_65'
+  | 'pct_nonwhite'
+  | 'median_income'
+  | 'cancer_mortality_male_per_100k'
+  | 'cancer_mortality_female_per_100k'
+  | 'heart_disease_mortality_per_100k'
+
 // ── Meta ───────────────────────────────────────────────────────────────────
 
 export interface MetaResponse {
@@ -177,14 +231,16 @@ export interface SearchParams {
 
 /** State holding the geocoded, submitted search. Null before first search. */
 export interface SubmittedSearch {
-  lat: number
-  lon: number
+  /** Latitude of search center. Null for nationwide search (no location). */
+  lat: number | null
+  /** Longitude of search center. Null for nationwide search (no location). */
+  lon: number | null
   chemical: string
   chemicalObj: Chemical | null // full object for ATSDR/PubChem links
   year: string
+  /** If set, results are filtered to this state only (state dropdown = filter) */
   state: string
-  restrictToState: boolean
   radiusMiles: number
   /** Which dataset the search targets — controls results table mode */
-  dataset: 'tri' | 'superfund'
+  dataset: 'tri' | 'superfund' | 'both'
 }

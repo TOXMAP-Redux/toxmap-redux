@@ -23,6 +23,8 @@ export interface GeocodeResult {
   lat: number
   lon: number
   displayName: string
+  /** US state code (e.g., "VA") if returned by Photon, undefined otherwise */
+  state?: string
 }
 
 // ── In-memory result cache ────────────────────────────────────────────────────
@@ -57,6 +59,39 @@ async function _throttledFetch(url: string): Promise<Response> {
   return fetch(url)
 }
 
+// ── US State name to code mapping ───────────────────────────────────────────
+const US_STATE_CODES: Record<string, string> = {
+  'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR',
+  'California': 'CA', 'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE',
+  'Florida': 'FL', 'Georgia': 'GA', 'Hawaii': 'HI', 'Idaho': 'ID',
+  'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA', 'Kansas': 'KS',
+  'Kentucky': 'KY', 'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD',
+  'Massachusetts': 'MA', 'Michigan': 'MI', 'Minnesota': 'MN', 'Mississippi': 'MS',
+  'Missouri': 'MO', 'Montana': 'MT', 'Nebraska': 'NE', 'Nevada': 'NV',
+  'New Hampshire': 'NH', 'New Jersey': 'NJ', 'New Mexico': 'NM', 'New York': 'NY',
+  'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH', 'Oklahoma': 'OK',
+  'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
+  'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT',
+  'Vermont': 'VT', 'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV',
+  'Wisconsin': 'WI', 'Wyoming': 'WY', 'District of Columbia': 'DC',
+}
+
+function stateNameToCode(stateName: string): string | undefined {
+  return US_STATE_CODES[stateName]
+}
+
+// ── US Zip Code Detection ───────────────────────────────────────────────────
+// US zip codes are 5 digits, optionally followed by -XXXX (ZIP+4)
+const US_ZIP_REGEX = /^\d{5}(-\d{4})?$/
+
+/**
+ * Returns true if the query looks like a US zip code.
+ * Appending ", USA" to the Photon query biases results towards the US.
+ */
+function looksLikeUSZipCode(query: string): boolean {
+  return US_ZIP_REGEX.test(query.trim())
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
@@ -65,6 +100,9 @@ async function _throttledFetch(url: string): Promise<Response> {
  * Returns a cached result instantly for repeated queries. Throttles to ≤ 1 req/s
  * for distinct queries. Returns null when the query is empty, unreachable, or
  * produces no results.
+ *
+ * US zip code handling: Appends ", USA" to 5-digit queries to bias Photon
+ * towards US results (avoids geocoding to international locations like Mexico).
  */
 export async function geocodeLocation(location: string): Promise<GeocodeResult | null> {
   const trimmed = location.trim()
@@ -74,8 +112,11 @@ export async function geocodeLocation(location: string): Promise<GeocodeResult |
   const cached = _cacheGet(cacheKey)
   if (cached) return cached
 
+  // Bias US zip codes towards USA to avoid international matches (e.g., Mexico)
+  const queryString = looksLikeUSZipCode(trimmed) ? `${trimmed}, USA` : trimmed
+
   try {
-    const params = new URLSearchParams({ q: trimmed, limit: '1', lang: 'en' })
+    const params = new URLSearchParams({ q: queryString, limit: '1', lang: 'en' })
     const res = await _throttledFetch(`${_PHOTON_URL}?${params.toString()}`)
     if (!res.ok) return null
 
@@ -101,7 +142,10 @@ export async function geocodeLocation(location: string): Promise<GeocodeResult |
       .filter(Boolean)
       .join(', ') || trimmed
 
-    const result: GeocodeResult = { lat, lon, displayName }
+    // Extract US state code from Photon state name
+    const stateCode = p.state ? stateNameToCode(p.state) : undefined
+
+    const result: GeocodeResult = { lat, lon, displayName, state: stateCode }
     _cacheSet(cacheKey, result)
     return result
   } catch {

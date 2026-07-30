@@ -5,7 +5,7 @@
 [![CI](https://github.com/VictorCannestro/toxmap/actions/workflows/ci.yml/badge.svg)](https://github.com/VictorCannestro/toxmap/actions/workflows/ci.yml)
 [![Security](https://github.com/VictorCannestro/toxmap/actions/workflows/security.yml/badge.svg)](https://github.com/VictorCannestro/toxmap/actions/workflows/security.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Phase](https://img.shields.io/badge/Phase-0%20%E2%80%94%20Foundation-yellow)](docs/product/TOXMAP_PROGRESS_TRACKER.md)
+[![Phase](https://img.shields.io/badge/Phase-6%20%E2%80%94%20Full%20QA%20Pass-blue)](docs/product/TOXMAP_PROGRESS_TRACKER.md)
 [![Data: EPA TRI](https://img.shields.io/badge/Data-EPA%20TRI%201987%E2%80%93present-green)](https://www.epa.gov/toxics-release-inventory-tri-program)
 [![Cost: $0/month](https://img.shields.io/badge/hosting-%240%2Fmonth-brightgreen)](docs/adr/ADR-004-zero-budget-hosting.md)
 
@@ -29,7 +29,7 @@ This project is an open-source recreation of that tool — built on modern, open
 
 ## Features
 
-- **TRI Facility Map** — Color-coded markers for every EPA Toxic Release Inventory facility in the US. Red = highest releases. Orange = moderate. Blue = lowest. Click any marker for a 15-year release history with charts.
+- **TRI Facility Map** — Color-coded markers for every EPA Toxic Release Inventory facility in the US. Red = highest releases (≥100k lbs). Orange/Yellow = moderate. Green = lowest (<1k lbs). Click any marker for a 15-year release history with charts.
 - **Superfund / NPL Overlay** — Red diamond markers for EPA National Priorities List hazardous waste sites with Hazard Ranking System scores and cleanup status.
 - **Demographics Overlay** — Census data by county and tract: population under 18, median income, cancer mortality, cardiovascular mortality. Overlaid directly on the TRI/Superfund map with co-occurrence disclaimers where required.
 - **Chemical Autocomplete** — Search by chemical name with real-time autocomplete across the full TRI chemical registry.
@@ -42,7 +42,7 @@ This project is an open-source recreation of that tool — built on modern, open
 
 ## Live Demo
 
-> **Under construction — Phase 0 in progress.** The app is not yet deployed. Follow the [build roadmap](docs/product/TOXMAP_DEVELOPMENT_ROADMAP.md) or [contribute](#contributing) to help ship it faster.
+> **Under construction — Phase 6 (Full QA Pass) in progress.** Core features are complete. The app is not yet deployed to production. Follow the [build roadmap](docs/product/TOXMAP_DEVELOPMENT_ROADMAP.md) or [contribute](#contributing) to help ship it faster.
 
 When live: **[https://toxmap.pages.dev](https://toxmap.pages.dev)**
 
@@ -64,8 +64,10 @@ docker compose up
 curl http://localhost:8000/health   # → {"status": "ok"}
 open http://localhost:3000          # → React app
 
-# 4. Load the seed dataset (7 facilities, 9 UCD test scenarios)
-docker compose exec backend psql -U postgres -d toxmap -f /app/tests/fixtures/seed.sql
+# 4. Load the seed dataset (7 facilities, 3 counties, 2 Superfund sites)
+#    Note: On first run, Docker init scripts load seed.sql automatically.
+#    For subsequent runs or to reset seed data:
+docker exec -i toxmap-postgres psql -U postgres -d toxmap < tests/fixtures/seed.sql
 
 # 5. Run the test suite
 docker compose exec backend pytest tests/ -v
@@ -137,7 +139,7 @@ This is a **public health tool**. Inaccurate data is not just a bug — it can m
 
 - No synthetic data in production — all facility data comes from EPA primary sources
 - Seed test data values are pinned to a [peer-reviewed NLM usability study (2011)](https://dpcpsi.nih.gov/sites/g/files/mnhszr346/files/FR508_10-4004_NLM_11-03-11.pdf) and must never be changed without a primary-source citation
-- 0The co-occurrence disclaimer is mandatory on any view combining release data with health outcomes
+- The co-occurrence disclaimer is mandatory on any view combining release data with health outcomes
 
 Full policy: [GOVERNANCE.md §9 — Data Provenance](docs/GOVERNANCE.md)
 
@@ -152,13 +154,13 @@ The project is built in **8 sequential phases** with objective Definition-of-Don
 | **0** | Foundation — Repo, Docker, CI, security baseline | ✅ | M0 — Dev Environment Ready | 33 |
 | **1** | Data Pipeline — TRI + Superfund + Census → PostGIS + Parquet | ✅ | M1 — Data Pipeline Working | 48 |
 | **2** | Core API — 17 domain endpoints + `/api/v1/meta` | ✅ | M2 — Core API Green | 62 |
-| **3** | Core Map UI — Map, search, TRI markers, T-01/T-03/T-08 E2E pass | 🔄 In Progress | M3 — First Shareable Demo | 72 |
-| **4** | Superfund Overlay — Diamond markers, T-02/T-04 E2E pass | ⬜ | M4 — Superfund Layer | 21 |
-| **5** | Demographics Layer — Census choropleth, T-05/T-06/T-09 E2E pass | ⬜ | M5 — Demographics Layer | 33 |
-| **6** | Full QA Pass — All Gherkin green, SLAs met, security regression | ⬜ | M6 — Feature Complete | 51 |
+| **3** | Core Map UI — Map, search, TRI markers, T-01/T-03/T-08 E2E pass | ✅ | M3 — First Shareable Demo | 79 |
+| **4** | Superfund Overlay — Diamond markers, T-02/T-04 E2E pass | ✅ | M4 — Superfund Layer | 28 |
+| **5** | Demographics Layer — Census choropleth, T-05/T-06/T-09 E2E pass | ✅ | M5 — Demographics Layer | 33 |
+| **6** | Full QA Pass — All Gherkin green, SLAs met, security regression | 🔄 In Progress | M6 — Feature Complete | 51 |
 | **7** | Production Deploy — Cloudflare Pages + DuckDB WASM, $0 cost | ⬜ | **M7 — MVP Shipped 🚀** | 51 |
 
-**Total: ~371 story points · ~13–19 weeks**
+**Total: ~385 story points · ~13–19 weeks**
 
 Live phase status: [`CURRENT_PHASE.txt`](CURRENT_PHASE.txt) · Full story table: [`TOXMAP_PROGRESS_TRACKER.md`](docs/product/TOXMAP_PROGRESS_TRACKER.md)
 

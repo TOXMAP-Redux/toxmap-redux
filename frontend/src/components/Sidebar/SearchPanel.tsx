@@ -13,10 +13,31 @@ import type { Chemical, FacilityCollection, SuperfundCollection } from '../../ap
 
 /** US states for the state dropdown. */
 const US_STATES = [
-  'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY',
-  'LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND',
-  'OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY',
+  // 50 states + DC (alphabetical by code)
+  'AK','AL','AR','AZ','CA','CO','CT','DC','DE','FL','GA','HI','IA','ID','IL','IN',
+  'KS','KY','LA','MA','MD','ME','MI','MN','MO','MS','MT','NC','ND','NE','NH','NJ',
+  'NM','NV','NY','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VA','VT','WA',
+  'WI','WV','WY',
 ]
+
+/** Continental US = 48 contiguous states + DC (excludes AK, HI, and territories). */
+const CONTINENTAL_US_STATES = new Set([
+  'AL','AR','AZ','CA','CO','CT','DC','DE','FL','GA','IA','ID','IL','IN',
+  'KS','KY','LA','MA','MD','ME','MI','MN','MO','MS','MT','NC','ND','NE','NH','NJ',
+  'NM','NV','NY','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VA','VT','WA',
+  'WI','WV','WY',
+])
+
+/** US territories included in TRI data. */
+const US_TERRITORIES = ['AS', 'GU', 'MP', 'PR', 'VI']
+
+/** Check if a state code is in the continental US (48 states + DC). */
+export function isContinentalUS(stateCode: string): boolean {
+  return CONTINENTAL_US_STATES.has(stateCode)
+}
+
+/** Special value for "Continental US" filter option. */
+export const CONUS_FILTER = 'CONUS'
 
 /** Year range for the year dropdown (1987 → present). */
 function buildYears(): number[] {
@@ -32,10 +53,10 @@ export interface SearchFormValues {
   chemical: string
   chemicalObj: Chemical | null
   year: string
+  /** If set, filters results to this state only */
   state: string
-  restrictToState: boolean
   /** Which dataset the search targets — controls results table mode (story 4.1.3) */
-  dataset: 'tri' | 'superfund'
+  dataset: 'tri' | 'superfund' | 'both'
 }
 
 interface SearchPanelProps {
@@ -46,7 +67,7 @@ interface SearchPanelProps {
   error: string | null
   highlightedFacilityId: string | null
   onHighlight: (id: string | null) => void
-  onSelect: (id: string) => void
+  onSelect: (id: string, type: 'tri' | 'superfund') => void
   onSearch: (values: SearchFormValues) => void
 }
 
@@ -70,8 +91,7 @@ export function SearchPanel({
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [year, setYear] = useState('')
   const [state, setState] = useState('')
-  const [restrictToState, setRestrictToState] = useState(false)
-  const [dataset, setDataset] = useState<'tri' | 'superfund'>('tri')
+  const [dataset, setDataset] = useState<'tri' | 'superfund' | 'both'>('both')
 
   const { suggestions, loading: suggestionsLoading } = useChemicalAutocomplete(chemicalInput)
 
@@ -89,7 +109,6 @@ export function SearchPanel({
       chemicalObj: selectedChemical,
       year,
       state,
-      restrictToState,
       dataset,
     })
   }
@@ -214,40 +233,36 @@ export function SearchPanel({
           </select>
         </div>
 
-        {/* State dropdown + restrict checkbox (UX Invariant 3) */}
+        {/* State filter dropdown (always filters when selected) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
           <label htmlFor="state-select" style={{ display: 'block', fontSize: '11px', fontWeight: 500, color: '#6b7280' }}>
-            State
+            Filter to state (optional)
           </label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <select
-              id="state-select"
-              data-testid="state-select"
-              value={state}
-              onChange={(e) => setState(e.target.value)}
-              style={{ flex: 1 }}
-            >
-              <option value="">All states</option>
+          <select
+            id="state-select"
+            data-testid="state-select"
+            value={state}
+            onChange={(e) => setState(e.target.value)}
+          >
+            <option value="">All</option>
+            <option value={CONUS_FILTER}>Continental US</option>
+            <optgroup label="States">
               {US_STATES.map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
-            </select>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#6b7280', cursor: 'pointer', marginBottom: 0, whiteSpace: 'nowrap' }}>
-              <input
-                data-testid="restrict-to-state-checkbox"
-                type="checkbox"
-                checked={restrictToState}
-                onChange={(e) => setRestrictToState(e.target.checked)}
-                style={{ accentColor: '#2563eb' }}
-              />
-              Limit to state
-            </label>
-          </div>
+            </optgroup>
+            <optgroup label="Territories">
+              {US_TERRITORIES.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </optgroup>
+          </select>
         </div>
 
-        {/* Dataset radio buttons — TRI or Superfund (story 4.1.3); 'Both' deferred */}
+        {/* Dataset radio buttons — TRI, Superfund, or Both (story 4.1.3, Fig 2015-4) */}
         <div className="toxmap-dataset-radios" style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#6b7280' }}>
           {[
+            { testid: 'dataset-radio-both', value: 'both' as const, label: 'Both' },
             { testid: 'dataset-radio-tri', value: 'tri' as const, label: 'TRI' },
             { testid: 'dataset-radio-superfund', value: 'superfund' as const, label: 'Superfund' },
           ].map(({ testid, value, label }) => (

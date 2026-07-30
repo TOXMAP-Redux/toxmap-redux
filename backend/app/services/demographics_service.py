@@ -53,15 +53,23 @@ def _county_to_feature(county: CensusCounty) -> DemographicsFeature:
 
 async def get_county_demographics(
     session: AsyncSession,
-    state: str,
+    state: str | None,
     census_year: int,
     fields: str | None,
 ) -> DemographicsCollection:
-    """Return county GeoJSON for a given state and census year."""
-    stmt = select(CensusCounty).where(
-        CensusCounty.state_code == state.upper()[:2],
-        CensusCounty.census_year == census_year,
-    )
+    """Return county GeoJSON for a given state and census year.
+    
+    If state is None, returns all counties for the census year.
+    """
+    if state:
+        stmt = select(CensusCounty).where(
+            CensusCounty.state_code == state.upper()[:2],
+            CensusCounty.census_year == census_year,
+        )
+    else:
+        stmt = select(CensusCounty).where(
+            CensusCounty.census_year == census_year,
+        )
     counties = (await session.execute(stmt)).scalars().all()
     features = [_county_to_feature(c) for c in counties]
 
@@ -70,7 +78,7 @@ async def get_county_demographics(
         meta=DemographicsCollectionMeta(
             total_count=len(features),
             census_year=census_year,
-            state=state.upper()[:2],
+            state=state.upper()[:2] if state else None,
             units=DEMOGRAPHICS_UNITS,
         ),
     )

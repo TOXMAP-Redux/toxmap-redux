@@ -280,10 +280,33 @@ def search_panel_label_correct(page: Page) -> None:
 # ── State filter (UX Invariant 3) ─────────────────────────────────────────────
 
 
-@then('the restrict-to-state checkbox is present')
-def restrict_to_state_checkbox_present(page: Page) -> None:
-    """UX Invariant 3: 'Limit to state' checkbox must be in the search panel."""
-    expect(page.locator('[data-testid="restrict-to-state-checkbox"]')).to_be_visible()
+@then('the state filter dropdown is present with label "Filter to state (optional)"')
+def state_filter_dropdown_present(page: Page) -> None:
+    """UX Invariant 3 (Option C): State dropdown is present with filter label."""
+    # Check the dropdown exists
+    expect(page.locator('[data-testid="state-select"]')).to_be_visible()
+    # Check the label text
+    label = page.locator('label[for="state-select"]')
+    expect(label).to_contain_text('Filter to state')
+
+
+@when(parsers.parse('I search for "{chemical}" with state filter "{state}"'))
+def search_with_state_filter(page: Page, chemical: str, state: str) -> None:
+    """Search for a chemical with state filter applied (Option C)."""
+    if not page.locator('[data-testid="search-panel"]').is_visible():
+        page.get_by_role('button', name='Search').click()
+        page.wait_for_selector('[data-testid="search-panel"]', timeout=5_000)
+
+    page.locator('[data-testid="chemical-input"]').fill(chemical)
+    page.locator('[data-testid="state-select"]').select_option(state)
+    page.locator('[data-testid="search-submit-btn"]').click()
+    page.wait_for_selector('[data-testid="results-table"]', timeout=15_000)
+
+
+@when('I clear the state filter')
+def clear_state_filter(page: Page) -> None:
+    """Clear the state filter by selecting 'All' (no filter)."""
+    page.locator('[data-testid="state-select"]').select_option('')
 
 
 # ── Latest year label (UX Invariant 7) ────────────────────────────────────────
@@ -352,11 +375,17 @@ def demographics_invariant_stub() -> None:
 
 @when(parsers.parse('I select the "{dataset}" dataset'))
 def select_dataset(page: Page, dataset: str) -> None:
-    """Select the TRI or Superfund dataset radio button in SearchPanel."""
+    """Select the TRI, Superfund, or Both dataset radio button in SearchPanel."""
     if not page.locator('[data-testid="search-panel"]').is_visible():
         page.get_by_role('button', name='Search').click()
         page.wait_for_selector('[data-testid="search-panel"]', timeout=5_000)
-    testid = 'dataset-radio-tri' if dataset.lower() == 'tri' else 'dataset-radio-superfund'
+    ds = dataset.lower()
+    if ds == 'tri':
+        testid = 'dataset-radio-tri'
+    elif ds == 'superfund':
+        testid = 'dataset-radio-superfund'
+    else:  # 'both'
+        testid = 'dataset-radio-both'
     page.locator(f'[data-testid="{testid}"]').click()
 
 
@@ -641,4 +670,670 @@ def toggle_tri_layer_on(page: Page) -> None:
     # Click to toggle on (assumes it's currently unchecked)
     tri_toggle.click()
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Regression Tests: "Both" Dataset Option (Fig 2015-4)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+@when('I click on the Search tab')
+def click_search_tab(page: Page) -> None:
+    """Click the Search tab in the sidebar header to open the search panel."""
+    page.get_by_role('button', name='Search').click()
+    page.wait_for_selector('[data-testid="search-panel"]', timeout=5_000)
+
+
+@then('the "Both" dataset radio button is selected by default')
+def both_dataset_selected_by_default(page: Page) -> None:
+    """Assert that the 'Both' dataset radio button is checked by default."""
+    both_radio = page.locator('[data-testid="dataset-radio-both"]')
+    expect(both_radio).to_be_visible()
+    expect(both_radio).to_be_checked()
+
+
+@then('the "TRI" dataset radio button is present')
+def tri_dataset_radio_present(page: Page) -> None:
+    """Assert that the 'TRI' dataset radio button exists."""
+    expect(page.locator('[data-testid="dataset-radio-tri"]')).to_be_visible()
+
+
+@then('the "Superfund" dataset radio button is present')
+def superfund_dataset_radio_present(page: Page) -> None:
+    """Assert that the 'Superfund' dataset radio button exists."""
+    expect(page.locator('[data-testid="dataset-radio-superfund"]')).to_be_visible()
+
+
+@then('the results sidebar shows TRI and Superfund sections')
+def results_shows_both_sections(page: Page) -> None:
+    """Assert that the results table shows both TRI and Superfund sections."""
+    results_table = page.locator('[data-testid="results-table"]')
+    expect(results_table).to_be_visible()
+    # Check for section count text pattern: "X TRI facilities · Y Superfund sites"
+    expect(results_table).to_contain_text('TRI facilities')
+    expect(results_table).to_contain_text('Superfund sites')
+
+
+@then('the TRI section header is visible')
+def tri_section_header_visible(page: Page) -> None:
+    """Assert that the TRI section header is visible in the combined results."""
+    results_table = page.locator('[data-testid="results-table"]')
+    expect(results_table).to_contain_text('TRI Facilities')
+
+
+@then('the Superfund section header is visible')
+def superfund_section_header_visible(page: Page) -> None:
+    """Assert that the Superfund section header is visible in the combined results."""
+    results_table = page.locator('[data-testid="results-table"]')
+    expect(results_table).to_contain_text('Superfund Sites')
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Regression Tests: "Both" Mode Drawer Selection
+# ══════════════════════════════════════════════════════════════════════════════
+# These steps catch the bug where clicking a Superfund result in "Both" mode
+# opened the TRI drawer instead of the Superfund drawer. Root cause was that
+# handleOpenDetail checked `dataset === 'superfund'` instead of the result type.
+
+
+@when(parsers.parse('I click on "{facility_name}" in the TRI results'))
+def click_tri_result_in_both_mode(page: Page, facility_name: str) -> None:
+    """Click on a TRI result row in the combined 'Both' mode results table."""
+    # Find the TRI section by looking for the green header
+    tri_section = page.locator('text=TRI Facilities').locator('xpath=following-sibling::table[1]')
+    tri_row = tri_section.locator('[data-testid="results-row"]').filter(has_text=facility_name)
+    tri_row.click()
+    # Wait for the TRI drawer to open (drawer has class 'toxmap-drawer', popup has 'toxmap-popup')
+    page.wait_for_selector('.toxmap-drawer[data-testid="facility-detail-panel"]', timeout=8_000)
+
+
+@then('the TRI facility detail drawer opens')
+def tri_facility_detail_drawer_opens(page: Page) -> None:
+    """Assert the TRI facility detail drawer (not popup) is visible."""
+    # Use class selector to distinguish drawer from popup
+    expect(page.locator('.toxmap-drawer[data-testid="facility-detail-panel"]')).to_be_visible()
+
+
+@then('the Superfund detail panel is not shown')
+def superfund_detail_panel_not_shown(page: Page) -> None:
+    """Assert the Superfund detail panel is NOT visible (when TRI drawer should be shown)."""
+    superfund_panel = page.locator('[data-testid="superfund-detail-panel"]')
+    if superfund_panel.count() > 0:
+        expect(superfund_panel).not_to_be_visible()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Regression Tests: US Zip Code Geocoding
+# ══════════════════════════════════════════════════════════════════════════════
+# These steps catch the bug where US zip codes (e.g., "22630") were geocoded to
+# Mexico instead of the US because Photon is a global geocoder.
+# Fix: Append ", USA" to 5-digit zip code queries.
+
+
+@then('the map is centered in the United States')
+def map_centered_in_usa(page: Page) -> None:
+    """
+    Assert the map center is within continental US bounds.
+
+    Continental US bounds (approximate):
+    - Latitude: 24.5 (Key West) to 49.5 (northern border)
+    - Longitude: -125 (west coast) to -66 (Maine)
+    """
+    page.wait_for_timeout(2000)  # Allow time for map to pan after geocoding
+
+    center = page.evaluate('''() => {
+        const map = window.__DEBUG_MAP__;
+        if (!map) return { error: 'Map not found' };
+        const c = map.getCenter();
+        return { lat: c.lat, lon: c.lng };
+    }''')
+
+    assert 'error' not in center, center.get('error', 'Unknown error')
+
+    lat, lon = center['lat'], center['lon']
+
+    # Continental US bounds
+    assert 24.5 <= lat <= 49.5, (
+        f'Map latitude {lat} is outside continental US bounds (24.5 to 49.5). '
+        f'This may indicate the US zip code geocoding fix has regressed.'
+    )
+    assert -125 <= lon <= -66, (
+        f'Map longitude {lon} is outside continental US bounds (-125 to -66). '
+        f'This may indicate the US zip code geocoding fix has regressed.'
+    )
+
+
+@then('the map is NOT centered in Mexico')
+def map_not_centered_in_mexico(page: Page) -> None:
+    """
+    Assert the map center is NOT in Mexico (specifically not near Tijuana).
+
+    Tijuana is at approximately (32.5, -117). The bug caused "22630" to geocode
+    there instead of Front Royal, VA (38.9, -78.2).
+
+    We check that the longitude is NOT in the Baja California / western Mexico
+    region (-118 to -105) while latitude is in the border region (28 to 35).
+    """
+    page.wait_for_timeout(1000)  # Allow time for map to settle
+
+    center = page.evaluate('''() => {
+        const map = window.__DEBUG_MAP__;
+        if (!map) return { error: 'Map not found' };
+        const c = map.getCenter();
+        return { lat: c.lat, lon: c.lng };
+    }''')
+
+    assert 'error' not in center, center.get('error', 'Unknown error')
+
+    lat, lon = center['lat'], center['lon']
+
+    # Tijuana / Baja California region check
+    # If in this region, the geocoding likely returned Mexico instead of USA
+    in_tijuana_region = (28 <= lat <= 35) and (-118 <= lon <= -105)
+
+    assert not in_tijuana_region, (
+        f'Map is centered at ({lat}, {lon}), which is in the Tijuana/Baja California region. '
+        f'US zip code "22630" should geocode to Front Royal, VA (~38.9, ~-78.2), not Mexico. '
+        f'This indicates the US zip code geocoding fix has regressed.'
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Phase 5: Demographics Step Implementations — T-05, T-06, T-09, Invariants 5, 10
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+@when(parsers.parse('I search for TRI facilities releasing "{chemical}" near "{location}" in year "{year}"'))
+def search_tri_chemical_location_year(page: Page, chemical: str, location: str, year: str) -> None:
+    """Search for TRI facilities with chemical, location, and year filters."""
+    # Open search panel if not visible
+    if not page.locator('[data-testid="search-panel"]').is_visible():
+        page.get_by_role('button', name='Search').click()
+        page.wait_for_selector('[data-testid="search-panel"]', timeout=5_000)
+
+    # Select TRI dataset
+    page.locator('[data-testid="dataset-radio-tri"]').click()
+
+    # Fill chemical
+    page.locator('[data-testid="chemical-input"]').fill(chemical)
+
+    # Fill location
+    page.locator('[data-testid="location-input"]').fill(location)
+
+    # Select year
+    page.locator('[data-testid="year-select"]').select_option(year)
+
+    # Submit search
+    page.locator('[data-testid="search-submit-btn"]').click()
+    page.wait_for_selector('[data-testid="results-table"]', timeout=_SEARCH_TIMEOUT)
+
+
+@when(parsers.parse('I search for "{chemical}" near "{location}" in year "{year}"'))
+def search_chemical_location_year(page: Page, chemical: str, location: str, year: str) -> None:
+    """Search for chemical near a location in a specific year."""
+    # Open search panel if not visible
+    if not page.locator('[data-testid="search-panel"]').is_visible():
+        page.get_by_role('button', name='Search').click()
+        page.wait_for_selector('[data-testid="search-panel"]', timeout=5_000)
+
+    # Fill chemical
+    page.locator('[data-testid="chemical-input"]').fill(chemical)
+
+    # Fill location
+    page.locator('[data-testid="location-input"]').fill(location)
+
+    # Select year
+    page.locator('[data-testid="year-select"]').select_option(year)
+
+    # Submit search
+    page.locator('[data-testid="search-submit-btn"]').click()
+    page.wait_for_selector('[data-testid="results-table"]', timeout=_SEARCH_TIMEOUT)
+
+
+@then('at least one TRI facility marker is visible on the map')
+def at_least_one_tri_marker_visible(page: Page) -> None:
+    """Assert that at least one TRI facility marker is visible on the map."""
+    page.wait_for_timeout(2000)  # Allow time for map render
+    
+    layer_info = page.evaluate('''() => {
+        const map = window.__DEBUG_MAP__;
+        if (!map) return { error: 'Map not found' };
+        
+        const source = map.getSource('facilities');
+        if (!source) return { hasSource: false };
+        
+        return {
+            hasSource: true,
+            hasLayer: !!map.getLayer('facility-circles'),
+            featureCount: source._data?.features?.length ?? 0,
+        };
+    }''')
+    
+    assert layer_info.get('hasSource'), 'TRI facilities source not found on map'
+    assert layer_info.get('hasLayer'), 'TRI facility-circles layer not found'
+    assert layer_info.get('featureCount', 0) > 0, 'No TRI facility features on map'
+
+
+@then('at least two benzene TRI facility markers appear in the Houston area')
+def at_least_two_benzene_markers_houston(page: Page) -> None:
+    """Assert that at least 2 benzene TRI markers appear in the Houston area."""
+    # The results table should show at least 2 facilities
+    rows = page.locator('[data-testid="results-row"]')
+    expect(rows.first).to_be_visible()
+    count = rows.count()
+    assert count >= 2, f'Expected at least 2 benzene facilities near Houston, found {count}'
+
+
+@then('the results sidebar shows TRI results without a simultaneous Map Contents panel')
+def results_sidebar_no_map_contents(page: Page) -> None:
+    """UX Invariant 1: results visible, map contents hidden."""
+    expect(page.locator('[data-testid="results-table"]')).to_be_visible()
+    map_contents = page.locator('[data-testid="map-contents-panel"]')
+    if map_contents.count() > 0:
+        expect(map_contents).not_to_be_visible()
+
+
+@when(parsers.parse('I open the "US Census & Health Data" panel'))
+def open_census_health_panel(page: Page) -> None:
+    """Open the US Census & Health Data panel via Map Contents."""
+    # Navigate to Map Contents panel
+    map_contents_btn = page.get_by_role('button', name='Map Contents')
+    if map_contents_btn.is_visible():
+        map_contents_btn.click()
+        page.wait_for_selector('[data-testid="map-contents-panel"]', timeout=5_000)
+    
+    # The census health panel is part of map contents
+    expect(page.locator('[data-testid="census-health-panel"]')).to_be_visible()
+
+
+@when(parsers.parse('I select "Population" > "% Under 18" > "Census 2000"'))
+def select_population_under_18(page: Page) -> None:
+    """Navigate to Population > % Under 18 > Census 2000 in the demographics panel."""
+    # Census 2000 is default, so just ensure population tab + sub-layer
+    page.locator('[data-testid="demo-tab-population"]').click()
+    page.locator('[data-testid="demo-sublayer-pct-under-18"]').click()
+
+
+@when(parsers.parse('I select "Income" > "Median Household Income" > "Census 2000"'))
+def select_income_median(page: Page) -> None:
+    """Navigate to Income > Median Household Income > Census 2000."""
+    page.locator('[data-testid="demo-tab-income"]').click()
+    page.locator('[data-testid="demo-sublayer-median-income"]').click()
+
+
+@when(parsers.parse('I select "Mortality" > "Cancer Mortality" > "Female" > "Census 2000"'))
+def select_mortality_cancer_female(page: Page) -> None:
+    """Navigate to Mortality > Cancer Mortality > Female > Census 2000."""
+    page.locator('[data-testid="demo-tab-mortality"]').click()
+    # Ensure Female radio is selected (default)
+    page.locator('input[name="mortality-gender"][value="female"]').check()
+    page.locator('[data-testid="demo-sublayer-cancer-female"]').click()
+
+
+@then('the map shows county-level color shading')
+def map_shows_county_shading(page: Page) -> None:
+    """Assert that the demographics choropleth layer is visible on the map."""
+    page.wait_for_timeout(2000)  # Allow time for API and render
+    
+    layer_info = page.evaluate('''() => {
+        const map = window.__DEBUG_MAP__;
+        if (!map) return { error: 'Map not found' };
+        
+        return {
+            hasSource: !!map.getSource('demographics-source'),
+            hasFillLayer: !!map.getLayer('demographics-fill'),
+        };
+    }''')
+    
+    assert layer_info.get('hasSource'), 'Demographics source not found on map'
+    assert layer_info.get('hasFillLayer'), 'Demographics fill layer not found on map'
+
+
+@then('the map shows cancer mortality choropleth shading')
+def map_shows_cancer_mortality_shading(page: Page) -> None:
+    """Assert that the cancer mortality choropleth layer is visible."""
+    # Same as county shading — the layer is the same, just different data property
+    page.wait_for_timeout(2000)
+    
+    layer_info = page.evaluate('''() => {
+        const map = window.__DEBUG_MAP__;
+        if (!map) return { error: 'Map not found' };
+        
+        return {
+            hasSource: !!map.getSource('demographics-source'),
+            hasFillLayer: !!map.getLayer('demographics-fill'),
+        };
+    }''')
+    
+    assert layer_info.get('hasSource'), 'Demographics source not found on map'
+    assert layer_info.get('hasFillLayer'), 'Demographics fill layer not found'
+
+
+@then('the sidebar switches to show the demographic panel only')
+def sidebar_shows_demographic_panel_only(page: Page) -> None:
+    """Assert the map contents panel is visible (contains census health panel)."""
+    expect(page.locator('[data-testid="census-health-panel"]')).to_be_visible()
+
+
+@then('the TRI facility markers remain visible on the map')
+def tri_markers_remain_visible(page: Page) -> None:
+    """Assert that TRI facility markers are still visible over demographics layer."""
+    layer_info = page.evaluate('''() => {
+        const map = window.__DEBUG_MAP__;
+        if (!map) return { error: 'Map not found' };
+        
+        return {
+            hasLayer: !!map.getLayer('facility-circles'),
+            visibility: map.getLayer('facility-circles')
+                ? map.getLayoutProperty('facility-circles', 'visibility')
+                : null,
+        };
+    }''')
+    
+    assert layer_info.get('hasLayer'), 'TRI facility-circles layer not found'
+    visibility = layer_info.get('visibility')
+    assert visibility in (None, 'visible'), f'TRI layer visibility is {visibility}, expected visible'
+
+
+@then(parsers.parse('a legend is visible with inline percentage values and the unit "%"'))
+def legend_visible_with_percentage(page: Page) -> None:
+    """Assert the demographic legend is visible with % units."""
+    legend = page.locator('[data-testid="demographic-legend"]')
+    expect(legend).to_be_visible()
+    expect(legend).to_contain_text('%')
+
+
+@then(parsers.parse('the legend shows dollar values with the unit "$"'))
+def legend_shows_dollar_values(page: Page) -> None:
+    """Assert the legend shows dollar values."""
+    legend = page.locator('[data-testid="demographic-legend"]')
+    expect(legend).to_be_visible()
+    expect(legend).to_contain_text('$')
+
+
+@then(parsers.parse('each legend range label includes a "$" symbol'))
+def each_legend_label_has_dollar(page: Page) -> None:
+    """Assert each legend entry contains a $ symbol."""
+    entries = page.locator('[data-testid="demographic-legend-entry"]').all()
+    assert len(entries) >= 3, f'Expected at least 3 legend entries, found {len(entries)}'
+    for entry in entries:
+        text = entry.inner_text()
+        assert '$' in text, f'Legend entry "{text}" does not contain $ symbol'
+
+
+@when(parsers.parse('I click "Clear layer" in the demographic panel'))
+def click_clear_layer(page: Page) -> None:
+    """Click the Clear layer button in the demographic legend."""
+    page.locator('[data-testid="clear-layer-btn"]').click()
+
+
+@then('the county color shading is removed from the map')
+def county_shading_removed(page: Page) -> None:
+    """Assert the demographics layer is no longer on the map."""
+    page.wait_for_timeout(500)  # Allow time for layer removal
+    
+    layer_info = page.evaluate('''() => {
+        const map = window.__DEBUG_MAP__;
+        if (!map) return { error: 'Map not found' };
+        
+        return {
+            hasSource: !!map.getSource('demographics-source'),
+            hasFillLayer: !!map.getLayer('demographics-fill'),
+        };
+    }''')
+    
+    # Source and layer should be gone after clearing
+    assert not layer_info.get('hasFillLayer'), 'Demographics fill layer still present after clear'
+
+
+@then('the legend disappears')
+def legend_disappears(page: Page) -> None:
+    """Assert the demographic legend is no longer visible."""
+    legend = page.locator('[data-testid="demographic-legend"]')
+    if legend.count() > 0:
+        expect(legend).not_to_be_visible()
+
+
+@then(parsers.parse('a co-occurrence disclaimer is visible reading "{text}"'))
+def cooccurrence_disclaimer_visible(page: Page, text: str) -> None:
+    """Assert the co-occurrence disclaimer is visible with specific text."""
+    disclaimer = page.locator('[data-testid="cooccurrence-disclaimer"]')
+    expect(disclaimer).to_be_visible()
+    expect(disclaimer).to_contain_text(text)
+
+
+@when(parsers.parse('I switch to the "Population" tab in the demographic panel'))
+def switch_to_population_tab(page: Page) -> None:
+    """Click the Population tab in the census health panel."""
+    page.locator('[data-testid="demo-tab-population"]').click()
+
+
+@when(parsers.parse('I switch to "Income" tab in the demographic panel'))
+def switch_to_income_tab(page: Page) -> None:
+    """Click the Income tab in the census health panel."""
+    page.locator('[data-testid="demo-tab-income"]').click()
+
+
+@then('the co-occurrence disclaimer is NOT visible')
+def cooccurrence_disclaimer_not_visible(page: Page) -> None:
+    """Assert the co-occurrence disclaimer is not visible."""
+    disclaimer = page.locator('[data-testid="cooccurrence-disclaimer"]')
+    if disclaimer.count() > 0:
+        expect(disclaimer).not_to_be_visible()
+
+
+@then(parsers.parse('the text "{text}" is visible'))
+def text_is_visible(page: Page, text: str) -> None:
+    """Assert that the specified text is visible on the page."""
+    expect(page.get_by_text(text, exact=False)).to_be_visible()
+
+
+@then(parsers.parse('the text "{text}" is NOT visible'))
+def text_is_not_visible(page: Page, text: str) -> None:
+    """Assert that the specified text is not visible on the page."""
+    locator = page.get_by_text(text, exact=False)
+    if locator.count() > 0:
+        expect(locator).not_to_be_visible()
+
+
+@then('the legend is visible on screen')
+def legend_visible_on_screen(page: Page) -> None:
+    """UX Invariant 5: legend is visible (not hidden behind mouse-over)."""
+    expect(page.locator('[data-testid="demographic-legend"]')).to_be_visible()
+
+
+@then('the legend shows at least 3 color-range entries')
+def legend_has_at_least_3_entries(page: Page) -> None:
+    """UX Invariant 5: at least 3 legend entries visible without hover."""
+    entries = page.locator('[data-testid="demographic-legend-entry"]')
+    expect(entries.first).to_be_visible()
+    count = entries.count()
+    assert count >= 3, f'Expected at least 3 legend entries, found {count}'
+
+
+@then('each legend entry has a visible numeric value without hovering')
+def each_legend_entry_has_numeric_value(page: Page) -> None:
+    """UX Invariant 5: each legend entry has a visible numeric value."""
+    entries = page.locator('[data-testid="demographic-legend-entry"]').all()
+    assert len(entries) >= 3, 'Expected at least 3 legend entries'
+    for entry in entries:
+        text = entry.inner_text()
+        # Entry should contain at least one digit or range indicator
+        assert re.search(r'\d', text), f'Legend entry "{text}" has no numeric value'
+
+
+@then(parsers.parse('each legend entry includes the unit "{unit}"'))
+def each_legend_entry_includes_unit(page: Page, unit: str) -> None:
+    """Assert each legend entry contains the specified unit."""
+    entries = page.locator('[data-testid="demographic-legend-entry"]').all()
+    assert len(entries) >= 3, 'Expected at least 3 legend entries'
+    for entry in entries:
+        text = entry.inner_text()
+        assert unit in text, f'Legend entry "{text}" does not include unit "{unit}"'
+
+
+# ── Nationwide Chemical Search Regression Tests ──────────────────────────────
+# These steps test the nationwide search feature where users can search by
+# chemical without entering a location. Both TRI and Superfund results should
+# be filtered by the chemical name (client-side filtering for Superfund).
+
+
+@when('I leave the location field empty')
+def leave_location_empty(page: Page) -> None:
+    """Ensure the location field is empty for a nationwide search."""
+    if not page.locator('[data-testid="search-panel"]').is_visible():
+        page.get_by_role('button', name='Search').click()
+        page.wait_for_selector('[data-testid="search-panel"]', timeout=5_000)
+    # Clear the location field
+    page.locator('[data-testid="location-input"]').fill('')
+
+
+@then(parsers.parse('the results summary shows "{expected_text}"'))
+def results_summary_shows(page: Page, expected_text: str) -> None:
+    """
+    Assert the results summary contains the expected text.
+    
+    The results summary shows counts like "1 TRI facilities · 1 Superfund sites".
+    """
+    summary = page.locator('[data-testid="results-summary"]')
+    expect(summary).to_be_visible()
+    expect(summary).to_contain_text(expected_text)
+
+
+@then(parsers.parse('the results summary does not show "{text}"'))
+def results_summary_does_not_show(page: Page, text: str) -> None:
+    """Assert the results summary does not contain the specified text."""
+    summary = page.locator('[data-testid="results-summary"]')
+    expect(summary).to_be_visible()
+    actual_text = summary.inner_text()
+    assert text not in actual_text, f'Results summary "{actual_text}" unexpectedly contains "{text}"'
+
+
+@then('the map is zoomed to US continental view')
+def map_zoomed_to_us_view(page: Page) -> None:
+    """
+    Assert the map is zoomed out to show the continental US.
+    
+    For nationwide searches, the map should zoom to approximately:
+    - Center: lat ~38.5, lon ~-96
+    - Zoom: ~4
+    """
+    page.wait_for_timeout(1000)  # Allow time for zoom animation
+    
+    view_state = page.evaluate('''() => {
+        const map = window.__DEBUG_MAP__;
+        if (!map) return { error: 'Map not found' };
+        
+        return {
+            center: map.getCenter(),
+            zoom: map.getZoom(),
+        };
+    }''')
+    
+    assert 'error' not in view_state, f'Map error: {view_state.get("error")}'
+    
+    center = view_state.get('center', {})
+    zoom = view_state.get('zoom', 0)
+    
+    # US continental view is approximately:
+    # - Latitude: 35-42 (center around 38.5)
+    # - Longitude: -105 to -85 (center around -96)
+    # - Zoom: 3-5
+    lat = center.get('lat', 0)
+    lon = center.get('lng', 0)
+    
+    assert 30 <= lat <= 45, f'Map center latitude {lat} is not in US continental range (30-45)'
+    assert -120 <= lon <= -70, f'Map center longitude {lon} is not in US continental range (-120 to -70)'
+    assert 3 <= zoom <= 6, f'Map zoom {zoom} is not at US overview level (3-6)'
+
+
+# ── State Filter Regression Tests ─────────────────────────────────────────────
+# These steps test the state filter dropdown including the "Continental US" option.
+
+# Continental US = 48 contiguous states + DC (excludes AK, HI, and territories)
+CONTINENTAL_US_STATES = {
+    'AL', 'AR', 'AZ', 'CA', 'CO', 'CT', 'DC', 'DE', 'FL', 'GA', 'IA', 'ID', 'IL', 'IN',
+    'KS', 'KY', 'LA', 'MA', 'MD', 'ME', 'MI', 'MN', 'MO', 'MS', 'MT', 'NC', 'ND', 'NE',
+    'NH', 'NJ', 'NM', 'NV', 'NY', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX',
+    'UT', 'VA', 'VT', 'WA', 'WI', 'WV', 'WY',
+}
+
+
+@then(parsers.parse('the state filter dropdown shows "{option}" as the selected option'))
+def state_filter_shows_selected(page: Page, option: str) -> None:
+    """Assert the state filter dropdown has the specified option selected."""
+    select = page.locator('[data-testid="state-select"]')
+    expect(select).to_be_visible()
+    # Get the selected option text
+    selected_text = select.locator('option:checked').inner_text()
+    assert selected_text == option, f'State filter shows "{selected_text}", expected "{option}"'
+
+
+@then(parsers.parse('the state filter dropdown contains "{option}" option'))
+def state_filter_contains_option(page: Page, option: str) -> None:
+    """Assert the state filter dropdown contains the specified option."""
+    select = page.locator('[data-testid="state-select"]')
+    expect(select).to_be_visible()
+    options = select.locator('option').all_inner_texts()
+    assert option in options, f'State filter does not contain "{option}". Options: {options}'
+
+
+@when(parsers.parse('I select "{option}" from the state filter'))
+def select_state_filter_option(page: Page, option: str) -> None:
+    """Select an option from the state filter dropdown."""
+    select = page.locator('[data-testid="state-select"]')
+    # Map display text to value
+    if option == 'All':
+        select.select_option('')
+    elif option == 'Continental US':
+        select.select_option('CONUS')
+    else:
+        select.select_option(option)
+
+
+@then('all results are from continental US states')
+def all_results_are_conus(page: Page) -> None:
+    """
+    Assert all facilities in the results are from continental US states.
+    
+    Continental US = 48 contiguous states + DC.
+    Excludes: AK, HI, and territories (AS, GU, MP, PR, VI).
+    """
+    # Get all result rows and their state info
+    rows = page.locator('[data-testid="results-row"]').all()
+    assert len(rows) > 0, 'No results to verify'
+    
+    for row in rows:
+        # Each row has a city/state like "HOUSTON, TX" or "SPARROWS POINT, MD"
+        # The state code is the last 2 chars before any status text
+        row_text = row.inner_text()
+        # Extract state code - look for 2-letter code pattern
+        match = re.search(r'\b([A-Z]{2})\b', row_text)
+        if match:
+            state = match.group(1)
+            # Skip if it's a status like "NPL"
+            if state in ('NPL', 'HRS'):
+                # Try to find another match
+                matches = re.findall(r'\b([A-Z]{2})\b', row_text)
+                for m in matches:
+                    if m in CONTINENTAL_US_STATES or m in ('AK', 'HI', 'AS', 'GU', 'MP', 'PR', 'VI'):
+                        state = m
+                        break
+            if state in CONTINENTAL_US_STATES:
+                continue
+            if state in ('AK', 'HI', 'AS', 'GU', 'MP', 'PR', 'VI'):
+                raise AssertionError(
+                    f'Found non-CONUS result with state "{state}" in row: {row_text}. '
+                    'Continental US filter should exclude AK, HI, and territories.'
+                )
+
+
+@then(parsers.parse('no result shows "{text}" in the facility name'))
+def no_result_shows_facility_text(page: Page, text: str) -> None:
+    """Assert that no results row contains the specified text in its facility name."""
+    rows = page.locator('[data-testid="results-row"]').all()
+    for row in rows:
+        row_text = row.inner_text()
+        assert text not in row_text, (
+            f'Found excluded facility text "{text}" in results row: {row_text}'
+        )
 

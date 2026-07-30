@@ -68,11 +68,14 @@ API responses return raw `float` values. **The frontend** is responsible for com
 | GET    | `/api/v1/layers/nuclear`                        | Nuclear plant locations                         | Optional Layers |
 | GET    | `/api/v1/layers/npri`                           | Canadian NPRI facilities                        | Optional Layers |
 | GET    | `/api/v1/layers/congressional-districts`        | Congressional district boundaries               | Optional Layers |
+| GET    | `/api/v1/tribes`                                | List tribes with TRI facility counts 📋 Phase 8 | Tribal Lands    |
 | GET    | `/api/v1/export/csv`                            | Streaming CSV export                            | Export          |
 | GET    | `/api/v1/export/map-metadata`                   | Current filter state for map snapshot           | Export          |
 | GET    | `/api/v1/meta`                                  | TRI data vintage + available years ⚠️ dev only  | Metadata        |
 
 > **⚠️ Dev-only endpoints** (`/api/v1/geocode`, `/api/v1/meta`) exist only when FastAPI is running. In production (DuckDB WASM mode), geocoding calls Nominatim directly from the browser, and data vintage metadata is read from `manifest.json` on Cloudflare R2. See [ADR-004](../adr/ADR-004-zero-budget-hosting.md) and [TWO_MODES_DEEP_DIVE.md](../TWO_MODES_DEEP_DIVE.md).
+>
+> **📋 Phase 8 endpoints** (`/api/v1/tribes`) and the `tribal_only` parameter on facility endpoints are planned for Phase 8 (Tribal Lands Data) — a post-MVP enhancement. See the [Development Roadmap](../product/TOXMAP_DEVELOPMENT_ROADMAP.md) for details.
 
 ---
 
@@ -947,6 +950,64 @@ None.
 | Status | Condition                                            |
 |--------|------------------------------------------------------|
 | 503    | Database unreachable or `release_events` table empty |
+
+---
+
+## 18. `GET /api/v1/tribes` 📋 Phase 8
+
+**Description:** Returns a list of all federally recognized tribes that have TRI reporting facilities on their lands. Each entry includes the BIA code, tribe name, and count of facilities. Used to populate the tribe sub-dropdown when "Tribal Lands" is selected in the state filter.
+
+> **Phase 8 (Tribal Lands Data):** This endpoint is planned for the post-MVP Phase 8. It will be implemented as part of story 8.3.3 in the [Development Roadmap](../product/TOXMAP_DEVELOPMENT_ROADMAP.md).
+
+### Query Parameters
+
+None.
+
+### Success Response — 200 (Planned)
+
+```json
+{
+  "tribes": [
+    {
+      "bia_code": "NAV",
+      "tribe_name": "Navajo Nation",
+      "facility_count": 12
+    },
+    {
+      "bia_code": "CHE",
+      "tribe_name": "Cherokee Nation",
+      "facility_count": 8
+    }
+  ],
+  "meta": {
+    "total_tribes": 45,
+    "total_tribal_facilities": 127
+  }
+}
+```
+
+**Field definitions:**
+
+| Field             | Type   | Description                                                                 |
+|-------------------|--------|-----------------------------------------------------------------------------|
+| `bia_code`        | string | Three-letter Bureau of Indian Affairs code (TRI Field 10)                   |
+| `tribe_name`      | string | Full tribe name (TRI Field 11, up to 350 characters)                        |
+| `facility_count`  | int    | Number of TRI facilities on this tribe's lands                              |
+| `total_tribes`    | int    | Count of distinct tribes with at least one TRI facility                     |
+| `total_tribal_facilities` | int | Total count of facilities where `bia_code IS NOT NULL`               |
+
+**Contract invariants:**
+- Results sorted alphabetically by `tribe_name`
+- Only tribes with at least one facility are returned
+- `bia_code` is never null in this response
+
+### Related Parameters (Phase 8)
+
+When Phase 8 is implemented, the following parameter will be added to `GET /api/v1/facilities` and `GET /api/v1/facilities/browse`:
+
+| Parameter      | Type | Required | Default | Description                                            |
+|----------------|------|----------|---------|--------------------------------------------------------|
+| `tribal_only`  | bool | ❌        | `false` | If `true`, returns only facilities where `bia_code IS NOT NULL` |
 
 ---
 

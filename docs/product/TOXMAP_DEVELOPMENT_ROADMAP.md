@@ -78,6 +78,7 @@ These are locked before development starts. Any deviation requires a new ADR.
 | **M5** | Demographics Layer | Census overlay, T-05 + T-06 + T-09 pass E2E | Phase 5 complete |
 | **M6** | Full QA Green | All Gherkin scenarios + all 10 UX invariants pass (`pytest tests/features/ --tb=short` exits 0) | Feature complete |
 | **M7** | Production Deploy | Live on Cloudflare Pages, $0, DuckDB WASM | **MVP Shipped** |
+| **M8** | Tribal Lands Data | Tribal land facilities queryable + "Tribal" filter | Post-MVP enhancement |
 
 ---
 
@@ -476,41 +477,63 @@ These are locked before development starts. Any deviation requires a new ADR.
 **Duration:** ~2 weeks  
 **Team:** FE (lead), BE confirms demographics API
 
+> **Census 2020 Decision (2026-07-28):** Census 2020 tab shows "Coming soon" for MVP. Seed data
+> contains Census 2000 only. Real Census 2020 data loads via `census_ingest.py`; Parquet includes
+> both years. Phase 5 DoD tests use Census 2000 layer.
+
 #### Epics & Stories
 
 **Epic 5.1 — Census Health Data Panel** `FE`
 
+> **Tab hierarchy specification:**
+> - **Level 1 (Year tabs):** Census 2000 | Census 2020
+> - **Level 2 (Category tabs within each year):** Population | Income | Age | Race | Mortality
+> - **Level 3 (Sub-layers within each category):** e.g., Population → % Under 18 | % Over 65 | Total Pop
+> - **Level 4 (Gender radio for mortality only):** Cancer → Male | Female
+> 
+> Navigation pattern: `Year > Category > Sub-layer > [Gender]`
+
 | Story | Description | Points | Acceptance Criteria |
 |-------|-------------|--------|---------------------|
-| 5.1.1 | Panel labeled **"US Census & Health Data"** (not "Demographics") | 1 | No "Demographics" label visible (UX invariant 4) |
-| 5.1.2 | Tab structure: Census 2000 / Census 2020 × Population / Income / Age / Race / Mortality | 3 | Matches screen catalog Fig 2015-5 layout |
-| 5.1.3 | Cancer/Heart Disease/Asthma tabs under Mortality | 2 | Within Cancer: Male / Female (no combined; explain why) |
-| 5.1.4 | One layer at a time enforced: selecting new layer clears previous | 2 | Map shows only one choropleth shading at a time |
-| 5.1.5 | Zoom-out notice: "Demographic data is at the county level. Zoom out to see more counties." | 1 | Visible when zoomed in closely (UCD 2011 finding) |
+| 5.1.1 | Panel labeled **"US Census & Health Data"** (not "Demographics") | 1 | No "Demographics" label visible (UX invariant 4); `data-testid="census-health-panel"` |
+| 5.1.2 | Tab structure: Year tabs (Census 2000 / Census 2020) > Category tabs > Sub-layer buttons > Gender radio | 3 | Matches screen catalog Fig 2015-5 layout; Census 2020 tab shows "Coming soon" placeholder |
+| 5.1.3 | Cancer/Heart Disease tabs under Mortality; Cancer has Male/Female radio | 2 | No combined Cancer option; tooltip explains "data reported by gender separately" |
+| 5.1.4 | One layer at a time enforced: selecting new layer clears previous | 2 | Map shows only one choropleth shading at a time; previous legend disappears |
+| 5.1.5 | Zoom notice: "Zoom out to see more counties" when zoom > 8 | 1 | Appears below legend; hidden when zoom ≤ 8 (UCD 2011 finding) |
 
 **Epic 5.2 — Choropleth Map Layer** `FE`
 
+> **Choropleth color scale specification:**
+> - **Percentage fields** (pct_under_18, pct_over_65, pct_nonwhite): 5-step sequential blue
+>   `['#eff3ff', '#bdd7e7', '#6baed6', '#3182bd', '#08519c']` (equal-interval)
+> - **Income fields** (median_income): 5-step sequential green
+>   `['#edf8e9', '#bae4b3', '#74c476', '#31a354', '#006d2c']` (equal-interval)
+> - **Mortality fields** (cancer_mortality_*): 5-step sequential red
+>   `['#fee5d9', '#fcae91', '#fb6a4a', '#de2d26', '#a50f15']` (equal-interval)
+> - **Total population**: 5-step sequential purple
+>   `['#f2f0f7', '#cbc9e2', '#9e9ac8', '#756bb1', '#54278f']` (quantile for skewed distribution)
+
 | Story | Description | Points | Acceptance Criteria |
 |-------|-------------|--------|---------------------|
-| 5.2.1 | County polygon fill layer: color-coded by selected demographic variable | 5 | Warren County VA colored by `pct_under_18 = 24.7%` |
-| 5.2.2 | TRI/Superfund markers remain visible over demographic shading | 2 | Both layers visible simultaneously without z-index conflict |
+| 5.2.1 | County polygon fill layer: color-coded by selected demographic variable | 5 | Warren County VA colored by `pct_under_18 = 24.7%`; MapLibre `fill-color` interpolate expression using color scales above |
+| 5.2.2 | TRI/Superfund markers remain visible over demographic shading | 2 | Point layers rendered above fill layer (`z-index` via layer order); no visual obstruction |
 
 **Epic 5.3 — Inline Legend** `FE`
 > **Critical UX invariant:** Legend values must be visible without hovering (UCD 2011 §"Mouse-Over Legend").
 
 | Story | Description | Points | Acceptance Criteria |
 |-------|-------------|--------|---------------------|
-| 5.3.1 | InlineLegend component: color blocks with range values always visible | 3 | At least 3 color-range entries visible without hover |
-| 5.3.2 | Units shown for every field: `%`, `$`, `years`, `people`, `per 100,000` | 2 | Units sourced from `meta.units` in API response — no hardcoding |
-| 5.3.3 | "Clear layer" button in demographic panel removes choropleth | 1 | Shading removed; legend disappears (T-06) |
+| 5.3.1 | InlineLegend component: color blocks with range values always visible | 3 | At least 3 color-range entries visible without hover; `data-testid="demographic-legend"`, `demographic-legend-entry"` |
+| 5.3.2 | Units shown for every field: `%`, `$`, `people`, `per 100,000` | 2 | Units sourced from `meta.units` in API response — no hardcoding |
+| 5.3.3 | "Clear layer" button in demographic panel removes choropleth | 1 | Shading removed; legend disappears (T-06); `data-testid="clear-layer-btn"` |
 
 **Epic 5.4 — Co-Occurrence Disclaimer** `FE`
 > Source: UCD 2011 §"Explanation of Mortality Categories" + NLM misinterpretation concern.
 
 | Story | Description | Points | Acceptance Criteria |
 |-------|-------------|--------|---------------------|
-| 5.4.1 | Disclaimer on mortality tabs only: "Correlation does not imply causation" | 2 | Visible on Cancer/Heart Disease tab; NOT on Population/Income tabs (UX invariant 10) |
-| 5.4.2 | Explanation link for why Male/Female cannot be combined | 1 | Tooltip or modal explains data limitation |
+| 5.4.1 | Disclaimer on mortality tabs only: "Correlation does not imply causation" | 2 | Visible on Cancer/Heart Disease tab; NOT on Population/Income tabs (UX invariant 10); `data-testid="cooccurrence-disclaimer"` |
+| 5.4.2 | Explanation link for why Male/Female cannot be combined | 1 | Tooltip or info icon explains "Cancer mortality data is reported separately by gender" |
 
 **E2E Tests — Phase 5 Target:**
 
@@ -638,6 +661,71 @@ These are locked before development starts. Any deviation requires a new ADR.
 
 ---
 
+### Phase 8 — Tribal Lands Data (Post-MVP)
+**Goal:** Facilities on tribal lands queryable via dedicated filter. Users can select "Tribal" in state dropdown to view all TRI reporters on federally recognized tribal lands.  
+**Duration:** ~1 week  
+**Team:** DE (lead), BE, FE, QA supports
+
+> **Background:** EPA TRI data includes facilities located on tribal lands, identified by Bureau of Indian Affairs (BIA) code (TRI Field 10) and tribe name (TRI Field 11). EPA also publishes separate "tribal data files" containing all submissions from facilities on tribal lands. This phase adds support for ingesting and filtering by tribal land location.
+
+#### Epics & Stories
+
+**Epic 8.1 — Schema Extension** `BE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 8.1.1 | Add `bia_code VARCHAR(3)` and `tribe_name VARCHAR(350)` columns to `facilities` table | 2 | `alembic upgrade head` applies migration cleanly |
+| 8.1.2 | Add index on `bia_code` for tribal filtering | 1 | `CREATE INDEX idx_facilities_bia_code ON facilities(bia_code) WHERE bia_code IS NOT NULL` |
+
+**Epic 8.2 — TRI Tribal Data Ingestion** `DE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 8.2.1 | Update `TRI_COLUMN_MAP` with `"BIA": "bia_code"` and `"TRIBE": "tribe_name"` mappings | 1 | Columns mapped from TRI CSV Fields 10–11 |
+| 8.2.2 | `tri_ingest.py`: populate `bia_code` and `tribe_name` from national data file | 2 | Non-null `bia_code` values present for tribal facilities after ingest |
+| 8.2.3 | Optional: ingest EPA tribal-specific data file (`{year}_TRIBAL_US.csv`) for validation | 2 | Tribal file row count matches `SELECT COUNT(*) FROM facilities WHERE bia_code IS NOT NULL` |
+| 8.2.4 | Seed data: add tribal facility test record | 1 | At least one facility with `bia_code='NAV'` (Navajo Nation) in `seed.sql` |
+
+**Epic 8.3 — Tribal Filter API** `BE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 8.3.1 | `GET /api/v1/facilities`: add `tribal_only=true` query parameter | 2 | Returns only facilities where `bia_code IS NOT NULL` |
+| 8.3.2 | `GET /api/v1/facilities/browse`: support `tribal_only=true` | 1 | Browse mode returns all tribal facilities without radius constraint |
+| 8.3.3 | `GET /api/v1/tribes`: list all tribes with facility counts | 3 | Returns `[{bia_code, tribe_name, facility_count}]` sorted by name |
+
+**Epic 8.4 — Tribal Filter UI** `FE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 8.4.1 | Add "Tribal Lands" option to state dropdown (after territories) | 2 | Option value `TRIBAL`; triggers `tribal_only=true` API param |
+| 8.4.2 | Tribal filter: when selected, hide state dropdown and show tribe sub-dropdown | 3 | Sub-dropdown populated from `GET /api/v1/tribes`; optional filter by specific tribe |
+| 8.4.3 | DuckDB WASM: `WHERE bia_code IS NOT NULL` filter for production mode | 2 | `useDuckDBFacilities` handles `tribal_only` flag |
+
+**Epic 8.5 — Parquet & Export** `DE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 8.5.1 | `build_parquet.py`: include `bia_code` and `tribe_name` columns | 2 | Columns present in `tri_YEAR.parquet` schema |
+| 8.5.2 | CSV export: include `bia_code` and `tribe_name` columns | 1 | Headers match updated API contract |
+
+**Epic 8.6 — QA & Testing** `QA`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 8.6.1 | Gherkin scenario: T-10 "Find facilities on Navajo Nation tribal lands" | 3 | API + E2E scenarios pass with seeded tribal facility |
+| 8.6.2 | UX regression: ensure state filter still works with tribal option added | 1 | T-01 still passes; state dropdown tests green |
+
+**Phase 8 Definition of Done:**
+- [ ] `bia_code` and `tribe_name` columns populated for all applicable facilities
+- [ ] `GET /api/v1/facilities?tribal_only=true` returns only tribal facilities
+- [ ] "Tribal Lands" option visible in state dropdown
+- [ ] T-10 Gherkin scenario passes (API + E2E)
+- [ ] Parquet files include tribal columns
+- [ ] **Milestone M8 — Tribal Lands Data**
+
+---
+
 ## 6. Testing Strategy & Cadence
 
 | Phase | QA Activity | Target Coverage |
@@ -650,6 +738,7 @@ These are locked before development starts. Any deviation requires a new ADR.
 | 5 | Implement T-05, T-06, T-09; run UX invariants 5, 10 | Demographics layer |
 | 6 | Bug bash; all Gherkin scenarios + performance SLAs (`pytest tests/features/ --tb=short` exits 0) | Full coverage |
 | 7 | Production smoke suite against Cloudflare URL | Deploy validation |
+| 8 | T-10 tribal scenario; regression tests for state filter | Tribal lands filter |
 
 **Test Execution Commands (Reference):**
 
@@ -727,10 +816,13 @@ A story is **Done** when:
 | Phase 5 — Demographics | 0 | 25 | 0 | 8 | 0 | 0 | **33** |
 | Phase 6 — Full QA | 5 | 5 | 0 | 26 | 0 | 15 | **51** |
 | Phase 7 — Production | 0 | 22 | 5 | 6 | 10 | 8 | **51** |
-| **Total** | **63** | **126** | **38** | **81** | **25** | **45** | **378** |
+| Phase 8 — Tribal Lands | 3 | 7 | 6 | 4 | 0 | 0 | **20** |
+| **Total** | **66** | **133** | **44** | **85** | **25** | **45** | **398** |
 
-> At a team velocity of ~20 points/week (2 devs), this is approximately **19 weeks** to MVP.  
-> At 30 points/week (3 devs), approximately **12 weeks**.
+> At a team velocity of ~20 points/week (2 devs), this is approximately **20 weeks** to MVP + tribal lands.  
+> At 30 points/week (3 devs), approximately **13 weeks**.
+> 
+> **Note:** Phase 8 (Tribal Lands) is a post-MVP enhancement. MVP ships at Phase 7 (~378 points).
 
 ---
 

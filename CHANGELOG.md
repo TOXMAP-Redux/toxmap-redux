@@ -16,6 +16,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+<!-- Phase 5 — Demographics Overlay (2026-07-29) [agent] -->
+- `components/Demographics/CensusHealthPanel.tsx` — "US Census & Health Data" panel
+  with year tabs (Census 2000/2020), category tabs (Population/Income/Mortality),
+  sub-layer buttons, and gender radio for mortality; Census 2020 shows "Coming soon"
+  (stories 5.1.1–5.1.5, 2026-07-29) [agent]
+- `components/Demographics/InlineLegend.tsx` — always-visible color-coded legend
+  with values, units from `meta.units`, and "Clear layer" button; UX Invariant 5
+  (stories 5.3.1–5.3.3, 2026-07-29) [agent]
+- `components/Demographics/colorUtils.ts` — color scale definitions for choropleth:
+  blue (percentage), green (income), red (mortality), purple (total population)
+  (story 5.2.1, 2026-07-29) [agent]
+- `components/Demographics/ZoomNotice.tsx` — "Zoom out to see more counties" notice
+  when zoom > 8 (story 5.2.2, 2026-07-29) [agent]
+- `hooks/useDemographics.ts` — demographics data hook with AbortController support;
+  fetches county polygons from `GET /api/v1/demographics/county?state={state}`
+  (story 5.2.1, 2026-07-29) [agent]
+- `api/demographics.ts` — typed API client for demographics endpoint
+  (story 5.2.1, 2026-07-29) [agent]
+- Co-occurrence disclaimer on mortality tabs only; UX Invariant 10
+  (story 5.4.1, 2026-07-29) [agent]
+- E2E step definitions for T-05, T-06, T-09 scenarios and UX Invariants 5, 10
+  in `tests/steps/e2e_steps.py` (QA story, 2026-07-29) [agent]
+
+### Changed
+
+<!-- Phase 5 — Demographics Overlay (2026-07-29) [agent] -->
+- `api/geocode.ts` — geocoder now extracts US state code from Photon response
+  and returns it in `GeocodeResult.state`; enables demographics API call with
+  correct state parameter (fix for 422 error, 2026-07-29) [agent]
+- `App.tsx` — integrated demographics panel, inline legend, and zoom notice;
+  `useDemographics` now receives state from geocoded search location
+  (stories 5.2.1–5.4.2, 2026-07-29) [agent]
+
 <!-- Phase 4 — Superfund Browse (2026-07-28) [agent] -->
 - `GET /api/v1/superfund/browse` — backend endpoint returning ALL Superfund sites
   without radius constraint (mirrors `/facilities/browse` pattern); enables always-on

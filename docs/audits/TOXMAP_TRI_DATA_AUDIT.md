@@ -419,7 +419,7 @@ The table below cross-references every TRI Basic Data Files field against the cu
 | 7 | `COUNTY` | ❌ | — | Missing from map; used in facilities table |
 | 8 | `STATE` | ⚠️ | `state_code` | Mapped as `"ST"` — name mismatch (H-1) |
 | 9 | `ZIP` | ✅ | `zip_code` | Correct |
-| 10–11 | `BIA`, `TRIBE` | ❌ | — | Out of scope (tribal land data) |
+| 10–11 | `BIA`, `TRIBE` | 📋 | `bia_code`, `tribe_name` | Phase 8 — Tribal Lands Data (post-MVP) |
 | 12 | `LATITUDE` | ✅ | `latitude` | Correct |
 | 13 | `LONGITUDE` | ✅ | `longitude` | Correct |
 | 14 | `HORIZONTAL DATUM` | ❌ | — | Acceptable; WGS84 assumed |

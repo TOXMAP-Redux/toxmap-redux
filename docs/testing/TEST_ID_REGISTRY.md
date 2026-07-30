@@ -39,12 +39,11 @@
 | `chemical-input`               | Chemical text field                        | `'I type "{text}" into the chemical field'` |
 | `chemical-autocomplete-option` | Each autocomplete dropdown item            | `"Wait for autocomplete"` + click           |
 | `year-select`                  | Year `<select>` dropdown                   | `'I select year "{year}"'`                  |
-| `state-select`                 | State `<select>` dropdown                  | state filter tests                          |
-| `restrict-to-state-checkbox`   | "Limit to state" `<input type="checkbox">` | UX Invariant 3                              |
+| `state-select`                 | State `<select>` dropdown (labeled "Filter to state (optional)") | UX Invariant 3 — state filter tests         |
 | `search-submit-btn`            | Search `<button>`                          | `"I click Search"`                          |
+| `dataset-radio-both`           | Both (TRI + Superfund) radio button        | Default selection; combined search (Fig 2015-4) |
 | `dataset-radio-tri`            | TRI radio button                           | T-04 dataset switch                         |
 | `dataset-radio-superfund`      | Superfund radio button                     | T-02, T-04                                  |
-| ~~`dataset-radio-both`~~       | *(Deferred — screen catalog Fig 2015-4 shows 2 tabs only; no acceptance test covers a "Both" combined search; Invariant 6 is satisfied via MapContentsPanel layer checkboxes, not the search radio)* | — |
 
 ---
 

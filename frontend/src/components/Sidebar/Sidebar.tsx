@@ -1,11 +1,11 @@
 /**
- * Sidebar — stories 3.2.1, 3.2.9.
+ * Sidebar — stories 3.2.1, 3.2.9, 5.1.1.
  * UX Invariant 1: Map Contents and Search Results NEVER visible simultaneously.
  * Only one panel is active at a time (controlled by activePanel prop).
  */
 import { MapContentsPanel } from './MapContentsPanel'
 import { SearchPanel, type SearchFormValues } from './SearchPanel'
-import type { FacilityCollection, SuperfundCollection } from '../../api/types'
+import type { FacilityCollection, SuperfundCollection, DemographicLayer } from '../../api/types'
 
 export type ActivePanel = 'map-contents' | 'search'
 
@@ -25,7 +25,7 @@ interface SidebarProps {
   error: string | null
   highlightedFacilityId: string | null
   onHighlight: (id: string | null) => void
-  onFacilitySelect: (id: string) => void
+  onFacilitySelect: (id: string, type: 'tri' | 'superfund') => void
 
   /** Passed to MapContentsPanel */
   latestYear: number | null
@@ -40,6 +40,10 @@ interface SidebarProps {
   triViewportLoading: boolean
   superfundViewportCount: number | null
   superfundViewportLoading: boolean
+  /** Currently selected demographic layer (story 5.2.1) */
+  selectedDemographicLayer: DemographicLayer | null
+  /** Handler for demographic layer selection */
+  onDemographicLayerSelect: (layer: DemographicLayer | null) => void
 }
 
 /**
@@ -68,6 +72,8 @@ export function Sidebar({
   triViewportLoading,
   superfundViewportCount,
   superfundViewportLoading,
+  selectedDemographicLayer,
+  onDemographicLayerSelect,
 }: SidebarProps): JSX.Element {
   const width = isCollapsed ? '2.5rem' : '20rem'
 
@@ -150,6 +156,8 @@ export function Sidebar({
               triLoading={triViewportLoading}
               superfundCount={superfundViewportCount}
               superfundLoading={superfundViewportLoading}
+              selectedDemographicLayer={selectedDemographicLayer}
+              onDemographicLayerSelect={onDemographicLayerSelect}
             />
           )}
           {activePanel === 'search' && (

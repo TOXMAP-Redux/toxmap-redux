@@ -36,7 +36,7 @@ class DemographicsFeatureProperties(BaseModel):
 class DemographicsCollectionMeta(BaseModel):
     total_count: int
     census_year: int
-    state: str
+    state: str | None = None
     units: dict[str, str]
 
 

@@ -12,8 +12,10 @@ import { fetchFacilities, fetchAllFacilitiesBrowse } from '../api/facilities'
 import type { FacilityCollection } from '../api/types'
 
 export interface MapSearchParams {
-  lat: number
-  lon: number
+  /** Latitude of search center. Null for nationwide browse with filters. */
+  lat: number | null
+  /** Longitude of search center. Null for nationwide browse with filters. */
+  lon: number | null
   radiusMiles: number
   chemical?: string
   year?: string
@@ -29,10 +31,12 @@ export interface UseMapFacilitiesResult {
 
 /**
  * Generate a stable key for the search parameters.
- * null means browse mode (all facilities).
+ * null means browse mode (all facilities, no filters).
+ * params with lat=null means browse mode with filters (nationwide chemical search).
  */
 function searchKey(p: MapSearchParams | null): string {
   if (!p) return 'browse-all'
+  if (p.lat === null || p.lon === null) return `browse-filtered|${p.chemical ?? ''}|${p.year ?? ''}|${p.state ?? ''}`
   return `search|${p.lat.toFixed(4)}|${p.lon.toFixed(4)}|${p.radiusMiles}|${p.chemical ?? ''}|${p.year ?? ''}|${p.state ?? ''}|${p.restrictToState ?? false}`
 }
 
@@ -65,19 +69,26 @@ export function useMapFacilities(params: MapSearchParams | null): UseMapFaciliti
     setError(null)
 
     const fetchData = params
-      ? // Search mode: radius-based search
-        fetchFacilities({
-          lat: params.lat,
-          lon: params.lon,
-          radiusMiles: params.radiusMiles,
-          chemical: params.chemical ?? '',
-          year: params.year ?? '',
-          medium: '',
-          state: params.state ?? '',
-          restrictToState: params.restrictToState ?? false,
-          bbox: null, // No bbox — we want all data for the search radius
-        }, controller.signal)
-      : // Browse mode: all facilities
+      ? params.lat !== null && params.lon !== null
+        ? // Search mode: radius-based search
+          fetchFacilities({
+            lat: params.lat,
+            lon: params.lon,
+            radiusMiles: params.radiusMiles,
+            chemical: params.chemical ?? '',
+            year: params.year ?? '',
+            medium: '',
+            state: params.state ?? '',
+            restrictToState: params.restrictToState ?? false,
+            bbox: null, // No bbox — we want all data for the search radius
+          }, controller.signal)
+        : // Browse mode with filters (nationwide chemical search)
+          fetchAllFacilitiesBrowse({
+            chemical: params.chemical,
+            year: params.year,
+            state: params.state,
+          }, controller.signal)
+      : // Browse mode: all facilities, no filters
         fetchAllFacilitiesBrowse({}, controller.signal)
 
     fetchData
