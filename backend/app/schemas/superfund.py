@@ -43,6 +43,7 @@ class SuperfundContaminant(BaseModel):
     name: str
     cas_number: str | None = None
     atsdr_url: str | None = None
+    pubchem_url: str | None = None
 
 
 class SuperfundDetail(BaseModel):

@@ -63,6 +63,7 @@ export default function App(): JSX.Element {
   // ── Sidebar + search state ────────────────────────────────────────────────
   const [activePanel, setActivePanel] = useState<ActivePanel>('map-contents')
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [sidebarWidthPx, setSidebarWidthPx] = useState(320)
   const [submittedSearch, setSubmittedSearch] = useState<SubmittedSearch | null>(null)
   const [geocodeError, setGeocodeError] = useState<string | null>(null)
 
@@ -101,6 +102,8 @@ export default function App(): JSX.Element {
         state: stateForApi,
         // Option C: state dropdown = filter. Always restrict when state is selected.
         restrictToState: hasStateFilter,
+        // ADR-007: Skip chemical family expansion if user clicked "Search exact term only"
+        exactMatch: submittedSearch.exactMatch,
       }
     }
     // Browse mode: null → fetch ALL facilities without radius constraint
@@ -185,6 +188,17 @@ export default function App(): JSX.Element {
   // Always-on Superfund layer: fetches ALL sites once (no bbox/radius constraint)
   const { data: superfundViewportSites } = useSuperfundViewport()
 
+  // Superfund sites filtered by current viewport (for sidebar "X in view" count)
+  const superfundInViewCount = useMemo(() => {
+    if (!superfundViewportSites || !mapBbox) return superfundViewportSites?.meta.total_count ?? null
+    const [minLon, minLat, maxLon, maxLat] = mapBbox
+    const filtered = superfundViewportSites.features.filter((f) => {
+      const [lon, lat] = f.geometry.coordinates
+      return lon >= minLon && lon <= maxLon && lat >= minLat && lat <= maxLat
+    })
+    return filtered.length
+  }, [superfundViewportSites, mapBbox])
+
   // Superfund search results (only active in superfund or both dataset mode)
   const { data: superfundSearchResults, loading: superfundLoading, error: superfundError } = useSuperfundSearch(superfundSearchParams)
 
@@ -266,6 +280,24 @@ export default function App(): JSX.Element {
     return superfundResultsForDisplay
   }, [submittedSearch, superfundViewportSites, superfundResultsForDisplay])
 
+  // TRI facilities to show on the map:
+  // - Browse mode (no search): all TRI facilities
+  // - Search active: filtered results (includes CONUS filter)
+  // - Search with dataset "superfund" only: no TRI (user only wants Superfund)
+  const triFacilitiesForMap = useMemo(() => {
+    // No search active: browse mode, show all facilities
+    if (!submittedSearch) {
+      return triMapFacilities
+    }
+    // Search active with Superfund only: don't show TRI markers
+    if (submittedSearch.dataset === 'superfund') {
+      return null
+    }
+    // Search active with "both" or "tri": show filtered results
+    // triAllResults has CONUS filter applied when state=CONUS_FILTER
+    return triAllResults
+  }, [submittedSearch, triMapFacilities, triAllResults])
+
   // Demographics data for choropleth layer (story 5.2.1)
   // Fetch all counties when demographic layer is selected
   // If a search has been performed, filter to the searched state
@@ -310,6 +342,7 @@ export default function App(): JSX.Element {
         state: values.state || '',
         radiusMiles: 25, // Not used for nationwide, but required by interface
         dataset: values.dataset,
+        exactMatch: values.exactMatch,
       })
 
       // Zoom map to US overview for nationwide search
@@ -349,6 +382,7 @@ export default function App(): JSX.Element {
       state: values.state || geocoded.state || '',
       radiusMiles: 25,
       dataset: values.dataset,
+      exactMatch: values.exactMatch,
     })
 
     // Zoom map to the geocoded location
@@ -409,7 +443,7 @@ export default function App(): JSX.Element {
 
   // Sidebar expanded = 20rem = 320px; collapsed = 2.5rem = 40px.
   // Passed to MapContainer so camera padding and popup pan guard use the correct offset.
-  const sidebarWidth = isSidebarCollapsed ? 40 : 320
+  const sidebarWidth = isSidebarCollapsed ? 40 : sidebarWidthPx
 
   return (
     <div
@@ -420,7 +454,7 @@ export default function App(): JSX.Element {
         viewState={viewState}
         onViewStateChange={setViewState}
         onBoundsChange={handleBoundsChange}
-        facilities={triMapFacilities}
+        facilities={triFacilitiesForMap}
         selectedFacilityId={selectedFacility?.properties.tri_facility_id ?? null}
         highlightedFacilityId={highlightedFacilityId}
         onFacilityClick={handleFacilityClick}
@@ -450,6 +484,8 @@ export default function App(): JSX.Element {
         onToggleCollapse={() => setIsSidebarCollapsed((c) => !c)}
         onPanelChange={setActivePanel}
         onSearch={handleSearchSubmit}
+        sidebarWidth={sidebarWidthPx}
+        onSidebarWidthChange={setSidebarWidthPx}
         facilities={triSearchResults}
         superfundResults={superfundResultsForDisplay}
         loading={activeLoading}
@@ -464,7 +500,7 @@ export default function App(): JSX.Element {
         onToggleSuperfundLayer={() => setShowSuperfundLayer((v) => !v)}
         triViewportCount={triViewportFacilities?.meta.total_count ?? null}
         triViewportLoading={loading}
-        superfundViewportCount={superfundViewportSites?.meta.total_count ?? null}
+        superfundViewportCount={superfundInViewCount}
         superfundViewportLoading={false}
         selectedDemographicLayer={selectedDemographicLayer}
         onDemographicLayerSelect={setSelectedDemographicLayer}

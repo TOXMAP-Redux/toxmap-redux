@@ -56,6 +56,10 @@ async def browse_all_facilities(
         str | None,
         Query(max_length=2, description="2-letter state code"),
     ] = None,
+    exact_match: Annotated[
+        bool,
+        Query(description="Skip chemical family expansion (search exact term only)"),
+    ] = False,
     limit: Annotated[int, Query(ge=1, le=30000)] = 30000,
     db: AsyncSession = Depends(get_db),
 ) -> FacilityCollection:
@@ -70,6 +74,7 @@ async def browse_all_facilities(
         chemical=chemical,
         medium=medium,
         state=state,
+        exact_match=exact_match,
         limit=limit,
     )
 
@@ -113,6 +118,10 @@ async def list_facilities(
         Query(max_length=2, description="2-letter state code"),
     ] = None,
     restrict_to_state: Annotated[bool, Query()] = False,
+    exact_match: Annotated[
+        bool,
+        Query(description="Skip chemical family expansion (search exact term only)"),
+    ] = False,
     limit: Annotated[int, Query(ge=1, le=2000)] = 500,
     db: AsyncSession = Depends(get_db),
 ) -> FacilityCollection:
@@ -149,6 +158,7 @@ async def list_facilities(
         medium=medium,
         state=state,
         restrict_to_state=restrict_to_state,
+        exact_match=exact_match,
         limit=limit,
         raw_query=raw_query,
     )

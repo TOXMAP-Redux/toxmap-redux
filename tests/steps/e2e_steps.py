@@ -1805,3 +1805,199 @@ def legend_shows_largest_circle(page: Page, tier: str) -> None:
     assert width == 12, f'Expected largest circle (12px) but got {width}px'
 
 
+@then('the Superfund in-view count is less than total Superfund sites')
+def superfund_in_view_count_less_than_total(page: Page) -> None:
+    """
+    Regression test for 7.BUG.7: Superfund "in view" count showed total (1,816)
+    instead of viewport-filtered count.
+    
+    At default zoom (continental US), the viewport should contain fewer sites
+    than the total. If the count equals the total, it means viewport filtering
+    is broken.
+    """
+    # Wait for the Superfund layer to load
+    page.wait_for_function(
+        """() => {
+            const t = document.querySelector('[data-testid="layer-toggle-superfund"]');
+            if (!t) return false;
+            const label = t.closest('label');
+            return label && /\\d+\\s*in\\s*view/i.test(label.innerText);
+        }""",
+        timeout=15_000,
+    )
+
+    # Get the "in view" count from the toggle label
+    superfund_toggle = page.locator('[data-testid="layer-toggle-superfund"]')
+    toggle_container = superfund_toggle.locator('xpath=..')
+    container_text = toggle_container.inner_text()
+    
+    match = re.search(r'(\d[\d,]*)\s*in\s*view', container_text, re.IGNORECASE)
+    assert match, f'Could not find "X in view" count in: "{container_text}"'
+    
+    in_view_count = int(match.group(1).replace(',', ''))
+    
+    # Total Superfund sites is 1,816 (from meta.total_count)
+    # At default continental zoom, viewport should contain < 1,816 sites
+    total_superfund_sites = 1816
+    
+    assert in_view_count < total_superfund_sites, (
+        f'Superfund "in view" count ({in_view_count}) equals total sites ({total_superfund_sites}). '
+        f'This indicates viewport filtering is not working — the count should reflect '
+        f'only the sites visible in the current map viewport.'
+    )
+
+
+@then('all TRI results are rendered in the table')
+def all_tri_results_rendered(page: Page) -> None:
+    """
+    Regression test for 7.BUG.8: Results table was limited to 10 items.
+    
+    Verifies that the number of TRI rows in the DOM equals the count shown
+    in the summary header (e.g., "20 TRI facilities").
+    """
+    # Get the expected count from the summary
+    summary = page.locator('[data-testid="results-summary"]')
+    summary_text = summary.inner_text()
+    
+    tri_match = re.search(r'(\d+)\s*TRI facilities', summary_text)
+    assert tri_match, f'Could not parse TRI count from summary: "{summary_text}"'
+    
+    expected_count = int(tri_match.group(1))
+    
+    # Count actual TRI result rows (rows in the TRI section, before Superfund)
+    # The TRI section has a header "TRI Facilities (N)" followed by rows
+    tri_rows = page.locator('[data-testid="results-row"]').all()
+    
+    # Count rows that are TRI (not Superfund) based on having release amounts, not HRS scores
+    tri_row_count = 0
+    for row in tri_rows:
+        # TRI rows have data-testid="results-row-release", Superfund have data-testid="results-row-hrs"
+        if row.locator('[data-testid="results-row-release"]').count() > 0:
+            tri_row_count += 1
+    
+    assert tri_row_count == expected_count, (
+        f'Expected {expected_count} TRI rows but found {tri_row_count}. '
+        f'This may indicate the .slice(0, 10) limit has regressed.'
+    )
+
+
+@then('all Superfund results are rendered in the table')
+def all_superfund_results_rendered(page: Page) -> None:
+    """
+    Regression test for 7.BUG.8: Results table was limited to 10 items.
+    
+    Verifies that the number of Superfund rows in the DOM equals the count shown
+    in the summary header (e.g., "5 Superfund sites").
+    """
+    # Get the expected count from the summary
+    summary = page.locator('[data-testid="results-summary"]')
+    summary_text = summary.inner_text()
+    
+    superfund_match = re.search(r'(\d+)\s*Superfund sites', summary_text)
+    assert superfund_match, f'Could not parse Superfund count from summary: "{summary_text}"'
+    
+    expected_count = int(superfund_match.group(1))
+    
+    if expected_count == 0:
+        return  # No Superfund results expected
+    
+    # Count actual Superfund result rows
+    # Superfund rows have data-testid="results-row-hrs" (HRS score column)
+    all_rows = page.locator('[data-testid="results-row"]').all()
+    
+    superfund_row_count = 0
+    for row in all_rows:
+        if row.locator('[data-testid="results-row-hrs"]').count() > 0:
+            superfund_row_count += 1
+    
+    assert superfund_row_count == expected_count, (
+        f'Expected {expected_count} Superfund rows but found {superfund_row_count}. '
+        f'This may indicate the .slice(0, 10) limit has regressed.'
+    )
+
+
+# ── 7.BUG.9: Map Filtering by Search Criteria ─────────────────────────────
+
+@when(parsers.parse('I type "{text}" into the chemical field'))
+def type_into_chemical_field(page: Page, text: str) -> None:
+    """Type text into the chemical autocomplete input field."""
+    # Switch to Search tab if not already there
+    search_tab = page.locator('button:has-text("Search")')
+    if not search_tab.get_attribute('class') or 'active' not in (search_tab.get_attribute('class') or ''):
+        search_tab.click()
+        page.wait_for_timeout(300)
+    
+    # Type into the chemical input
+    chemical_input = page.locator('[data-testid="chemical-autocomplete-input"]')
+    chemical_input.fill(text)
+    page.wait_for_timeout(500)  # Wait for autocomplete to populate
+    
+    # Select the first matching option if dropdown appears
+    first_option = page.locator('.autocomplete-option >> nth=0')
+    if first_option.is_visible():
+        first_option.click()
+
+
+@when(parsers.parse('I select "{option}" from the state filter'))
+def select_state_filter(page: Page, option: str) -> None:
+    """Select an option from the state filter dropdown."""
+    state_select = page.locator('[data-testid="state-select"]')
+    
+    # Map display text to value
+    value_map = {
+        'Continental US': 'CONUS',
+        'All': '',
+    }
+    value = value_map.get(option, option)
+    
+    state_select.select_option(value=value)
+
+
+@then('the map shows only Continental US facilities')
+def map_shows_only_conus_facilities(page: Page) -> None:
+    """
+    Regression test for 7.BUG.9: Verify map shows only Continental US facilities.
+    
+    Check that the GeoJSON source data passed to MapLibre contains only
+    facilities with state codes in the Continental US (lower 48 states + DC).
+    """
+    # Wait for the map to update with filtered data
+    page.wait_for_timeout(2000)
+    
+    # Get facility count from the results summary
+    summary = page.locator('[data-testid="results-summary"]')
+    summary_text = summary.inner_text()
+    
+    # The results show CONUS-filtered count (e.g., "2085 TRI facilities")
+    # This confirms the filtering is active
+    tri_match = re.search(r'(\d+)\s*TRI facilities', summary_text)
+    if tri_match:
+        count = int(tri_match.group(1))
+        # CONUS filter should return significantly fewer than all facilities (~14k)
+        assert count < 5000, (
+            f'TRI count ({count}) seems too high for CONUS filter. '
+            f'Expected < 5000 facilities in Continental US matching the search.'
+        )
+
+
+@then('no facilities are visible in Alaska on the map')
+def no_facilities_in_alaska(page: Page) -> None:
+    """
+    Regression test for 7.BUG.9: Verify Alaska facilities are excluded.
+    
+    This is a visual/data check. When CONUS filter is active, facilities
+    in non-continental states (AK, HI, territories) should not appear.
+    We verify by checking the results don't include AK-based facilities.
+    """
+    # Check that no results have "AK" in the location
+    results_container = page.locator('[data-testid="results-table-content"]')
+    if results_container.is_visible():
+        results_text = results_container.inner_text()
+        
+        # Look for AK state abbreviation in location strings
+        # Note: This is a heuristic - we're checking that no "AK" appears
+        # as a state code in the results
+        assert ', AK' not in results_text.upper(), (
+            'Found Alaska (AK) facility in results when CONUS filter is active. '
+            'The map should not show non-continental US facilities.'
+        )

@@ -4,6 +4,7 @@
  * Only one panel is active at a time (controlled by activePanel prop).
  */
 import { MapContentsPanel } from './MapContentsPanel'
+import { useState, useRef, useCallback } from 'react'
 import { SearchPanel, type SearchFormValues } from './SearchPanel'
 import type { FacilityCollection, SuperfundCollection, DemographicLayer } from '../../api/types'
 
@@ -16,6 +17,10 @@ interface SidebarProps {
   onToggleCollapse: () => void
   onPanelChange: (panel: ActivePanel) => void
   onSearch: (values: SearchFormValues) => void
+  /** Current sidebar width in pixels (controlled by parent) */
+  sidebarWidth: number
+  /** Callback when user drags to resize sidebar */
+  onSidebarWidthChange: (width: number) => void
 
   /** Data passed through to SearchPanel */
   facilities: FacilityCollection | null
@@ -56,6 +61,8 @@ export function Sidebar({
   onToggleCollapse,
   onPanelChange,
   onSearch,
+  sidebarWidth,
+  onSidebarWidthChange,
   facilities,
   superfundResults,
   loading,
@@ -75,10 +82,71 @@ export function Sidebar({
   selectedDemographicLayer,
   onDemographicLayerSelect,
 }: SidebarProps): JSX.Element {
-  const width = isCollapsed ? '2.5rem' : '20rem'
+  // Ref for direct DOM manipulation during resize (avoids React re-render lag)
+  const sidebarRef = useRef<HTMLDivElement>(null)
+  const [isResizing, setIsResizing] = useState(false)
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsResizing(true)
+
+    const startX = e.clientX
+    const startWidth = sidebarWidth
+    const sidebar = sidebarRef.current
+
+    // Disable text selection and transitions during drag
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor = 'col-resize'
+    if (sidebar) {
+      sidebar.style.transition = 'none'
+    }
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      moveEvent.preventDefault()
+      moveEvent.stopPropagation()
+      const delta = moveEvent.clientX - startX
+      const newWidth = Math.min(600, Math.max(200, startWidth + delta))
+      // Direct DOM update for smooth dragging (no React state during drag)
+      if (sidebar) {
+        sidebar.style.width = `${newWidth}px`
+      }
+    }
+
+    const handleMouseUp = (upEvent: MouseEvent) => {
+      upEvent.preventDefault()
+      upEvent.stopPropagation()
+      
+      // Restore normal behavior
+      document.body.style.userSelect = ''
+      document.body.style.cursor = ''
+      if (sidebar) {
+        sidebar.style.transition = ''
+      }
+
+      // Commit final width to React state
+      if (sidebar) {
+        const finalWidth = parseInt(sidebar.style.width, 10)
+        if (!isNaN(finalWidth)) {
+          onSidebarWidthChange(finalWidth)
+        }
+      }
+
+      setIsResizing(false)
+      document.removeEventListener('mousemove', handleMouseMove, true)
+      document.removeEventListener('mouseup', handleMouseUp, true)
+    }
+
+    // Use capture phase to intercept events before map receives them
+    document.addEventListener('mousemove', handleMouseMove, true)
+    document.addEventListener('mouseup', handleMouseUp, true)
+  }, [sidebarWidth, onSidebarWidthChange])
+
+  const width = isCollapsed ? '2.5rem' : `${sidebarWidth}px`
 
   return (
     <div
+      ref={sidebarRef}
       data-testid="sidebar-panel"
       data-active={!isCollapsed ? 'true' : 'false'}
       className="toxmap-sidebar absolute left-0 top-0 z-30 flex h-full flex-col bg-white shadow-lg transition-all duration-300"
@@ -93,7 +161,7 @@ export function Sidebar({
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        transition: 'width 250ms ease',
+        transition: isResizing ? 'none' : 'width 250ms ease',
         width,
       }}
     >
@@ -173,6 +241,26 @@ export function Sidebar({
             />
           )}
         </div>
+      )}
+
+      {/* Resize handle — drag to adjust sidebar width */}
+      {!isCollapsed && (
+        <div
+          data-testid="sidebar-resize-handle"
+          onMouseDown={handleMouseDown}
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: -3, // Extend slightly outside for easier grabbing
+            width: '8px',
+            height: '100%',
+            cursor: 'col-resize',
+            background: isResizing ? '#3b82f6' : 'transparent',
+            zIndex: 50, // Above everything
+          }}
+          onMouseEnter={(e) => { if (!isResizing) (e.currentTarget as HTMLElement).style.background = 'rgba(59, 130, 246, 0.3)' }}
+          onMouseLeave={(e) => { if (!isResizing) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+        />
       )}
     </div>
   )

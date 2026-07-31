@@ -21,6 +21,8 @@ export interface MapSearchParams {
   year?: string
   state?: string
   restrictToState?: boolean
+  /** ADR-007: Skip chemical family expansion (search exact term only) */
+  exactMatch?: boolean
 }
 
 export interface UseMapFacilitiesResult {
@@ -36,8 +38,8 @@ export interface UseMapFacilitiesResult {
  */
 function searchKey(p: MapSearchParams | null): string {
   if (!p) return 'browse-all'
-  if (p.lat === null || p.lon === null) return `browse-filtered|${p.chemical ?? ''}|${p.year ?? ''}|${p.state ?? ''}`
-  return `search|${p.lat.toFixed(4)}|${p.lon.toFixed(4)}|${p.radiusMiles}|${p.chemical ?? ''}|${p.year ?? ''}|${p.state ?? ''}|${p.restrictToState ?? false}`
+  if (p.lat === null || p.lon === null) return `browse-filtered|${p.chemical ?? ''}|${p.year ?? ''}|${p.state ?? ''}|${p.exactMatch ?? false}`
+  return `search|${p.lat.toFixed(4)}|${p.lon.toFixed(4)}|${p.radiusMiles}|${p.chemical ?? ''}|${p.year ?? ''}|${p.state ?? ''}|${p.restrictToState ?? false}|${p.exactMatch ?? false}`
 }
 
 /**
@@ -81,12 +83,14 @@ export function useMapFacilities(params: MapSearchParams | null): UseMapFaciliti
             state: params.state ?? '',
             restrictToState: params.restrictToState ?? false,
             bbox: null, // No bbox — we want all data for the search radius
+            exactMatch: params.exactMatch,
           }, controller.signal)
         : // Browse mode with filters (nationwide chemical search)
           fetchAllFacilitiesBrowse({
             chemical: params.chemical,
             year: params.year,
             state: params.state,
+            exactMatch: params.exactMatch,
           }, controller.signal)
       : // Browse mode: all facilities, no filters
         fetchAllFacilitiesBrowse({}, controller.signal)

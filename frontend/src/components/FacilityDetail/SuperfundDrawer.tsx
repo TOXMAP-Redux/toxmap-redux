@@ -122,38 +122,55 @@ function SuperfundDrawerContent({ site, onClose }: { site: SuperfundDetail; onCl
         {/* Contaminants list (story 4.2.2) */}
         <section>
           <h3 style={{ margin: '0 0 8px', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>
-            Contaminants
+            Contaminants ({site.contaminants.length})
           </h3>
           {site.contaminants.length === 0 ? (
             <p style={{ margin: 0, fontSize: '12px', color: '#9ca3af' }}>None on record.</p>
           ) : (
             <ul
               data-testid="superfund-contaminants-list"
-              style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '6px' }}
+              style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '4px' }}
             >
               {site.contaminants.map((c) => (
-                <li key={c.name} style={{ fontSize: '13px', color: '#374151', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {/* Diamond bullet */}
-                  <svg width="8" height="8" viewBox="0 0 8 8" style={{ flexShrink: 0 }}>
-                    <rect x="1" y="1" width="6" height="6" rx="0.5" fill="#ef4444" transform="rotate(45 4 4)" />
-                  </svg>
-                  {c.atsdr_url ? (
-                    <a
-                      data-testid="superfund-contaminant-link"
-                      href={c.atsdr_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ color: '#2563eb', textDecoration: 'none' }}
-                    >
-                      {c.name}
-                      {c.cas_number && <span style={{ fontSize: '10px', color: '#9ca3af', marginLeft: '4px' }}>({c.cas_number})</span>}
-                    </a>
-                  ) : (
-                    <span>
-                      {c.name}
-                      {c.cas_number && <span style={{ fontSize: '10px', color: '#9ca3af', marginLeft: '4px' }}>({c.cas_number})</span>}
-                    </span>
-                  )}
+                <li key={c.name} style={{ fontSize: '12px', color: '#374151', lineHeight: 1.4 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', flexWrap: 'wrap' }}>
+                    {/* Diamond bullet */}
+                    <svg width="6" height="6" viewBox="0 0 6 6" style={{ flexShrink: 0, position: 'relative', top: '-1px' }}>
+                      <rect x="0.5" y="0.5" width="5" height="5" rx="0.5" fill="#ef4444" transform="rotate(45 3 3)" />
+                    </svg>
+                    {/* Chemical name — link to PubChem if available */}
+                    {c.pubchem_url ? (
+                      <a
+                        data-testid="superfund-contaminant-pubchem"
+                        href={c.pubchem_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 500 }}
+                      >
+                        {c.name}
+                      </a>
+                    ) : (
+                      <span style={{ fontWeight: 500 }}>{c.name}</span>
+                    )}
+                    {/* CAS number inline */}
+                    {c.cas_number && (
+                      <span style={{ fontSize: '10px', color: '#9ca3af' }}>
+                        {c.cas_number}
+                      </span>
+                    )}
+                    {/* ATSDR link inline if present */}
+                    {c.atsdr_url && (
+                      <a
+                        data-testid="superfund-contaminant-link"
+                        href={c.atsdr_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontSize: '10px', color: '#059669', textDecoration: 'none', marginLeft: '2px' }}
+                      >
+                        ToxFAQs™
+                      </a>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>

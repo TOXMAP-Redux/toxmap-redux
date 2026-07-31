@@ -1,6 +1,7 @@
 """Pydantic response schemas for facility and release-event endpoints.
 
 Phase 2 — story 2.1.1 through 2.3.x.
+ADR-007 — Chemical families for transparent right-to-know search.
 """
 
 from __future__ import annotations
@@ -25,6 +26,23 @@ def assign_color_band(total_lbs: float | None) -> str:
     if total_lbs >= 1_000:
         return "yellow"
     return "green"
+
+
+# ---------------------------------------------------------------------------
+# ADR-007: Chemical family search expansion
+# ---------------------------------------------------------------------------
+
+class SearchExpansion(BaseModel):
+    """Info about chemical family search expansion (ADR-007)."""
+    expanded: bool = False
+    family_name: str | None = None
+    searched_chemicals: list[str] = []
+    description: str | None = None
+    nlm_url: str | None = None
+    epa_note: str = (
+        "Facilities may report this element and its compounds separately or combined. "
+        "Results include all related reporting categories."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -57,6 +75,8 @@ class FacilityCollectionMeta(BaseModel):
     returned_count: int
     truncated: bool
     query: dict[str, Any]
+    # ADR-007: Search expansion info when chemical family is expanded
+    search_expansion: SearchExpansion | None = None
 
 
 class FacilityCollection(BaseModel):

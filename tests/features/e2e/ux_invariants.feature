@@ -302,3 +302,104 @@ Feature: UX Design Invariants
     Given I am on the map page
     Then the TRI legend shows smallest circle for "< 1,000 lbs" tier
     And the TRI legend shows largest circle for "≥ 100,000 lbs" tier
+
+  # ── Regression: Superfund Viewport Count (7.BUG.7) ───────────────────────
+  # Regression test for: Superfund "in view" count showed total (1,816) instead
+  # of viewport-filtered count (e.g., 3 visible sites).
+  # Fix: Added superfundInViewCount memo that filters by mapBbox.
+
+  Scenario: Regression — Superfund "in view" count reflects visible sites only
+    Given I am on the map page
+    Then the Superfund layer toggle is present
+    And the Superfund in-view count is less than total Superfund sites
+
+  # ── Regression: Results Table Scroll (7.BUG.8) ───────────────────────────
+  # Regression test for: Results table limited to 10 items; users couldn't
+  # access remaining results. Fix: Removed .slice(0, 10) limitation.
+
+  Scenario: Regression — All search results are accessible by scrolling
+    Given I am on the map page
+    When I type "Richland, WA" into the location field
+    And I click "Search"
+    Then all TRI results are rendered in the table
+    And all Superfund results are rendered in the table
+
+  # ── Regression: Map Filtering (7.BUG.9) ──────────────────────────────────
+  # Regression test for: Map displayed ALL facilities regardless of search
+  # filters (CONUS, chemical). Results table was correct but map was not.
+  # Fix: Added triFacilitiesForMap memo; map now receives filtered data.
+
+  Scenario: Regression — Map shows only facilities matching search filters
+    Given I am on the map page
+    When I type "LEAD" into the chemical field
+    And I select "Continental US" from the state filter
+    And I click "Search"
+    Then the map shows only Continental US facilities
+    And no facilities are visible in Alaska on the map
+
+  # ── ADR-007: Chemical Family Expansion Regressions ───────────────────────
+
+  # Regression test for 7.BUG.10: exact_match not narrowing results.
+  # When user clicks "Search exact term only", search should return ONLY
+  # facilities reporting under that exact chemical name, not the family.
+
+  Scenario: Regression — Exact match search returns fewer results than expanded search
+    Given I am on the map page
+    When I type "LEAD" into the chemical field
+    And I type "Baltimore, MD" into the location field
+    And I click "Search"
+    Then the chemical family banner is visible
+    And the results count is greater than zero
+    When I click "Search exact term only" in the banner
+    Then the results count is smaller than before
+    And the chemical family banner is NOT visible
+
+  # Regression test for 7.BUG.11: SearchPanel scroll broken in small windows.
+
+  Scenario: Regression — SearchPanel is scrollable in small viewport
+    Given I resize the viewport to 800x400
+    And I am on the map page
+    When I click the search panel tab
+    Then the search form is fully visible
+    And the search panel content is scrollable
+
+  # Regression test for 7.BUG.12: Chemical family banner padding.
+
+  Scenario: Regression — Chemical family banner has consistent padding
+    Given I am on the map page
+    When I type "LEAD" into the chemical field
+    And I type "Baltimore, MD" into the location field
+    And I click "Search"
+    Then the chemical family banner has horizontal padding
+
+  # Regression test for 7.BUG.13: Sidebar resize functionality.
+
+  Scenario: Regression — Sidebar can be resized by dragging
+    Given I am on the map page
+    Then the sidebar resize handle is present
+    When I drag the sidebar resize handle 100 pixels to the right
+    Then the sidebar width has increased
+    And the map camera padding has adjusted
+
+  # Regression test for 7.BUG.15: MERCURY family not expanding.
+  # The bug: MERCURY family only had 1 member due to whitespace mismatch
+  # in seed script. Fix: Added whitespace normalization to seed script.
+
+  Scenario: Regression — MERCURY family shows expansion banner
+    Given I am on the map page
+    When I type "MERCURY" into the chemical field
+    And I click "Search"
+    Then the chemical family banner is visible
+    And the banner mentions "MERCURY"
+
+  Scenario: Regression — All metal families show expansion banner
+    Given I am on the map page
+    When I type "CHROMIUM" into the chemical field
+    And I click "Search"
+    Then the chemical family banner is visible
+    When I type "NICKEL" into the chemical field
+    And I click "Search"
+    Then the chemical family banner is visible
+    When I type "ARSENIC" into the chemical field
+    And I click "Search"
+    Then the chemical family banner is visible

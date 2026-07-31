@@ -116,7 +116,7 @@ export function FacilityDrawer({ facilityId, onClose }: FacilityDrawerProps): JS
               rel="noopener noreferrer"
               style={{ fontSize: '12px', color: '#2563eb', textDecoration: 'none' }}
             >
-              ATSDR — {primaryChemical.name} ↗
+              ToxFAQs™: {primaryChemical.name} ↗
             </a>
           )}
           {primaryChemical.pubchem_url && (

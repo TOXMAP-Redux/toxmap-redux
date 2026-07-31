@@ -1172,6 +1172,7 @@ class SuperfundContaminant(BaseModel):
     name: str
     cas_number: Optional[str]
     atsdr_url: Optional[str]
+    pubchem_url: Optional[str]
 
 class SuperfundDetail(BaseModel):
     """Full Superfund site record returned by GET /api/v1/superfund/{epa_id}."""

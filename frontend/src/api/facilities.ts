@@ -23,6 +23,7 @@ function buildFacilitySearchUrl(params: SearchParams): string {
   if (params.state) p.set('state', params.state)
   if (params.restrictToState) p.set('restrict_to_state', 'true')
   if (params.bbox) p.set('bbox', params.bbox.join(','))
+  if (params.exactMatch) p.set('exact_match', 'true')
   return `${API_BASE}/api/v1/facilities?${p.toString()}`
 }
 
@@ -63,6 +64,8 @@ export interface BrowseParams {
   chemical?: string
   medium?: string
   state?: string
+  /** ADR-007: Skip chemical family expansion (search exact term only) */
+  exactMatch?: boolean
 }
 
 /** GET /api/v1/facilities/browse — all facilities without radius constraint (browse mode) */
@@ -75,6 +78,7 @@ export async function fetchAllFacilitiesBrowse(
   if (params.chemical) p.set('chemical', params.chemical)
   if (params.medium) p.set('medium', params.medium)
   if (params.state) p.set('state', params.state)
+  if (params.exactMatch) p.set('exact_match', 'true')
   const qs = p.toString() ? `?${p.toString()}` : ''
   const res = await fetch(`${API_BASE}/api/v1/facilities/browse${qs}`, signal ? { signal } : {})
   if (!res.ok) throw new Error(`Browse facilities failed: ${res.status}`)

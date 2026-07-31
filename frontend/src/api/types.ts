@@ -41,6 +41,8 @@ export interface FacilityCollection {
     year: number | null
     medium: string | null
     bbox: [number, number, number, number] | null
+    /** Search expansion info when chemical family is expanded (ADR-007) */
+    search_expansion?: SearchExpansion | null
   }
 }
 
@@ -75,6 +77,15 @@ export interface ReleaseEvent {
 
 // ── Chemicals ──────────────────────────────────────────────────────────────
 
+/** Chemical family info for search expansion (ADR-007) */
+export interface ChemicalFamilyInfo {
+  family_name: string
+  description: string | null
+  nlm_url: string | null
+  epa_url: string | null
+  member_chemicals: string[]
+}
+
 export interface Chemical {
   id: number
   cas_number: string | null
@@ -82,6 +93,18 @@ export interface Chemical {
   category: string | null
   atsdr_url: string | null
   pubchem_url: string | null
+  /** Chemical family info if this chemical belongs to a family (ADR-007) */
+  family: ChemicalFamilyInfo | null
+}
+
+/** Search expansion info for facility/superfund queries (ADR-007) */
+export interface SearchExpansion {
+  expanded: boolean
+  family_name: string | null
+  searched_chemicals: string[]
+  description: string | null
+  nlm_url: string | null
+  epa_note: string
 }
 
 // ── Superfund ──────────────────────────────────────────────────────────────
@@ -129,6 +152,7 @@ export interface SuperfundContaminant {
   name: string
   cas_number: string | null
   atsdr_url: string | null
+  pubchem_url: string | null
 }
 
 /** Full site detail from GET /api/v1/superfund/{epa_id} */
@@ -227,6 +251,8 @@ export interface SearchParams {
   state: string
   restrictToState: boolean
   bbox: [number, number, number, number] | null
+  /** ADR-007: Skip chemical family expansion (search exact term only) */
+  exactMatch?: boolean
 }
 
 /** State holding the geocoded, submitted search. Null before first search. */
@@ -243,4 +269,6 @@ export interface SubmittedSearch {
   radiusMiles: number
   /** Which dataset the search targets — controls results table mode */
   dataset: 'tri' | 'superfund' | 'both'
+  /** ADR-007: Skip chemical family expansion (search exact term only) */
+  exactMatch?: boolean
 }

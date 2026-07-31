@@ -57,6 +57,8 @@ export interface SearchFormValues {
   state: string
   /** Which dataset the search targets — controls results table mode (story 4.1.3) */
   dataset: 'tri' | 'superfund' | 'both'
+  /** ADR-007: Skip chemical family expansion (search exact term only) */
+  exactMatch?: boolean
 }
 
 interface SearchPanelProps {
@@ -110,6 +112,20 @@ export function SearchPanel({
       year,
       state,
       dataset,
+      exactMatch: false,
+    })
+  }
+
+  // ADR-007: Handler for "Search exact term only" from banner
+  const handleSearchExact = () => {
+    onSearch({
+      location,
+      chemical: selectedChemical?.name ?? chemicalInput,
+      chemicalObj: selectedChemical,
+      year,
+      state,
+      dataset,
+      exactMatch: true,
     })
   }
 
@@ -120,8 +136,10 @@ export function SearchPanel({
         Search Chemical Releases by Location
       </h2>
 
-      <form onSubmit={handleSubmit} className="toxmap-search-form" style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px', flexShrink: 0 }}>
-        {/* Chemical field with autocomplete */}
+      {/* Scrollable content area — allows form + results to scroll when window is small */}
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+        <form onSubmit={handleSubmit} className="toxmap-search-form" style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px' }}>
+          {/* Chemical field with autocomplete */}
         <div className="toxmap-search-field" style={{ position: 'relative' }}>
           <label htmlFor="chemical-input" style={{ display: 'block', fontSize: '11px', fontWeight: 500, color: '#6b7280', marginBottom: '3px' }}>
             Chemical
@@ -152,7 +170,7 @@ export function SearchPanel({
               className="toxmap-chem-link"
               style={{ fontSize: '11px', color: '#2563eb', textDecoration: 'none', display: 'block', marginTop: '3px' }}
             >
-              Chemical Information: {selectedChemical.name} (ATSDR ToxFAQ) ↗
+              ToxFAQs™: {selectedChemical.name} ↗
             </a>
           )}
 
@@ -301,7 +319,7 @@ export function SearchPanel({
 
       {/* Results table — shown after search */}
       {(facilities !== null || superfundResults !== null || loading) && (
-        <div className="toxmap-results-table-container" style={{ flex: 1, overflowY: 'auto', borderTop: '1px solid #e5e7eb' }}>
+        <div className="toxmap-results-table-container" data-testid="results-table-content" style={{ borderTop: '1px solid #e5e7eb' }}>
           <ResultsTable
             mode={dataset}
             triData={facilities}
@@ -310,9 +328,12 @@ export function SearchPanel({
             highlightedFacilityId={highlightedFacilityId}
             onHighlight={onHighlight}
             onSelect={onSelect}
+            searchExpansion={facilities?.meta.search_expansion}
+            onSearchExact={handleSearchExact}
           />
         </div>
       )}
+      </div>
     </div>
   )
 }

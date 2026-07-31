@@ -1,6 +1,7 @@
 """Service layer for facility spatial queries and detail lookups.
 
 Phase 2 — stories 2.1.1, 2.1.2, 2.2.x.
+ADR-007 — Chemical families for transparent right-to-know search.
 
 All SQL is built via SQLAlchemy Core/ORM expressions — no f-string SQL.
 PostGIS distance calculations use Geography cast for accurate metre-based results.
@@ -14,7 +15,7 @@ from typing import Any
 
 from geoalchemy2 import Geography
 from geoalchemy2.shape import to_shape
-from sqlalchemy import cast, desc, func, select
+from sqlalchemy import cast, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.chemical import Chemical
@@ -26,8 +27,13 @@ from app.schemas.facility import (
     FacilityDetail,
     FacilityFeature,
     FacilityFeatureProperties,
+    SearchExpansion,
     TopChemical,
     assign_color_band,
+)
+from app.services.chemical_service import (
+    get_family_chemical_names,
+    get_family_info_by_chemical,
 )
 
 logger = logging.getLogger(__name__)
@@ -56,6 +62,41 @@ async def _resolve_year(session: AsyncSession, year: int | None) -> int | None:
     return result.scalar()
 
 
+async def _expand_chemical_family(
+    session: AsyncSession,
+    chemical: str | None,
+) -> tuple[list[str] | None, SearchExpansion | None]:
+    """Expand a chemical to its family members (ADR-007).
+    
+    Returns:
+        Tuple of (list of chemical names to search, SearchExpansion info)
+        If chemical doesn't belong to a family, returns (None, None)
+    """
+    if not chemical:
+        return None, None
+    
+    # Check if this chemical belongs to a family
+    family_chemicals = await get_family_chemical_names(session, chemical)
+    if family_chemicals is None or len(family_chemicals) <= 1:
+        # Not in a family or is the only member
+        return None, None
+    
+    # Get family info for the response
+    family_info = await get_family_info_by_chemical(session, chemical)
+    if family_info is None:
+        return None, None
+    
+    expansion = SearchExpansion(
+        expanded=True,
+        family_name=family_info.family_name,
+        searched_chemicals=family_chemicals,
+        description=family_info.description,
+        nlm_url=family_info.nlm_url,
+    )
+    
+    return family_chemicals, expansion
+
+
 async def get_facilities_near(
     session: AsyncSession,
     lat: float,
@@ -68,12 +109,19 @@ async def get_facilities_near(
     medium: str | None,
     state: str | None,
     restrict_to_state: bool,
+    exact_match: bool,
     limit: int,
     raw_query: dict[str, Any],
 ) -> FacilityCollection:
     """Spatial facility search → GeoJSON FeatureCollection."""
     effective_year = await _resolve_year(session, year)
     radius_meters = radius_miles * _MILES_TO_METERS
+
+    # ADR-007: Expand chemical to family members if applicable (unless exact_match)
+    family_chemicals: list[str] | None = None
+    search_expansion: SearchExpansion | None = None
+    if not exact_match:
+        family_chemicals, search_expansion = await _expand_chemical_family(session, chemical)
 
     # --- Aggregate releases per (facility, year) in a subquery ---
     rel_stmt = (
@@ -89,8 +137,18 @@ async def get_facilities_near(
     if effective_year is not None:
         rel_stmt = rel_stmt.where(ReleaseEvent.reporting_year == effective_year)
 
-    if chemical:
-        rel_stmt = rel_stmt.where(Chemical.name.ilike(f"%{chemical}%"))
+    # ADR-007: Use expanded family chemicals if available
+    if family_chemicals:
+        # Match any chemical in the family (OR across all names)
+        rel_stmt = rel_stmt.where(
+            or_(*[Chemical.name.ilike(f"%{chem}%") for chem in family_chemicals])
+        )
+    elif chemical:
+        # ADR-007: When exact_match is true, use exact matching (case-insensitive)
+        if exact_match:
+            rel_stmt = rel_stmt.where(func.upper(Chemical.name) == chemical.upper())
+        else:
+            rel_stmt = rel_stmt.where(Chemical.name.ilike(f"%{chemical}%"))
 
     if medium == "air":
         rel_stmt = rel_stmt.where(ReleaseEvent.air_release_lbs > 0)
@@ -183,6 +241,7 @@ async def get_facilities_near(
             returned_count=len(features),
             truncated=total_count > len(features),
             query=raw_query,
+            search_expansion=search_expansion,  # ADR-007
         ),
     )
 
@@ -193,6 +252,7 @@ async def get_all_facilities_browse(
     chemical: str | None,
     medium: str | None,
     state: str | None,
+    exact_match: bool = False,
     limit: int = _BROWSE_LIMIT,
 ) -> FacilityCollection:
     """Browse mode: fetch ALL facilities without radius constraint.
@@ -200,8 +260,15 @@ async def get_all_facilities_browse(
     Used for the initial map view showing all TRI facilities nationwide.
     Filters by year/chemical/medium/state are applied but no spatial constraint.
     Results are ordered by total_release_lbs desc.
+    ADR-007: Expands chemical families automatically (unless exact_match).
     """
     effective_year = await _resolve_year(session, year)
+
+    # ADR-007: Expand chemical to family members if applicable (unless exact_match)
+    family_chemicals: list[str] | None = None
+    search_expansion: SearchExpansion | None = None
+    if not exact_match:
+        family_chemicals, search_expansion = await _expand_chemical_family(session, chemical)
 
     # Aggregate releases per (facility, year) in a subquery
     rel_stmt = (
@@ -217,8 +284,17 @@ async def get_all_facilities_browse(
     if effective_year is not None:
         rel_stmt = rel_stmt.where(ReleaseEvent.reporting_year == effective_year)
 
-    if chemical:
-        rel_stmt = rel_stmt.where(Chemical.name.ilike(f"%{chemical}%"))
+    # ADR-007: Use expanded family chemicals if available
+    if family_chemicals:
+        rel_stmt = rel_stmt.where(
+            or_(*[Chemical.name.ilike(f"%{chem}%") for chem in family_chemicals])
+        )
+    elif chemical:
+        # ADR-007: When exact_match is true, use exact matching (case-insensitive)
+        if exact_match:
+            rel_stmt = rel_stmt.where(func.upper(Chemical.name) == chemical.upper())
+        else:
+            rel_stmt = rel_stmt.where(Chemical.name.ilike(f"%{chemical}%"))
 
     if medium == "air":
         rel_stmt = rel_stmt.where(ReleaseEvent.air_release_lbs > 0)
@@ -295,6 +371,7 @@ async def get_all_facilities_browse(
             returned_count=len(features),
             truncated=total_count > len(features),
             query=raw_query,
+            search_expansion=search_expansion,  # ADR-007
         ),
     )
 

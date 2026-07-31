@@ -275,3 +275,175 @@ def step_every_feature_prop_equals(prop, expected, step_context):
         assert str(actual) == expected, (
             f"Feature has {prop}={actual!r}, expected {expected!r}"
         )
+
+
+# ─── ADR-007: Chemical Family Expansion Steps ─────────────────────────────────
+
+
+def _get_nested_meta(body: dict, dotted_path: str):
+    """Helper to traverse nested meta paths like 'search_expansion.expanded'."""
+    meta = body.get("meta", {})
+    query = meta.get("query", {})
+    # Try both meta and meta.query for nested paths
+    parts = dotted_path.split(".")
+    # Start from search_expansion which can be in meta or meta.query
+    obj = query.get(parts[0]) or meta.get(parts[0])
+    for part in parts[1:]:
+        if obj is None:
+            return None
+        obj = obj.get(part) if isinstance(obj, dict) else None
+    return obj
+
+
+@when(
+    parsers.parse(
+        'I search for facilities near lat {lat:f} lon {lon:f} within {radius:g} miles for year {year:d} with chemical "{chemical}"'
+    ),
+    target_fixture="http_response",
+)
+def step_search_facilities_chemical(lat, lon, radius, year, chemical, api_client, step_context):
+    response = api_client.get(
+        "/api/v1/facilities",
+        params={"lat": lat, "lon": lon, "radius_miles": radius, "year": year, "chemical": chemical},
+    )
+    step_context["response"] = response
+    return response
+
+
+@when(
+    parsers.parse(
+        'I search for facilities near lat {lat:f} lon {lon:f} within {radius:g} miles for year {year:d} with chemical "{chemical}" and exact_match true'
+    ),
+    target_fixture="http_response",
+)
+def step_search_facilities_chemical_exact(lat, lon, radius, year, chemical, api_client, step_context):
+    response = api_client.get(
+        "/api/v1/facilities",
+        params={
+            "lat": lat,
+            "lon": lon,
+            "radius_miles": radius,
+            "year": year,
+            "chemical": chemical,
+            "exact_match": "true",
+        },
+    )
+    step_context["response"] = response
+    return response
+
+
+@then(parsers.parse('the response meta has "{dotted_path}" = true'))
+def step_meta_nested_true(dotted_path, step_context):
+    body = step_context["response"].json()
+    actual = _get_nested_meta(body, dotted_path)
+    assert actual is True, f"Expected meta.{dotted_path}=true, got {actual!r}"
+
+
+@then(parsers.parse('the response meta has "{dotted_path}" = "{expected}"'))
+def step_meta_nested_str(dotted_path, expected, step_context):
+    body = step_context["response"].json()
+    actual = _get_nested_meta(body, dotted_path)
+    assert str(actual) == expected, f"Expected meta.{dotted_path}={expected!r}, got {actual!r}"
+
+
+@then(parsers.parse('the response meta "{dotted_path}" contains "{value}"'))
+def step_meta_nested_contains(dotted_path, value, step_context):
+    body = step_context["response"].json()
+    actual = _get_nested_meta(body, dotted_path)
+    assert isinstance(actual, list), f"Expected meta.{dotted_path} to be a list, got {type(actual)}"
+    assert value in actual, f"Expected {value!r} in meta.{dotted_path}, got {actual}"
+
+
+@then(parsers.parse('the response meta does not have "{dotted_path}"'))
+def step_meta_nested_absent(dotted_path, step_context):
+    body = step_context["response"].json()
+    actual = _get_nested_meta(body, dotted_path)
+    assert actual is None, f"Expected meta.{dotted_path} to be absent, got {actual!r}"
+
+
+@then(parsers.parse('I save the result count as "{label}"'))
+def step_save_result_count(label, step_context):
+    body = step_context["response"].json()
+    count = len(body.get("features", []))
+    step_context[label] = count
+
+
+@then(parsers.parse('the result count is less than "{label}"'))
+def step_result_count_less_than(label, step_context):
+    body = step_context["response"].json()
+    current_count = len(body.get("features", []))
+    saved_count = step_context.get(label)
+    assert saved_count is not None, f"No saved count for {label!r}"
+    assert current_count < saved_count, (
+        f"Expected fewer results than {label}={saved_count}, got {current_count}"
+    )
+
+
+# ─── Regression: 7.BUG.15 — Chemical family list length ───────────────────────
+
+
+@then(parsers.parse('the response meta "{dotted_path}" has at least {count:d} items'))
+def step_meta_list_min_length(dotted_path, count, step_context):
+    """Verify that a list in the response meta has at least N items."""
+    body = step_context["response"].json()
+    actual = _get_nested_meta(body, dotted_path)
+    assert isinstance(actual, list), f"Expected meta.{dotted_path} to be a list, got {type(actual)}"
+    assert len(actual) >= count, (
+        f"Expected meta.{dotted_path} to have at least {count} items, got {len(actual)}: {actual}"
+    )
+
+
+# ─── Regression: 7.BUG.17–7.BUG.19 — Superfund contaminant CAS/ATSDR ──────────
+
+
+def _find_contaminant(body: dict, name: str) -> dict | None:
+    """Find a contaminant by name in Superfund site response."""
+    contaminants = body.get("contaminants", [])
+    name_upper = name.upper()
+    for c in contaminants:
+        if c.get("name", "").upper() == name_upper:
+            return c
+    return None
+
+
+@then(parsers.parse('contaminant "{name}" has atsdr_url containing "{substring}"'))
+def step_contaminant_atsdr_contains(name, substring, step_context):
+    """Verify a contaminant's ATSDR URL contains the expected substring (e.g., toxid=23)."""
+    body = step_context["response"].json()
+    contaminant = _find_contaminant(body, name)
+    assert contaminant is not None, (
+        f"Contaminant {name!r} not found. Available: {[c['name'] for c in body.get('contaminants', [])]}"
+    )
+    atsdr_url = contaminant.get("atsdr_url")
+    assert atsdr_url is not None, f"Contaminant {name!r} has no atsdr_url"
+    assert substring in atsdr_url, (
+        f"Expected {name!r} atsdr_url to contain {substring!r}, got {atsdr_url!r}"
+    )
+
+
+@then(parsers.parse('contaminant "{name}" atsdr_url does NOT contain "{substring}"'))
+def step_contaminant_atsdr_not_contains(name, substring, step_context):
+    """Verify a contaminant's ATSDR URL does NOT contain a substring (regression for wrong toxid)."""
+    body = step_context["response"].json()
+    contaminant = _find_contaminant(body, name)
+    assert contaminant is not None, (
+        f"Contaminant {name!r} not found. Available: {[c['name'] for c in body.get('contaminants', [])]}"
+    )
+    atsdr_url = contaminant.get("atsdr_url") or ""
+    assert substring not in atsdr_url, (
+        f"REGRESSION: {name!r} atsdr_url should NOT contain {substring!r}, but got {atsdr_url!r}"
+    )
+
+
+@then(parsers.parse('contaminant "{name}" has cas_number "{expected_cas}"'))
+def step_contaminant_cas_number(name, expected_cas, step_context):
+    """Verify a contaminant has the correct CAS number from lookup."""
+    body = step_context["response"].json()
+    contaminant = _find_contaminant(body, name)
+    assert contaminant is not None, (
+        f"Contaminant {name!r} not found. Available: {[c['name'] for c in body.get('contaminants', [])]}"
+    )
+    actual_cas = contaminant.get("cas_number")
+    assert actual_cas == expected_cas, (
+        f"Expected {name!r} cas_number={expected_cas!r}, got {actual_cas!r}"
+    )

@@ -2,9 +2,11 @@
  * ResultsTable — stories 3.5.1–3.5.3, 4.1.3.
  * UX Invariants: 2 (no empty rows), 8 (comma-formatted numbers).
  * Supports TRI mode (sorted by total_release_lbs) and Superfund mode (HRS score).
+ * ADR-007: Displays chemical family expansion banner when applicable.
  */
 import { formatLbs } from '../../utils/formatLbs'
-import type { FacilityCollection, SuperfundCollection } from '../../api/types'
+import type { FacilityCollection, SuperfundCollection, SearchExpansion } from '../../api/types'
+import { ChemicalFamilyBanner } from '../ChemicalFamilyBanner'
 
 interface ResultsTableProps {
   mode: 'tri' | 'superfund' | 'both'
@@ -14,6 +16,10 @@ interface ResultsTableProps {
   highlightedFacilityId: string | null
   onHighlight: (id: string | null) => void
   onSelect: (id: string, type: 'tri' | 'superfund') => void
+  /** Search expansion info from API response (ADR-007) */
+  searchExpansion?: SearchExpansion | null
+  /** Callback for "Search exact term only" button (ADR-007) */
+  onSearchExact?: () => void
 }
 
 /** HRS score badge coloring (story 4.2.1): red ≥50, amber 28–50, green <28 */
@@ -36,6 +42,8 @@ export function ResultsTable({
   highlightedFacilityId,
   onHighlight,
   onSelect,
+  searchExpansion,
+  onSearchExact,
 }: ResultsTableProps): JSX.Element {
   // ── Both mode (TRI + Superfund combined) ──────────────────────────────────
   if (mode === 'both') {
@@ -67,6 +75,12 @@ export function ResultsTable({
 
     return (
       <div data-testid="results-table" style={{ fontSize: '12px' }}>
+        {/* ADR-007: Chemical family expansion banner */}
+        {searchExpansion?.expanded && (
+          <div style={{ padding: '8px 12px 0' }}>
+            <ChemicalFamilyBanner expansion={searchExpansion} onSearchExact={onSearchExact} />
+          </div>
+        )}
         <p data-testid="results-summary" className="toxmap-results-count" style={{ padding: '4px 10px', fontSize: '11px', color: '#6b7280', margin: 0, borderBottom: '1px solid #f3f4f6' }}>
           {triCount} TRI facilities · {superfundCount} Superfund sites
         </p>
@@ -79,7 +93,7 @@ export function ResultsTable({
             </div>
             <table className="toxmap-results-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
               <tbody>
-                {sortedTri.slice(0, 10).map((feature) => {
+                {sortedTri.map((feature) => {
                   const props = feature.properties
                   const isHighlighted = props.tri_facility_id === highlightedFacilityId
                   return (
@@ -105,11 +119,7 @@ export function ResultsTable({
                 })}
               </tbody>
             </table>
-            {sortedTri.length > 10 && (
-              <div style={{ padding: '4px 10px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic' }}>
-                …and {sortedTri.length - 10} more TRI facilities
-              </div>
-            )}
+
           </>
         )}
 
@@ -121,7 +131,7 @@ export function ResultsTable({
             </div>
             <table className="toxmap-results-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
               <tbody>
-                {sortedSuperfund.slice(0, 10).map((feature) => {
+                {sortedSuperfund.map((feature) => {
                   const props = feature.properties
                   const isHighlighted = props.epa_id === highlightedFacilityId
                   return (
@@ -150,11 +160,6 @@ export function ResultsTable({
                 })}
               </tbody>
             </table>
-            {sortedSuperfund.length > 10 && (
-              <div style={{ padding: '4px 10px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic' }}>
-                …and {sortedSuperfund.length - 10} more Superfund sites
-              </div>
-            )}
           </>
         )}
       </div>

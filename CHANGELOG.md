@@ -46,7 +46,7 @@ Phase 7 (Production Deploy) commenced.
 
 ### Phase 7 Bug Fixes (2026-07-31) [agent]
 
-Bug fixes shipped during pre-production validation (7.BUG.1–7.BUG.6):
+Bug fixes shipped during pre-production validation (7.BUG.1–7.BUG.9):
 - **7.BUG.1:** Fixed results count flickering — results table now uses API-constrained
   results (`triAllResults`) instead of viewport-filtered data that changed on scroll
 - **7.BUG.2:** Added TRI hover tooltip — hovering results table row now shows popup
@@ -60,6 +60,49 @@ Bug fixes shipped during pre-production validation (7.BUG.1–7.BUG.6):
   when zoomed out; legend updated with proportional circle sizes
 - **7.BUG.6:** Added Superfund contaminants ingestion — integrated EPA SEMS
   Envirofacts API for bulk contaminant fetching (72,569 records, 88% site coverage)
+- **7.BUG.7:** Fixed Superfund "in view" count — now shows viewport-filtered count
+  instead of total (1,816). Added `superfundInViewCount` memo filtering by `mapBbox`
+- **7.BUG.8:** Fixed results table limited to 10 items — removed `.slice(0, 10)` limit;
+  all results now render and are scrollable
+- **7.BUG.9:** Fixed map not filtering by search criteria — map now shows only
+  facilities/sites matching active search filters (CONUS, chemical). Added
+  `triFacilitiesForMap` memo; POGO MINE (AK) no longer shows when CONUS filter active
+
+### ADR-007: Chemical Families Implementation (2026-07-31) [agent]
+
+Chemical family expansion for transparent right-to-know compliance:
+- Added `chemical_families` and `chemical_family_members` tables (Alembic migration)
+- Seeded 18 families with 35 member chemicals (lead, mercury, chromium, etc.)
+- API auto-expands family chemicals (e.g., "lead" → "LEAD", "LEAD COMPOUNDS", etc.)
+- Added `exact_match` query parameter to disable expansion for researchers
+- Added `ChemicalFamilyBanner.tsx` disclosure banner with "Search exact term only" option
+
+Bug fixes shipped (7.BUG.9–7.BUG.19):
+- **7.BUG.9:** Fixed seed script import error — changed `async_session_factory` to
+  `AsyncSessionLocal` in `seed_chemical_families.py`
+- **7.BUG.10:** Fixed exact match not narrowing results — `exact_match=true` now uses
+  `func.upper(Chemical.name) == chemical.upper()` for strict equality instead of ILIKE
+- **7.BUG.11:** Fixed SearchPanel scroll in small windows — wrapped form in scrollable
+  container with `minHeight: 0`
+- **7.BUG.12:** Fixed chemical family banner padding — added 8px/12px padding wrapper
+- **7.BUG.13:** Added sidebar resize handle — drag to adjust width 200–600px; uses
+  direct DOM manipulation + capture-phase events for smooth performance
+- **7.BUG.14:** Fixed PostCSS config ESM error — converted to CommonJS syntax
+- **7.BUG.15:** Fixed MERCURY family not expanding — added whitespace normalization to
+  seed script; fixed chemical names for MERCURY, CHROMIUM, ZINC, etc. families
+- **7.BUG.16:** Fixed Superfund contaminants missing PubChem links — added `pubchem_url`
+  field to `SuperfundContaminant` schema and service query; updated frontend drawer
+  to display PubChem links alongside ATSDR links for matched chemicals
+- **7.BUG.17:** Added comprehensive Superfund CAS lookup (180+ chemicals: PAHs, PCBs,
+  chlorinated solvents, pesticides, explosives, PFAS, radionuclides) + redesigned
+  SuperfundDrawer UI with chemical names as PubChem links, inline CAS numbers
+- **7.BUG.18:** **CRITICAL** Fixed ATSDR ToxFAQs links pointing to wrong chemicals —
+  MANGANESE incorrectly linked to Methylene Chloride (toxid=42 instead of 23). Rebuilt
+  `_ATSDR` dict in `superfund_cas_lookup.py` using verified URLs from scraped CDC data
+  (`scripts/atsdr_toxid_map.csv`). Corrected ~15 toxid mappings and added 80+ missing
+  chemicals (CFCs, alkylbenzenes, metal oxides, petroleum fractions, nitrosamines).
+- **7.BUG.19:** ATSDR external links now display as "ToxFAQs™" instead of "ATSDR" for
+  transparency — users know they're accessing the CDC/ATSDR ToxFAQs chemical database
 
 ### Fixed
 

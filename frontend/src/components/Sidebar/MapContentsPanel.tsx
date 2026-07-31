@@ -68,7 +68,7 @@ export function MapContentsPanel({
 
       {/* TRI Layers */}
       <section>
-        <h3 style={{ margin: '0 0 6px', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>TRI Layers</h3>
+        <h3 style={{ margin: '0 0 6px', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>TRI Layer</h3>
         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', fontWeight: 'normal', marginBottom: 0 }}>
           <input
             data-testid="layer-toggle-tri"
@@ -92,7 +92,7 @@ export function MapContentsPanel({
 
       {/* Superfund Layer (story 4.1.2) */}
       <section>
-        <h3 style={{ margin: '0 0 6px', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>Superfund Layers</h3>
+        <h3 style={{ margin: '0 0 6px', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>Superfund Layer</h3>
         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', fontWeight: 'normal', marginBottom: 0 }}>
           <input
             data-testid="layer-toggle-superfund"

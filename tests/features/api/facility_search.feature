@@ -82,3 +82,79 @@ Feature: Facility Search by Location
     And facility "70663ENTGR0001" is in the results
     And facility "70663ENTGR0001" has total_release_lbs 342500.0
     And facility "70663ENTGR0001" has color_band "red"
+
+  # ── ADR-007: Chemical Family Expansion ──────────────────────────────────────
+
+  Scenario: Chemical family expansion — LEAD expands to include compounds
+    When I GET "/api/v1/facilities/browse?chemical=lead"
+    Then the response status is 200
+    And the response meta has "search_expansion.expanded" = true
+    And the response meta has "search_expansion.family_name" = "LEAD"
+    And the response meta "search_expansion.searched_chemicals" contains "LEAD"
+    And the response meta "search_expansion.searched_chemicals" contains "LEAD COMPOUNDS"
+
+  Scenario: Chemical family expansion — exact_match=true disables expansion
+    When I GET "/api/v1/facilities/browse?chemical=lead&exact_match=true"
+    Then the response status is 200
+    And the response meta does not have "search_expansion"
+
+  Scenario: Chemical family expansion — exact_match returns fewer results than expanded
+    When I GET "/api/v1/facilities/browse?chemical=lead"
+    Then the response status is 200
+    And I save the result count as "expanded_count"
+    When I GET "/api/v1/facilities/browse?chemical=lead&exact_match=true"
+    Then the response status is 200
+    And the result count is less than "expanded_count"
+
+  Scenario: Non-family chemical — no expansion metadata
+    When I GET "/api/v1/facilities/browse?chemical=benzene"
+    Then the response status is 200
+    And the response meta does not have "search_expansion"
+
+  Scenario: Chemical family expansion — radius search also expands
+    When I search for facilities near lat 39.2197 lon -76.4785 within 50 miles for year 2008 with chemical "lead"
+    Then the response status is 200
+    And the response meta has "search_expansion.expanded" = true
+    And the response meta has "search_expansion.family_name" = "LEAD"
+
+  Scenario: Chemical family expansion — radius search with exact_match
+    When I search for facilities near lat 39.2197 lon -76.4785 within 50 miles for year 2008 with chemical "lead" and exact_match true
+    Then the response status is 200
+    And the response meta does not have "search_expansion"
+
+  # ── Regression: 7.BUG.15 — MERCURY family expansion ─────────────────────────
+  # Regression test for: MERCURY family only had one member (MERCURY itself)
+  # due to whitespace mismatch in seed script. Fix: Added whitespace normalization
+  # and correct TRI chemical names like "MERCURY  AND MERCURY COMPOUNDS".
+
+  Scenario: Regression 7.BUG.15 — MERCURY family expands to include compounds
+    When I GET "/api/v1/facilities/browse?chemical=mercury"
+    Then the response status is 200
+    And the response meta has "search_expansion.expanded" = true
+    And the response meta has "search_expansion.family_name" = "MERCURY"
+    And the response meta "search_expansion.searched_chemicals" has at least 2 items
+
+  Scenario: Regression 7.BUG.15 — CHROMIUM family expands
+    When I GET "/api/v1/facilities/browse?chemical=chromium"
+    Then the response status is 200
+    And the response meta has "search_expansion.expanded" = true
+    And the response meta has "search_expansion.family_name" = "CHROMIUM"
+
+  Scenario: Regression 7.BUG.15 — ZINC family expands
+    When I GET "/api/v1/facilities/browse?chemical=zinc+compounds"
+    Then the response status is 200
+    And the response meta has "search_expansion.expanded" = true
+    And the response meta has "search_expansion.family_name" = "ZINC"
+
+  Scenario: Regression 7.BUG.15 — All curated families have at least 2 members
+    # Verifies that each family expands (i.e., has multiple members)
+    When I GET "/api/v1/facilities/browse?chemical=nickel"
+    Then the response meta has "search_expansion.expanded" = true
+    When I GET "/api/v1/facilities/browse?chemical=arsenic"
+    Then the response meta has "search_expansion.expanded" = true
+    When I GET "/api/v1/facilities/browse?chemical=cadmium"
+    Then the response meta has "search_expansion.expanded" = true
+    When I GET "/api/v1/facilities/browse?chemical=manganese"
+    Then the response meta has "search_expansion.expanded" = true
+    When I GET "/api/v1/facilities/browse?chemical=copper"
+    Then the response meta has "search_expansion.expanded" = true

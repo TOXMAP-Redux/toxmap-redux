@@ -23,6 +23,7 @@ from app.schemas.superfund import (
     SuperfundFeature,
     SuperfundFeatureProperties,
 )
+from app.services.superfund_cas_lookup import SUPERFUND_CAS_LOOKUP
 
 logger = logging.getLogger(__name__)
 
@@ -164,9 +165,9 @@ async def get_superfund_detail(
     npl_str: str | None = (
         str(site.npl_date) if site.npl_date is not None else None
     )
-    # Enrich contaminant names with CAS numbers and ATSDR URLs from the
-    # chemicals table via a single batch name-match query.  Contaminants
-    # not present in the TRI chemicals table remain with null fields.
+    # Enrich contaminant names with CAS numbers, ATSDR URLs, and PubChem URLs
+    # from the chemicals table via a single batch name-match query.
+    # For contaminants not in TRI, use the supplementary CAS lookup.
     contaminant_names: list[str] = list(site.contaminants or [])
     if contaminant_names:
         chem_rows = (
@@ -175,6 +176,7 @@ async def get_superfund_detail(
                     Chemical.name,
                     Chemical.cas_number,
                     Chemical.atsdr_url,
+                    Chemical.pubchem_url,
                 ).where(
                     func.upper(Chemical.name).in_(
                         [c.upper() for c in contaminant_names]
@@ -182,21 +184,55 @@ async def get_superfund_detail(
                 )
             )
         ).all()
-        chem_map: dict[str, tuple[str | None, str | None]] = {
-            row.name.upper(): (row.cas_number, row.atsdr_url)
+        chem_map: dict[str, tuple[str | None, str | None, str | None]] = {
+            row.name.upper(): (row.cas_number, row.atsdr_url, row.pubchem_url)
             for row in chem_rows
         }
     else:
         chem_map = {}
 
-    contaminants = [
-        SuperfundContaminant(
-            name=c,
-            cas_number=chem_map.get(c.upper(), (None, None))[0],
-            atsdr_url=chem_map.get(c.upper(), (None, None))[1],
+    def _enrich_contaminant(name: str) -> SuperfundContaminant:
+        """Build enriched contaminant with CAS/URLs from TRI or supplementary lookup."""
+        name_upper = name.upper()
+        
+        # Check supplementary lookup for ATSDR URL (fallback for TRI entries missing ATSDR)
+        lookup_result = SUPERFUND_CAS_LOOKUP.get(name_upper)
+        supplementary_atsdr = lookup_result[1] if lookup_result else None
+        
+        if name_upper in chem_map:
+            # Found in TRI chemicals table
+            cas, atsdr, pubchem = chem_map[name_upper]
+            # Use supplementary ATSDR if TRI doesn't have one
+            if not atsdr and supplementary_atsdr:
+                atsdr = supplementary_atsdr
+            return SuperfundContaminant(
+                name=name,
+                cas_number=cas,
+                atsdr_url=atsdr,
+                pubchem_url=pubchem,
+            )
+        # Not in TRI - use supplementary lookup
+        if lookup_result:
+            cas, atsdr = lookup_result
+            pubchem = None
+            if cas and cas != "N/A":
+                # Build PubChem URL from CAS number (skip N/A entries)
+                pubchem = f"https://pubchem.ncbi.nlm.nih.gov/compound/{cas}"
+            return SuperfundContaminant(
+                name=name,
+                cas_number=cas if cas != "N/A" else None,
+                atsdr_url=atsdr,
+                pubchem_url=pubchem,
+            )
+        # Not found in any lookup
+        return SuperfundContaminant(
+            name=name,
+            cas_number=None,
+            atsdr_url=None,
+            pubchem_url=None,
         )
-        for c in contaminant_names
-    ]
+
+    contaminants = [_enrich_contaminant(c) for c in contaminant_names]
 
     return SuperfundDetail(
         id=site.id,
