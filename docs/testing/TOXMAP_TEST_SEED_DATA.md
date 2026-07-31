@@ -82,6 +82,7 @@ INSERT INTO chemicals (id, cas_number, name, category, atsdr_url, pubchem_url) V
 | 6  | `77536EXXO00001`  | `EXXONMOBIL CHEMICAL PLANT`             | `BAYTOWN`        | `TX`  | `77536` | `324110` | `29.7424` | `-95.0215`  | T-09        |
 | 7  | `77536LYND00001`  | `LYONDELLBASELL REFINERY`               | `HOUSTON`        | `TX`  | `77536` | `324110` | `29.7380` | `-95.2100`  | T-09        |
 | 8  | `99501ANCHO0001`  | `ALASKA MINING CO`                      | `ANCHORAGE`      | `AK`  | `99501` | `212234` | `61.2181` | `-149.9003` | CONUS test  |
+| 9  | `22630SMRLG0001`  | `SMALL RELEASE FACILITY`                | `FRONT ROYAL`    | `VA`  | `22630` | `325199` | `38.9150` | `-78.1900`  | Green tier  |
 
 ### 2.2 SQL
 
@@ -94,7 +95,8 @@ INSERT INTO facilities (id, tri_facility_id, name, address, city, state_code, zi
   (5, '70663ENTGR0001', 'ENTERPRISE GAS PROCESSING LLC',        '4500 ENTERPRISE BLVD',             'SULPHUR',        'LA', '70663', 'CALCASIEU',  '486210', 'Pipeline Transportation of Natural Gas',   ST_GeomFromText('POINT(-93.2044 30.1944)', 4326)),
   (6, '77536EXXO00001', 'EXXONMOBIL CHEMICAL PLANT',           '5200 BAYWAY DR',                   'BAYTOWN',        'TX', '77536', 'HARRIS',     '324110', 'Petroleum Refineries',                     ST_GeomFromText('POINT(-95.0215 29.7424)', 4326)),
   (7, '77536LYND00001', 'LYONDELLBASELL REFINERY',             '12000 LAWNDALE ST',                'HOUSTON',        'TX', '77536', 'HARRIS',     '324110', 'Petroleum Refineries',                     ST_GeomFromText('POINT(-95.2100 29.7380)', 4326)),
-  (8, '99501ANCHO0001', 'ALASKA MINING CO',                    '100 NORTHERN BLVD',                'ANCHORAGE',      'AK', '99501', 'ANCHORAGE',  '212234', 'Copper Ore and Nickel Ore Mining',         ST_GeomFromText('POINT(-149.9003 61.2181)', 4326));
+  (8, '99501ANCHO0001', 'ALASKA MINING CO',                    '100 NORTHERN BLVD',                'ANCHORAGE',      'AK', '99501', 'ANCHORAGE',  '212234', 'Copper Ore and Nickel Ore Mining',         ST_GeomFromText('POINT(-149.9003 61.2181)', 4326)),
+  (9, '22630SMRLG0001', 'SMALL RELEASE FACILITY',              '200 GREEN TIER WAY',               'FRONT ROYAL',    'VA', '22630', 'WARREN',     '325199', 'All Other Basic Organic Chemical Mfg',     ST_GeomFromText('POINT(-78.1900 38.9150)', 4326));
 ```
 
 ---
@@ -128,6 +130,7 @@ INSERT INTO facilities (id, tri_facility_id, name, address, city, state_code, zi
 | 6 (ExxonMobil TX)     | 5 (Benzene)  | 2007 | 31,200      | 30,000  | 800       | 400       | 0               | T-09 trend                        |
 | 6 (ExxonMobil TX)     | 5 (Benzene)  | 2006 | 35,600      | 34,100  | 1,000     | 500       | 0               | T-09 trend                        |
 | 8 (Alaska Mining AK)  | 2 (Copper)   | 2008 | 3,500       | 0       | 0         | 3,500     | 0               | CONUS filter exclusion test       |
+| 9 (Small Release VA)  | 6 (Ammonia)  | 2008 | **450**     | 400     | 50        | 0         | 0               | Green tier test (< 1,000 lbs)     |
 
 ### 3.2 SQL
 
@@ -154,7 +157,9 @@ INSERT INTO release_events (facility_id, chemical_id, reporting_year, total_rele
   (6, 5, 2006, 35600.0, 34100.0,  1000.0,  500.0, 0.0, 'Pounds', 'R'),
   (7, 5, 2008, 19750.0, 18900.0,     0.0,  850.0, 0.0, 'Pounds', 'R'),
   -- CONUS filter test: Alaska copper (non-continental US)
-  (8, 2, 2008,  3500.0,     0.0,     0.0, 3500.0, 0.0, 'Pounds', 'R');
+  (8, 2, 2008,  3500.0,     0.0,     0.0, 3500.0, 0.0, 'Pounds', 'R'),
+  -- Green tier test: Small Release Facility ammonia (< 1,000 lbs)
+  (9, 6, 2008,   450.0,   400.0,    50.0,    0.0, 0.0, 'Pounds', 'R');
 ```
 
 ---

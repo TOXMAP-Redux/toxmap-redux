@@ -79,6 +79,12 @@ These are locked before development starts. Any deviation requires a new ADR.
 | **M6** | Full QA Green | All Gherkin scenarios + all 10 UX invariants pass (`pytest tests/features/ --tb=short` exits 0) | Feature complete |
 | **M7** | Production Deploy | Live on Cloudflare Pages, $0, DuckDB WASM | **MVP Shipped** |
 | **M8** | Tribal Lands Data | Tribal land facilities queryable + "Tribal" filter | Post-MVP enhancement |
+| **M9** | Multi-Chemical Search | Search for multiple chemicals simultaneously (F-23) | Post-MVP enhancement |
+| **M10** | EPA Monitoring Sites | EPA air quality monitoring site overlay (F-24) | Post-MVP enhancement |
+| **M11** | Onboarding & UX Polish | In-app tutorial + consolidated toolbar (F-21, F-22) | Post-MVP enhancement |
+| **M12** | Canadian NPRI | Canadian National Pollutant Release Inventory layer (F-25) | Post-MVP enhancement |
+| **M13** | Nuclear Power Plants | US commercial nuclear facility overlay (F-26) | Post-MVP enhancement |
+| **M14** | Congressional Districts | Congressional district boundary overlay (F-27) | Post-MVP enhancement |
 
 ---
 
@@ -726,6 +732,300 @@ These are locked before development starts. Any deviation requires a new ADR.
 
 ---
 
+### Phase 9 — Multi-Chemical Search (Post-MVP)
+**Goal:** Users can search for multiple chemicals simultaneously on a single map (F-23).  
+**Duration:** ~1.5 weeks  
+**Team:** BE (lead), FE, QA supports
+
+> **Background:** UCD 2011 participants requested the ability to view releases of multiple chemicals at once (e.g., "show me all facilities releasing BOTH benzene AND toluene"). This requires API changes to accept multiple chemical parameters and frontend changes for multi-select UI.
+
+#### Epics & Stories
+
+**Epic 9.1 — API Multi-Chemical Support** `BE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 9.1.1 | `GET /api/v1/facilities`: support `chemical` param as comma-separated list | 3 | `?chemical=BENZENE,TOLUENE` returns facilities releasing either |
+| 9.1.2 | Add `chemical_match` param: `any` (default) or `all` | 2 | `chemical_match=all` returns only facilities releasing ALL listed chemicals |
+| 9.1.3 | `GET /api/v1/facilities/browse`: support multi-chemical filtering | 2 | Browse mode respects multi-chemical filters |
+| 9.1.4 | Update API contract documentation | 1 | `TOXMAP_API_CONTRACT.md` updated with multi-chemical examples |
+
+**Epic 9.2 — Multi-Select Chemical UI** `FE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 9.2.1 | Replace single chemical autocomplete with multi-select chip input | 4 | Users can add multiple chemicals as "chips"; each has X to remove |
+| 9.2.2 | Add "Match any / Match all" toggle below chemical input | 2 | Toggle controls `chemical_match` API param |
+| 9.2.3 | Results table: show which chemical(s) each facility releases | 2 | Column or tooltip shows matched chemicals per row |
+| 9.2.4 | DuckDB WASM: multi-chemical WHERE clause | 2 | `useDuckDBFacilities` handles comma-separated chemicals |
+
+**Epic 9.3 — Map Legend Updates** `FE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 9.3.1 | Legend shows active chemical filters as pills | 2 | Chemical names visible in legend area when filtered |
+| 9.3.2 | Color-coding option: different colors per chemical (optional) | 3 | Toggle for "Color by chemical" vs "Color by release volume" |
+
+**Epic 9.4 — QA & Testing** `QA`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 9.4.1 | Gherkin scenario: T-11 "Search for facilities releasing benzene AND toluene" | 3 | API + E2E scenarios pass |
+| 9.4.2 | Regression: single-chemical search still works | 1 | T-01, T-03 still pass |
+
+**Phase 9 Definition of Done:**
+- [ ] Multi-chemical search works via API and UI
+- [ ] "Match any" and "Match all" modes functional
+- [ ] T-11 Gherkin scenario passes
+- [ ] **Milestone M9 — Multi-Chemical Search**
+
+---
+
+### Phase 10 — EPA Monitoring Sites (Post-MVP)
+**Goal:** Overlay EPA air quality monitoring sites on the map (F-24).  
+**Duration:** ~1.5 weeks  
+**Team:** DE (lead), BE, FE, QA supports
+
+> **Background:** UCD 2011 participants requested EPA monitoring site data to complement TRI facility data. EPA AQS (Air Quality System) provides monitoring station locations and pollutant measurements.
+
+#### Epics & Stories
+
+**Epic 10.1 — Data Ingestion** `DE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 10.1.1 | Create `monitoring_sites` table schema | 2 | Columns: `site_id`, `name`, `address`, `city`, `state_code`, `zip_code`, `location`, `pollutants[]`, `agency` |
+| 10.1.2 | `monitoring_ingest.py`: parse EPA AQS site list CSV | 3 | All active monitoring sites ingested |
+| 10.1.3 | Seed data: add 3 monitoring site test records | 1 | Sites in VA, TX, NV for test coverage |
+| 10.1.4 | `build_parquet.py`: create `monitoring_sites.parquet` | 2 | Parquet file generated in build pipeline |
+
+**Epic 10.2 — Monitoring Sites API** `BE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 10.2.1 | `GET /api/v1/monitoring`: list monitoring sites within radius | 3 | Returns GeoJSON FeatureCollection |
+| 10.2.2 | `GET /api/v1/monitoring/browse`: all sites (no radius) | 2 | Browse mode for monitoring layer |
+| 10.2.3 | Filter by pollutant: `?pollutant=OZONE` | 2 | Returns only sites monitoring that pollutant |
+
+**Epic 10.3 — Monitoring Layer UI** `FE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 10.3.1 | Add "EPA Monitoring Sites" toggle in Map Contents panel | 2 | Checkbox in new "Monitoring" section |
+| 10.3.2 | Monitoring site markers: distinct triangle icon | 3 | Triangle shape, green color, distinguishable from TRI/Superfund |
+| 10.3.3 | Monitoring site popup: site name, agency, pollutants monitored | 2 | Popup on marker click |
+| 10.3.4 | Legend: add monitoring site icon | 1 | Triangle icon in legend when layer active |
+| 10.3.5 | DuckDB WASM: `useMonitoringSites` hook | 3 | Production mode queries monitoring parquet |
+
+**Epic 10.4 — QA & Testing** `QA`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 10.4.1 | Gherkin scenario: T-12 "Find EPA monitoring sites near Houston" | 3 | API + E2E scenarios pass |
+| 10.4.2 | Visual regression: monitoring icons don't overlap TRI/Superfund | 1 | Icons distinguishable at zoom level 10 |
+
+**Phase 10 Definition of Done:**
+- [ ] Monitoring sites visible on map when toggled
+- [ ] Popup shows site details
+- [ ] T-12 Gherkin scenario passes
+- [ ] **Milestone M10 — EPA Monitoring Sites**
+
+---
+
+### Phase 11 — Onboarding & UX Polish (Post-MVP)
+**Goal:** In-app tutorial for first-time users + consolidated icon toolbar (F-21, F-22).  
+**Duration:** ~1 week  
+**Team:** FE (lead), QA supports
+
+> **Background:** UCD 2011 found a steep learning curve for non-GIS users. Participants requested an in-app tutorial. The study also noted redundant menus + icon toolbars causing confusion.
+
+#### Epics & Stories
+
+**Epic 11.1 — In-App Tutorial** `FE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 11.1.1 | Tutorial overlay component with step-by-step guide | 4 | Modal with "Next" / "Previous" / "Skip" buttons |
+| 11.1.2 | Tutorial step 1: Search panel introduction | 2 | Highlights chemical + location fields |
+| 11.1.3 | Tutorial step 2: Map interaction basics | 2 | Highlights zoom controls + marker click |
+| 11.1.4 | Tutorial step 3: Results table usage | 2 | Highlights facility selection + detail drawer |
+| 11.1.5 | Tutorial step 4: Layer toggles | 2 | Highlights TRI/Superfund/Demographics toggles |
+| 11.1.6 | "Show tutorial again" link in footer or help menu | 1 | Tutorial can be restarted anytime |
+| 11.1.7 | LocalStorage flag: don't show tutorial after first completion | 1 | `toxmap_tutorial_completed` flag |
+
+**Epic 11.2 — Toolbar Consolidation** `FE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 11.2.1 | Audit current navigation: remove redundant text menus | 2 | Single navigation mechanism (labeled icons) |
+| 11.2.2 | Add icon labels below or on hover | 2 | All toolbar icons have accessible labels |
+| 11.2.3 | Keyboard navigation for toolbar | 2 | Tab through icons; Enter activates |
+
+**Epic 11.3 — QA & Testing** `QA`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 11.3.1 | Gherkin scenario: T-13 "First-time user completes tutorial" | 3 | E2E test walks through tutorial |
+| 11.3.2 | Accessibility audit: toolbar keyboard navigation | 2 | WCAG 2.1 AA compliance for toolbar |
+
+**Phase 11 Definition of Done:**
+- [ ] Tutorial appears for first-time users
+- [ ] Tutorial can be skipped and restarted
+- [ ] Toolbar has single navigation mechanism
+- [ ] T-13 Gherkin scenario passes
+- [ ] **Milestone M11 — Onboarding & UX Polish**
+
+---
+
+### Phase 12 — Canadian NPRI (Post-MVP)
+**Goal:** Canadian National Pollutant Release Inventory facility layer (F-25).  
+**Duration:** ~1.5 weeks  
+**Team:** DE (lead), BE, FE, QA supports
+
+> **Background:** NLM's 2013 TOXMAP redesign included Canadian NPRI data. This extends coverage beyond US borders for researchers studying cross-border pollution patterns.
+
+#### Epics & Stories
+
+**Epic 12.1 — NPRI Data Ingestion** `DE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 12.1.1 | Create `npri_facilities` table schema | 2 | Columns: `npri_id`, `name`, `address`, `city`, `province`, `postal_code`, `location`, `naics_code` |
+| 12.1.2 | `npri_ingest.py`: parse NPRI CSV from Environment Canada | 4 | All reporting facilities ingested |
+| 12.1.3 | Create `npri_releases` table for release events | 2 | Links to chemicals table |
+| 12.1.4 | Seed data: add 2 Canadian facility test records | 1 | Facilities in ON, AB for test coverage |
+| 12.1.5 | `build_parquet.py`: create `npri_YEAR.parquet` | 2 | Parquet file generated |
+
+**Epic 12.2 — NPRI API** `BE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 12.2.1 | `GET /api/v1/npri`: list NPRI facilities within radius | 3 | Returns GeoJSON FeatureCollection |
+| 12.2.2 | `GET /api/v1/npri/browse`: all NPRI facilities | 2 | Browse mode for NPRI layer |
+| 12.2.3 | Filter by chemical, year, province | 2 | Same filter patterns as TRI |
+
+**Epic 12.3 — NPRI Layer UI** `FE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 12.3.1 | Add "Canadian NPRI" toggle in Map Contents panel | 2 | Checkbox in TRI Layers section |
+| 12.3.2 | NPRI markers: maple leaf or distinct icon | 3 | Distinguishable from US TRI markers |
+| 12.3.3 | NPRI facility drawer: release details | 2 | Same format as TRI drawer |
+| 12.3.4 | Map extends to show Canada when NPRI toggled | 2 | Viewport includes southern Canada |
+| 12.3.5 | DuckDB WASM: `useNPRIFacilities` hook | 3 | Production mode queries NPRI parquet |
+
+**Epic 12.4 — QA & Testing** `QA`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 12.4.1 | Gherkin scenario: T-14 "Find NPRI facilities in Ontario" | 3 | API + E2E scenarios pass |
+| 12.4.2 | Cross-border search: US + Canada results combined | 2 | Radius search near Detroit shows both |
+
+**Phase 12 Definition of Done:**
+- [ ] NPRI facilities visible on map when toggled
+- [ ] Province filter works for NPRI
+- [ ] T-14 Gherkin scenario passes
+- [ ] **Milestone M12 — Canadian NPRI**
+
+---
+
+### Phase 13 — Nuclear Power Plants (Post-MVP)
+**Goal:** US commercial nuclear facility location overlay (F-26).  
+**Duration:** ~1 week  
+**Team:** DE (lead), BE, FE, QA supports
+
+> **Background:** NLM's 2013 TOXMAP redesign included nuclear power plant locations. This provides context for radioactive material releases and proximity analysis.
+
+#### Epics & Stories
+
+**Epic 13.1 — Nuclear Data Ingestion** `DE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 13.1.1 | Create `nuclear_plants` table schema | 2 | Columns: `plant_id`, `name`, `operator`, `city`, `state_code`, `location`, `reactor_count`, `status` |
+| 13.1.2 | `nuclear_ingest.py`: parse NRC plant list | 2 | All ~100 commercial plants ingested |
+| 13.1.3 | Seed data: add 2 nuclear plant test records | 1 | Plants in PA, CA for test coverage |
+| 13.1.4 | `build_parquet.py`: create `nuclear_plants.parquet` | 1 | Parquet file generated |
+
+**Epic 13.2 — Nuclear API** `BE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 13.2.1 | `GET /api/v1/nuclear`: list plants within radius | 2 | Returns GeoJSON FeatureCollection |
+| 13.2.2 | `GET /api/v1/nuclear/browse`: all plants | 1 | Browse mode for nuclear layer |
+
+**Epic 13.3 — Nuclear Layer UI** `FE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 13.3.1 | Add "Nuclear Power Plants" toggle in Map Contents panel | 2 | Checkbox in new "Infrastructure" section |
+| 13.3.2 | Nuclear markers: radiation symbol or distinct icon | 2 | Yellow/black distinguishable icon |
+| 13.3.3 | Nuclear popup: plant name, operator, reactor count | 1 | Popup on marker click |
+| 13.3.4 | DuckDB WASM: `useNuclearPlants` hook | 2 | Production mode queries parquet |
+
+**Epic 13.4 — QA & Testing** `QA`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 13.4.1 | Gherkin scenario: T-15 "Find nuclear plants near Philadelphia" | 2 | API + E2E scenarios pass |
+
+**Phase 13 Definition of Done:**
+- [ ] Nuclear plants visible on map when toggled
+- [ ] Popup shows plant details
+- [ ] T-15 Gherkin scenario passes
+- [ ] **Milestone M13 — Nuclear Power Plants**
+
+---
+
+### Phase 14 — Congressional Districts (Post-MVP)
+**Goal:** Congressional district boundary overlay for political context (F-27).  
+**Duration:** ~1 week  
+**Team:** DE (lead), BE, FE, QA supports
+
+> **Background:** NLM's 2013 TOXMAP redesign included congressional district boundaries. This enables users to identify their representative for advocacy purposes.
+
+#### Epics & Stories
+
+**Epic 14.1 — District Data Ingestion** `DE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 14.1.1 | Create `congressional_districts` table schema | 2 | Columns: `district_id`, `state_code`, `district_number`, `representative`, `party`, `boundary` (geometry) |
+| 14.1.2 | `districts_ingest.py`: parse Census TIGER congressional district shapefiles | 3 | All 435 districts + territories ingested |
+| 14.1.3 | Seed data: add VA-07, TX-29 district test records | 1 | Districts with test facilities inside |
+| 14.1.4 | `build_parquet.py`: create `districts.parquet` with geometries | 2 | GeoParquet file generated |
+
+**Epic 14.2 — Districts API** `BE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 14.2.1 | `GET /api/v1/districts`: list districts intersecting bbox | 2 | Returns GeoJSON FeatureCollection |
+| 14.2.2 | `GET /api/v1/districts/{state}`: districts for a state | 2 | Filter by state code |
+
+**Epic 14.3 — Districts Layer UI** `FE`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 14.3.1 | Add "Congressional Districts" toggle in Map Contents panel | 2 | Checkbox in Demographics section |
+| 14.3.2 | District boundary polygons: outline style (not filled) | 3 | Dashed or solid outline, labeled with district number |
+| 14.3.3 | District popup: representative name, party, contact link | 2 | Popup on polygon click |
+| 14.3.4 | DuckDB WASM: `useDistricts` hook with spatial queries | 3 | Production mode queries GeoParquet |
+
+**Epic 14.4 — QA & Testing** `QA`
+
+| Story | Description | Points | Acceptance Criteria |
+|-------|-------------|--------|---------------------|
+| 14.4.1 | Gherkin scenario: T-16 "View congressional district for a TRI facility" | 3 | E2E: click facility → see district overlay |
+| 14.4.2 | Performance: district polygons don't slow map | 1 | Viewport render < 500ms with districts on |
+
+**Phase 14 Definition of Done:**
+- [ ] Congressional district boundaries visible on map when toggled
+- [ ] Popup shows representative info
+- [ ] T-16 Gherkin scenario passes
+- [ ] **Milestone M14 — Congressional Districts**
+
+---
+
 ## 6. Testing Strategy & Cadence
 
 | Phase | QA Activity | Target Coverage |
@@ -739,6 +1039,12 @@ These are locked before development starts. Any deviation requires a new ADR.
 | 6 | Bug bash; all Gherkin scenarios + performance SLAs (`pytest tests/features/ --tb=short` exits 0) | Full coverage |
 | 7 | Production smoke suite against Cloudflare URL | Deploy validation |
 | 8 | T-10 tribal scenario; regression tests for state filter | Tribal lands filter |
+| 9 | T-11 multi-chemical scenario; single-chemical regression | Multi-chemical search |
+| 10 | T-12 monitoring sites scenario; visual regression | EPA monitoring overlay |
+| 11 | T-13 onboarding scenario; accessibility audit | Tutorial + toolbar |
+| 12 | T-14 NPRI scenario; cross-border search | Canadian NPRI layer |
+| 13 | T-15 nuclear plants scenario | Nuclear overlay |
+| 14 | T-16 congressional districts scenario; performance | Districts overlay |
 
 **Test Execution Commands (Reference):**
 
@@ -817,12 +1123,19 @@ A story is **Done** when:
 | Phase 6 — Full QA | 5 | 5 | 0 | 26 | 0 | 15 | **51** |
 | Phase 7 — Production | 0 | 22 | 5 | 6 | 10 | 8 | **51** |
 | Phase 8 — Tribal Lands | 3 | 7 | 6 | 4 | 0 | 0 | **20** |
-| **Total** | **66** | **133** | **44** | **85** | **25** | **45** | **398** |
+| Phase 9 — Multi-Chemical | 8 | 15 | 0 | 4 | 0 | 0 | **27** |
+| Phase 10 — EPA Monitoring | 7 | 11 | 8 | 4 | 0 | 0 | **30** |
+| Phase 11 — Onboarding/UX | 0 | 20 | 0 | 5 | 0 | 0 | **25** |
+| Phase 12 — Canadian NPRI | 7 | 12 | 11 | 5 | 0 | 0 | **35** |
+| Phase 13 — Nuclear Plants | 3 | 7 | 6 | 2 | 0 | 0 | **18** |
+| Phase 14 — Congressional | 4 | 10 | 8 | 4 | 0 | 0 | **26** |
+| **Total** | **91** | **204** | **77** | **109** | **25** | **45** | **559** |
 
-> At a team velocity of ~20 points/week (2 devs), this is approximately **20 weeks** to MVP + tribal lands.  
-> At 30 points/week (3 devs), approximately **13 weeks**.
+> At a team velocity of ~20 points/week (2 devs), this is approximately **28 weeks** for full feature set.  
+> At 30 points/week (3 devs), approximately **19 weeks**.
 > 
-> **Note:** Phase 8 (Tribal Lands) is a post-MVP enhancement. MVP ships at Phase 7 (~378 points).
+> **Note:** Phases 8–14 are post-MVP enhancements. MVP ships at Phase 7 (~378 points).
+> Post-MVP features (F-21 through F-27) add ~181 points across Phases 8–14.
 
 ---
 

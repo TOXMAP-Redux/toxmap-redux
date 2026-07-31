@@ -214,19 +214,21 @@ when at least one layer (TRI or Superfund) is active.
 *TRI Release Tiers* (4 rows, shown when TRI layer active):
 | Swatch | Label |
 |--------|-------|
-| `#22c55e` circle | < 1,000 lbs |
-| `#f59e0b` circle | 1,000 – 9,999 lbs |
-| `#ef4444`-outline circle (orange in API: `#f97316`) | 10,000 – 99,999 lbs |
-| `#ef4444` circle | ≥ 100,000 lbs |
+| `#1B5E20` circle (deep forest green) | < 1,000 lbs |
+| `#FBC02D` circle (true yellow) | 1,000 – 9,999 lbs |
+| `#E65100` circle (burnt orange) | 10,000 – 99,999 lbs |
+| `#7F0000` circle (dark maroon) | ≥ 100,000 lbs |
 
 > Note: the `assign_color_band()` thresholds (from `backend/app/schemas/facility.py`) are:
 > green < 1,000 · yellow 1,000–9,999 · orange 10,000–99,999 · red ≥ 100,000.
-> Use those exact hex codes from the Marker Icon Design Reference table.
+> The hex codes follow a stoplight gradient with deeper saturation for visibility.
 
-*Superfund* (1 row, shown when Superfund layer active):
+*Superfund NPL Status* (3 rows, shown when Superfund layer active):
 | Swatch | Label |
 |--------|-------|
-| `#ef4444` diamond SVG | Superfund NPL site |
+| `#b91c1c` solid square | NPL (Final) |
+| `#b91c1c` half-shaded square | Proposed |
+| `#b91c1c` outline + X | Deleted |
 
 Invariant 6 Playwright test does NOT assert the legend — it asserts marker shape/color
 directly. The legend is still required for story 4.3.1's AC.

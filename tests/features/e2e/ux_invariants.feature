@@ -146,11 +146,22 @@ Feature: UX Design Invariants
     When I toggle the TRI layer on
     Then the TRI layer is visible on the map
 
-  # ── Invariant 10 (Phase 5 — Demographics) ────────────────────────────────
-  @skip
-  Scenario: Invariant 10 — Co-occurrence disclaimer on mortality tab only
-    Given I open the TOXMAP application
-    Then a demographics invariant stub exists
+  # ── UCD-17: Superfund 3-Way Status Symbols (DEF-001 fix) ─────────────────
+  # Regression test for: DEF-001 Superfund status symbols missing 3-way distinction
+  # Original TOXMAP used: filled square (NPL Final), diamond (Proposed), X-square (Deleted)
+  # Seed data includes all 3 status types: NPL, Proposed, Deleted
+  # This test ensures the legend shows all 3 distinct status symbols.
+
+  Scenario: UCD-17 — Legend shows 3 distinct Superfund status symbols
+    Given I am on the map page
+    Then the Superfund layer toggle is present
+    And the Superfund legend shows "NPL (Final)" entry with a square icon
+    And the Superfund legend shows "Proposed" entry with a diamond icon
+    And the Superfund legend shows "Deleted" entry with an X-square icon
+
+  Scenario: UCD-17 — All 3 Superfund status types present in seed data
+    Given I am on the map page
+    Then the Superfund in-view count is greater than or equal to 4
 
   # ── Regression: Both Dataset Option (Fig 2015-4) ─────────────────────────
   # Regression test for: "Both" option missing in dataset selector
@@ -232,3 +243,62 @@ Feature: UX Design Invariants
     And I click "Search"
     Then the map is centered in the United States
 
+  # ── Regression: Results Count Stability (7.BUG.1) ────────────────────────
+  # Regression test for: results count changed from 6→7 when scrolling map.
+  # Root cause: triSearchResults used viewport-filtered facilities.
+  # Fix: Always use triAllResults (API radius constraint is sufficient).
+
+  Scenario: Regression — Results count remains stable when scrolling map
+    Given I am on the map page
+    When I type "Sparrows Point, MD" into the location field
+    And I click "Search"
+    Then the results table shows a count
+    When I scroll the map
+    Then the results count remains unchanged
+
+  # ── Regression: TRI Hover Tooltip (7.BUG.2, 7.BUG.3) ─────────────────────
+  # Regression test for: hovering TRI result did not show tooltip on map.
+  # Fix: Added Popup component for highlighted facilities.
+
+  Scenario: Regression — Hovering TRI result shows tooltip on map
+    Given I am on the map page
+    When I type "Sparrows Point, MD" into the location field
+    And I click "Search"
+    And I hover over the first TRI result row
+    Then a tooltip popup appears on the map
+
+  Scenario: Regression — Hovering selected TRI facility does not show duplicate popup
+    Given I am on the map page
+    When I type "Sparrows Point, MD" into the location field
+    And I click "Search"
+    And I click on the first TRI result row
+    Then the TRI facility detail drawer opens
+    When I hover over the first TRI result row
+    Then only one popup is visible on the map
+
+  # ── Regression: Superfund Hover Parity (7.BUG.4) ─────────────────────────
+  # Regression test for: Superfund results did not zoom/tooltip like TRI.
+  # Fix: Added Superfund-specific zoom useEffect and Popup component.
+
+  Scenario: Regression — Hovering Superfund result zooms map and shows tooltip
+    Given I am on the map page
+    When I select the "Superfund" dataset
+    And I type "Front Royal, VA" into the location field
+    And I click "Search"
+    And I hover over "AVTEX FIBERS INC" in the Superfund results
+    Then the map zooms to the Superfund site
+    And a tooltip popup appears on the map
+
+  # ── Regression: Progressive TRI Circle Sizing (7.BUG.5) ──────────────────
+  # Regression test for: all TRI circles were same size regardless of tier.
+  # Fix: circle-radius now varies by color_band (red=full, green=smallest).
+
+  Scenario: Regression — TRI circles have progressive sizing by release tier
+    Given I am on the map page
+    Then the TRI layer is visible on the map
+    And red tier circles are larger than green tier circles
+
+  Scenario: Regression — TRI legend shows proportional circle sizes
+    Given I am on the map page
+    Then the TRI legend shows smallest circle for "< 1,000 lbs" tier
+    And the TRI legend shows largest circle for "≥ 100,000 lbs" tier

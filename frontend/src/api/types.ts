@@ -93,7 +93,7 @@ export interface SuperfundProperties {
   name: string
   city: string
   state_code: string
-  status: 'NPL' | 'CERCLIS' | 'Deleted'
+  status: 'NPL' | 'Proposed' | 'Deleted'
   hrs_score: number | null
   npl_date: string | null
   /** Summary contaminant names array (for list display in non-detail context) */
@@ -141,7 +141,7 @@ export interface SuperfundDetail {
   state_code: string
   zip_code: string | null
   county: string | null
-  status: 'NPL' | 'CERCLIS' | 'Deleted'
+  status: 'NPL' | 'Proposed' | 'Deleted'
   hrs_score: number | null
   npl_date: string | null
   contaminants: SuperfundContaminant[]

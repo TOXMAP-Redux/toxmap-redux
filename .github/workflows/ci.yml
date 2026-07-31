@@ -266,21 +266,31 @@ jobs:
         working-directory: backend
 
       - name: Install Playwright browsers
-        run: playwright install --with-deps chromium
+        run: playwright install --with-deps chromium firefox
         working-directory: backend
 
-      - name: Run UX invariant E2E tests (Phase 3: Invariants 1–4, 7–9)
+      - name: Run UX invariant E2E tests (Chromium)
         run: |
           pytest tests/features/e2e/ux_invariants.feature -v --tb=short \
-            --junitxml=reports/e2e-invariants.xml
+            --browser chromium \
+            --junitxml=reports/e2e-invariants-chromium.xml
         env:
           DATABASE_URL_SYNC: postgresql+psycopg2://postgres:postgres@localhost:5432/toxmap
 
-      - name: Run UCD task scenario E2E tests (Phase 3: T-01, T-03, T-08)
+      - name: Run UCD task scenario E2E tests (Chromium)
         run: |
           pytest tests/features/e2e/ucd_task_scenarios.feature -v --tb=short \
-            -k "T-01 or T-03 or T-08" \
-            --junitxml=reports/e2e-ucd.xml
+            --browser chromium \
+            --junitxml=reports/e2e-ucd-chromium.xml
+        env:
+          DATABASE_URL_SYNC: postgresql+psycopg2://postgres:postgres@localhost:5432/toxmap
+
+      - name: Run E2E smoke tests (Firefox)
+        run: |
+          pytest tests/features/e2e/ -v --tb=short \
+            --browser firefox \
+            -k "T-01 or Invariant_1" \
+            --junitxml=reports/e2e-smoke-firefox.xml
         env:
           DATABASE_URL_SYNC: postgresql+psycopg2://postgres:postgres@localhost:5432/toxmap
 
@@ -290,8 +300,9 @@ jobs:
         with:
           name: e2e-test-results
           path: |
-            reports/e2e-invariants.xml
-            reports/e2e-ucd.xml
+            reports/e2e-invariants-chromium.xml
+            reports/e2e-ucd-chromium.xml
+            reports/e2e-smoke-firefox.xml
           if-no-files-found: ignore
 
       - name: Tear down stack

@@ -24,6 +24,7 @@ class DemographicsFeatureProperties(BaseModel):
     fips_code: str
     name: str
     state_code: str | None = None
+    state_fips: str | None = None  # First 2 digits of fips_code (e.g. "51" for Virginia)
     census_year: int
     total_pop: int | None = None
     median_income: float | None = None

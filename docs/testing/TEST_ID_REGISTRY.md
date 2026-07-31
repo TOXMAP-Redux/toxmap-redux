@@ -83,6 +83,13 @@
 | `superfund-contaminant-link`  | ATSDR `<a>` per contaminant (rendered when `atsdr_url` non-null) | T-04 ATSDR link per contaminant |
 | `superfund-epa-progress-link` | EPA progress profile `<a>` | T-04 — `"link to the EPA site progress profile"` |
 | `superfund-hrs-score`         | HRS score badge            | HRS score assertion                              |
+| `superfund-legend`            | Superfund legend container (UCD-17 3-way status) | `"the Superfund legend shows..."` |
+| `superfund-legend-npl-final`  | NPL Final legend entry (square icon) | UCD-17 — `"NPL (Final)" entry with a square icon` |
+| `superfund-legend-proposed`   | Proposed legend entry (diamond icon) | UCD-17 — `"Proposed" entry with a diamond icon` |
+| `superfund-legend-deleted`    | Deleted legend entry (X-square icon) | UCD-17 — `"Deleted" entry with an X-square icon` |
+| `superfund-icon-square`       | Square SVG icon (NPL Final) | UCD-17 shape assertion |
+| `superfund-icon-diamond`      | Diamond SVG icon (Proposed) | UCD-17 shape assertion |
+| `superfund-icon-xsquare`      | X-Square SVG icon (Deleted) | UCD-17 shape assertion |
 
 ---
 

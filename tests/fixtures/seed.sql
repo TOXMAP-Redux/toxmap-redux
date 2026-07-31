@@ -28,7 +28,8 @@ DELETE FROM release_events WHERE facility_id IN (
     '70663ENTGR0001',  -- Enterprise Gas
     '77536EXXO00001',  -- ExxonMobil
     '77536LYND00001',  -- LyondellBasell
-    '99501ANCHO0001'   -- Alaska Mining (CONUS filter test)
+    '99501ANCHO0001',  -- Alaska Mining (CONUS filter test)
+    '22630SMRLG0001'   -- Small Release Facility (green tier test)
   )
 );
 
@@ -41,13 +42,16 @@ DELETE FROM facilities WHERE tri_facility_id IN (
   '70663ENTGR0001',
   '77536EXXO00001',
   '77536LYND00001',
-  '99501ANCHO0001'
+  '99501ANCHO0001',
+  '22630SMRLG0001'
 );
 
--- Seed Superfund sites
+-- Seed Superfund sites (UCD-17: all 3 status types for symbol regression tests)
 DELETE FROM superfund_sites WHERE epa_id IN (
-  'VAD070358684',  -- AVTEX FIBERS INC
-  'VAD980554587'   -- ARLINGTON SCRAP YARD
+  'VAD070358684',  -- AVTEX FIBERS INC (NPL Final)
+  'VAD980554587',  -- ARLINGTON SCRAP YARD (NPL Final)
+  'VAD987654321',  -- TEST PROPOSED SITE (Proposed)
+  'VAD123456789'   -- TEST DELETED SITE (Deleted)
 );
 
 -- Seed census counties
@@ -66,7 +70,7 @@ DELETE FROM chemicals WHERE id IN (1, 2, 3, 4, 5, 6)
     AND f.tri_facility_id NOT IN (
       '21219BTHLS3RD', '89319BHPCP7MILE', '22630FRTRY0001',
       '29801DSTLR0001', '70663ENTGR0001', '77536EXXO00001', '77536LYND00001',
-      '99501ANCHO0001'
+      '99501ANCHO0001', '22630SMRLG0001'
     )
   );
 
@@ -94,7 +98,8 @@ INSERT INTO facilities (id, tri_facility_id, name, address, city, state_code, zi
   (5, '70663ENTGR0001',  'ENTERPRISE GAS PROCESSING LLC',         '4500 ENTERPRISE BLVD',         'SULPHUR',        'LA', '70663', 'CALCASIEU',  '486210', 'Pipeline Transportation of Natural Gas',  ST_GeomFromText('POINT(-93.2044 30.1944)', 4326)),
   (6, '77536EXXO00001',  'EXXONMOBIL CHEMICAL PLANT',             '5200 BAYWAY DR',               'BAYTOWN',        'TX', '77536', 'HARRIS',     '324110', 'Petroleum Refineries',                    ST_GeomFromText('POINT(-95.0215 29.7424)', 4326)),
   (7, '77536LYND00001',  'LYONDELLBASELL REFINERY',               '12000 LAWNDALE ST',            'HOUSTON',        'TX', '77536', 'HARRIS',     '324110', 'Petroleum Refineries',                    ST_GeomFromText('POINT(-95.2100 29.7380)', 4326)),
-  (8, '99501ANCHO0001',  'ALASKA MINING CO',                      '100 NORTHERN BLVD',            'ANCHORAGE',      'AK', '99501', 'ANCHORAGE',  '212234', 'Copper Ore and Nickel Ore Mining',        ST_GeomFromText('POINT(-149.9003 61.2181)', 4326));
+  (8, '99501ANCHO0001',  'ALASKA MINING CO',                      '100 NORTHERN BLVD',            'ANCHORAGE',      'AK', '99501', 'ANCHORAGE',  '212234', 'Copper Ore and Nickel Ore Mining',        ST_GeomFromText('POINT(-149.9003 61.2181)', 4326)),
+  (9, '22630SMRLG0001',  'SMALL RELEASE FACILITY',                '200 GREEN TIER WAY',           'FRONT ROYAL',    'VA', '22630', 'WARREN',     '325199', 'All Other Basic Organic Chemical Mfg',    ST_GeomFromText('POINT(-78.1900 38.9150)', 4326));
 
 -- 3. Release events
 INSERT INTO release_events (facility_id, chemical_id, reporting_year, total_release_lbs, air_release_lbs, water_release_lbs, land_release_lbs, underground_release_lbs, unit_of_measure, form_type) VALUES
@@ -112,12 +117,16 @@ INSERT INTO release_events (facility_id, chemical_id, reporting_year, total_rele
   (6, 5, 2007, 31200.0, 30000.0,   800.0,  400.0,    0.0, 'Pounds', 'R'),
   (6, 5, 2006, 35600.0, 34100.0,  1000.0,  500.0,    0.0, 'Pounds', 'R'),
   (7, 5, 2008, 19750.0, 18900.0,     0.0,  850.0,    0.0, 'Pounds', 'R'),
-  (8, 2, 2008,  3500.0,     0.0,     0.0, 3500.0,    0.0, 'Pounds', 'R');
+  (8, 2, 2008,  3500.0,     0.0,     0.0, 3500.0,    0.0, 'Pounds', 'R'),
+  (9, 6, 2008,   450.0,   400.0,    50.0,    0.0,    0.0, 'Pounds', 'R');
 
--- 4. Superfund sites
+-- 4. Superfund sites (UCD-17: all 3 status types for symbol regression tests)
+-- NPL = Final (filled red square), Proposed = pending NPL (red diamond), Deleted = removed from NPL (gray X-square)
 INSERT INTO superfund_sites (id, epa_id, name, address, city, state_code, zip_code, county, status, hrs_score, npl_date, epa_progress_url, contaminants, location) VALUES
-  (1, 'VAD070358684', 'AVTEX FIBERS INC',     'BOX 1169 KENDRICK LN', 'FRONT ROYAL', 'VA', '22630', 'WARREN',    'NPL', 50.51, '1983-09-08', 'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=0302388', ARRAY['STYRENE','CARBON DISULFIDE','ZINC'],  ST_GeomFromText('POINT(-78.1942 38.9179)', 4326)),
-  (2, 'VAD980554587', 'ARLINGTON SCRAP YARD', '4200 LEE HWY',         'ARLINGTON',   'VA', '22204', 'ARLINGTON', 'NPL', 28.74, '1989-02-21', 'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=0304032', ARRAY['LEAD COMPOUNDS','CADMIUM'],           ST_GeomFromText('POINT(-77.1089 38.8823)', 4326));
+  (1, 'VAD070358684', 'AVTEX FIBERS INC',     'BOX 1169 KENDRICK LN', 'FRONT ROYAL', 'VA', '22630', 'WARREN',    'NPL',      50.51, '1983-09-08', 'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=0302388', ARRAY['STYRENE','CARBON DISULFIDE','ZINC'],  ST_GeomFromText('POINT(-78.1942 38.9179)', 4326)),
+  (2, 'VAD980554587', 'ARLINGTON SCRAP YARD', '4200 LEE HWY',         'ARLINGTON',   'VA', '22204', 'ARLINGTON', 'NPL',      28.74, '1989-02-21', 'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=0304032', ARRAY['LEAD COMPOUNDS','CADMIUM'],           ST_GeomFromText('POINT(-77.1089 38.8823)', 4326)),
+  (3, 'VAD987654321', 'TEST PROPOSED SITE',   '100 PROPOSED WAY',     'RICHMOND',    'VA', '23220', 'RICHMOND',  'Proposed', 32.50, NULL,         NULL,                                                                                            ARRAY['BENZENE','TOLUENE'],                  ST_GeomFromText('POINT(-77.4360 37.5407)', 4326)),
+  (4, 'VAD123456789', 'TEST DELETED SITE',    '200 CLEANUP COMPLETE', 'NORFOLK',     'VA', '23510', 'NORFOLK',   'Deleted',  45.00, '1985-06-10', 'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=0300001', ARRAY['ARSENIC','MERCURY'],                  ST_GeomFromText('POINT(-76.2859 36.8508)', 4326));
 
 -- 5. Census county demographics
 INSERT INTO census_county (id, fips_code, name, state_code, census_year, total_pop, median_income, pct_under_18, pct_over_65, pct_nonwhite, cancer_mortality_female_per_100k, cancer_mortality_male_per_100k, heart_disease_mortality_per_100k, boundary) VALUES

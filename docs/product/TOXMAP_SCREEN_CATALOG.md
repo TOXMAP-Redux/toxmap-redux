@@ -508,15 +508,31 @@ Based on Fig 9 (Superfund map) and Fig 1/5 (TRI maps):
 
 | Site Type | Original Shape | Original Color | Clone Target |
 |-----------|----------------|----------------|--------------|
-| TRI Facility (small release) | Circle | Green | `#22c55e` circle |
-| TRI Facility (medium release) | Circle | Yellow/Orange | `#f59e0b` circle |
-| TRI Facility (large release) | Circle | Red | `#ef4444` circle |
-| Superfund / NPL | Diamond | Red | `#ef4444` diamond (SVG) |
+| TRI Facility (< 1k lbs) | Circle | Green | `#1B5E20` circle (deep forest green) |
+| TRI Facility (1k–10k lbs) | Circle | Yellow | `#FBC02D` circle (true yellow) |
+| TRI Facility (10k–100k lbs) | Circle | Orange | `#E65100` circle (burnt orange) |
+| TRI Facility (≥100k lbs) | Circle | Red | `#7F0000` circle (dark maroon) |
+| Superfund / NPL Final | Square | Red | `#b91c1c` solid square |
+| Superfund / NPL Proposed | Square (half-shaded) | Red | `#b91c1c` half-shaded square |
+| Superfund / NPL Deleted | Square with X | Red | `#b91c1c` outline + X |
 | Nuclear Plant | ☢ symbol | — | `#f97316` atom icon |
 | Canadian NPRI | Circle | Purple | `#a855f7` circle |
 | Hospital (optional) | H-cross | Blue | `#3b82f6` (distinct from red Superfund) |
 
 > **⚠️ UCD 2011 §"Hospital Icons"**: Red cross for hospitals was confused with red Superfund diamonds. The clone must use **blue** for hospitals and reserve red exclusively for hazard markers.
+
+### Progressive TRI Circle Sizing (7.BUG.5)
+
+TRI circles use **progressive sizing by release tier** to reduce visual clutter when zoomed out while maintaining prominence for high-release facilities:
+
+| Release Tier | Color Band | Size Multiplier | Legend Size |
+|--------------|------------|-----------------|-------------|
+| < 1,000 lbs | Green | 0.50× | 6px |
+| 1,000 – 9,999 lbs | Yellow | 0.67× | 8px |
+| 10,000 – 99,999 lbs | Orange | 0.83× | 10px |
+| ≥ 100,000 lbs | Red | 1.00× (full) | 12px |
+
+**Implementation:** MapLibre `circle-radius` uses nested `match` expressions within `interpolate` zoom stops. At each zoom level (3→16), the radius is multiplied by the tier factor. The legend mirrors this with proportional circle sizes.
 
 ---
 

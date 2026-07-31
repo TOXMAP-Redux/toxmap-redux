@@ -1,6 +1,14 @@
 /**
  * ZoomNotice — story 5.2.2.
- * Shows "Zoom out to see more counties" when zoom > 8.
+ * UCD-10: "County data unclear when zoomed in → Add zoom-out hint"
+ *
+ * From UCD 2011 Fig 17: Users zoomed in closely saw only one color (a single
+ * county filling the viewport) and didn't understand why the layer wasn't
+ * showing variation. They needed prompting to zoom out to see county-level
+ * context.
+ *
+ * Shows "Demographic data is at the county level. Zoom out to see more counties."
+ * when zoom > 8 (roughly street-level, where only 1-2 counties are visible).
  */
 
 interface ZoomNoticeProps {
@@ -10,10 +18,16 @@ interface ZoomNoticeProps {
   isLayerActive: boolean
 }
 
+/**
+ * Zoom threshold: at zoom > 8, most US viewports show only 1-2 counties.
+ * UCD 2011 Fig 17 showed users at "2 km / 1 mi" scale (zoom ~12-13) seeing
+ * solid color across the viewport. We show the notice earlier (zoom > 8) to
+ * proactively guide users before they hit the single-county edge case.
+ */
 const ZOOM_THRESHOLD = 8
 
 /**
- * Notice displayed when zoomed in too far to see county-level context.
+ * Notice displayed when zoomed in too far to see county-level context (UCD-10).
  */
 export function ZoomNotice({ zoom, isLayerActive }: ZoomNoticeProps): JSX.Element | null {
   if (!isLayerActive || zoom <= ZOOM_THRESHOLD) {
@@ -22,6 +36,7 @@ export function ZoomNotice({ zoom, isLayerActive }: ZoomNoticeProps): JSX.Elemen
 
   return (
     <div
+      data-testid="demographic-zoom-notice"
       style={{
         position: 'absolute',
         top: '80px',
@@ -37,7 +52,7 @@ export function ZoomNotice({ zoom, isLayerActive }: ZoomNoticeProps): JSX.Elemen
         pointerEvents: 'none',
       }}
     >
-      Zoom out to see more counties
+      Demographic data is at the county level. Zoom out to see more counties.
     </div>
   )
 }

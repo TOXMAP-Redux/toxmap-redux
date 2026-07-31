@@ -101,7 +101,6 @@ Feature: UCD 2011 Task Scenarios
   # Full spec: TOXMAP_ACCEPTANCE_TESTS.md Feature 7 §T-07
   # Note: T-07 is verified at API layer; E2E is optional but available
   # Updated for Option C: state dropdown is now a filter (no checkbox)
-  @skip
   Scenario: T-07 Largest chlorine release in SC and nationwide are both queryable
     Given I am on the map page
     When I search for "CHLORINE" with state filter "SC"

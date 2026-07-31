@@ -1,0 +1,3 @@
+# Placeholder for visual regression baselines.
+# Screenshot baselines are stored here by test_visual_regression.py.
+# Run `pytest tests/visual/ --update-snapshots` to create/update baselines.

@@ -172,16 +172,15 @@ export default function App(): JSX.Element {
 
   // Results table: 
   // - Nationwide search (lat/lon = null): show ALL results (not viewport-filtered)
-  // - Location search: show viewport-filtered results
+  // - Location search: show ALL results within search radius (not viewport-filtered)
+  //   The API already constrains by radius; we don't need additional viewport filtering.
+  //   This prevents flickering when the map bbox changes during scroll or re-render.
   const triSearchResults = useMemo(() => {
     if (submittedSearch?.dataset !== 'tri' && submittedSearch?.dataset !== 'both') return null
-    // Nationwide search: show all results
-    if (submittedSearch.lat === null || submittedSearch.lon === null) {
-      return triAllResults
-    }
-    // Location search: show viewport-filtered results
-    return triViewportFacilities
-  }, [submittedSearch, triAllResults, triViewportFacilities])
+    // Use all results from the search (already filtered by radius on server side)
+    // Nationwide search returns all matching facilities; location search returns within radius.
+    return triAllResults
+  }, [submittedSearch, triAllResults])
 
   // Always-on Superfund layer: fetches ALL sites once (no bbox/radius constraint)
   const { data: superfundViewportSites } = useSuperfundViewport()
@@ -429,6 +428,7 @@ export default function App(): JSX.Element {
         superfundSites={superfundSitesForMap}
         showSuperfundLayer={showSuperfundLayer}
         onSuperfundSiteClick={handleSuperfundSiteClick}
+        selectedSuperfundEpaId={selectedSuperfundEpaId}
         sidebarWidth={sidebarWidth}
         demographics={demographicsData}
         demographicLayer={selectedDemographicLayer}

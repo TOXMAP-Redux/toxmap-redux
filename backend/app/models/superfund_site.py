@@ -27,7 +27,7 @@ class SuperfundSite(Base):
     state_code: Mapped[str | None] = mapped_column(String(2))
     county: Mapped[str | None] = mapped_column(Text)
     zip_code: Mapped[str | None] = mapped_column(String(10))
-    # status: 'NPL', 'CERCLIS', 'Deleted', etc.
+    # status: 'NPL', 'Proposed', 'Deleted', etc.
     status: Mapped[str | None] = mapped_column(Text)
     # hrs_score: Hazard Ranking System score (0-100)
     hrs_score: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))

@@ -8,4 +8,4 @@ Phase coverage:
 from pytest_bdd import scenarios
 from tests.steps.e2e_steps import *  # noqa: F401,F403
 
-scenarios("e2e/ux_invariants.feature")
+scenarios("ux_invariants.feature")

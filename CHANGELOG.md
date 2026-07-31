@@ -14,6 +14,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Milestone M6 — Feature Complete 🎉 (2026-07-31) [agent]
+
+Phase 6 (Full QA Pass) complete. All acceptance criteria verified:
+- API feature tests: 31/31 pass
+- E2E Playwright tests: 41/41 pass
+- Performance benchmarks: 5/5 SLAs pass
+- Security regression tests: 15/15 pass
+- Schemathesis schema conformance: 1604/1604 checks pass
+- Semgrep OWASP-Top-Ten: 0 High/Critical findings
+
+Bug fixes shipped (6.BUG.1–6.BUG.16):
+- Fixed "Both" mode drawer selection (TRI vs Superfund)
+- Fixed US zip code geocoding to Mexico (Photon bias)
+- Simplified state filter UX (Option C)
+- Fixed nationwide chemical search error
+- Fixed Superfund sites missing from nationwide search
+- Added "Continental US" filter option
+- Fixed nationwide search viewport filtering
+- Fixed Superfund markers shown when not relevant
+- Fixed auto-zoom to facility on new search
+- Improved Superfund iconography visibility (3-way NPL status)
+- Added zoom-based marker scaling
+- Added marker opacity for overlapping visibility
+- Updated TRI color scheme (deep stoplight colors)
+- Added green tier seed data for color_band coverage
+- Added color band regression tests
+- Fixed legend consistency
+
+Phase 7 (Production Deploy) commenced.
+
+### Phase 7 Bug Fixes (2026-07-31) [agent]
+
+Bug fixes shipped during pre-production validation (7.BUG.1–7.BUG.6):
+- **7.BUG.1:** Fixed results count flickering — results table now uses API-constrained
+  results (`triAllResults`) instead of viewport-filtered data that changed on scroll
+- **7.BUG.2:** Added TRI hover tooltip — hovering results table row now shows popup
+  on map with facility name
+- **7.BUG.3:** Fixed overlapping popups — hover tooltip skipped when facility is
+  already selected to prevent duplicate popups
+- **7.BUG.4:** Added Superfund hover parity — Superfund results now zoom map and show
+  tooltip on hover, matching TRI behavior
+- **7.BUG.5:** Added progressive TRI circle sizing — circles now sized by release
+  tier (red=100%, orange=83%, yellow=67%, green=50%) to reduce visual clutter
+  when zoomed out; legend updated with proportional circle sizes
+- **7.BUG.6:** Added Superfund contaminants ingestion — integrated EPA SEMS
+  Envirofacts API for bulk contaminant fetching (72,569 records, 88% site coverage)
+
+### Fixed
+
+<!-- Pre-deployment validation (2026-07-31) [agent] -->
+- **CRITICAL:** `superfund_ingest.py` — EPA semspub.epa.gov document source (HQ/100001259)
+  is defunct (301 redirect to error page). Migrated to EPA ArcGIS Feature Service
+  (`FAC_Superfund_Site_Boundaries_EPA_Public`). Now loads 1,816 real NPL sites
+  (Final, Proposed, Deleted) with polygon centroids as point coordinates.
+  (2026-07-31) [agent]
+- **Superfund contaminants data:** Integrated EPA Envirofacts SEMS API
+  (`sems.envirofacts_site` + `sems.envirofacts_contaminants`) to fetch contaminant
+  lists for each NPL site. Bulk query approach retrieves 72,569 contaminant records
+  in <1 minute. 1,594 of 1,816 sites (88%) now have contaminant data with
+  ~21 contaminants per site on average. (2026-07-31) [agent]
+
 ### Added
 
 <!-- Phase 5 — Demographics Overlay (2026-07-29) [agent] -->

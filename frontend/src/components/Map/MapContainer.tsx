@@ -28,6 +28,7 @@ import Map, {
   Layer,
   NavigationControl,
   AttributionControl,
+  Popup,
   type MapRef,
   type ViewState,
   type ViewStateChangeEvent,
@@ -117,6 +118,8 @@ interface MapContainerProps {
   showSuperfundLayer: boolean
   /** Called when the user clicks a Superfund diamond (story 4.2.1) */
   onSuperfundSiteClick: (site: SuperfundFeature) => void
+  /** EPA ID of currently selected Superfund site (for drawer) */
+  selectedSuperfundEpaId?: string | null
   /** Sidebar width in pixels. MapLibre camera padding is set to this value so
    * easeTo/flyTo and popup auto-pan target the usable viewport area. */
   sidebarWidth?: number
@@ -131,13 +134,64 @@ interface MapContainerProps {
  * Full-viewport map with TRI facility markers.
  * Emits onBoundsChange whenever the viewport moves/zooms.
  */
-/** Build diamond SVG as an Image object for MapLibre sprite registration */
-function makeDiamondImage(fill: string, stroke: string): Promise<HTMLImageElement> {
+
+/**
+ * Build square SVG as an Image object for MapLibre sprite registration.
+ * Used for NPL Final sites per UCD-17.
+ */
+function makeSquareImage(fill: string, stroke: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16">
       <rect x="2" y="2" width="12" height="12" rx="1"
-            fill="${fill}" stroke="${stroke}" stroke-width="1.5"
-            transform="rotate(45 8 8)"/>
+            fill="${fill}" stroke="${stroke}" stroke-width="1.5"/>
+    </svg>`
+    const blob = new Blob([svgStr], { type: 'image/svg+xml' })
+    const url = URL.createObjectURL(blob)
+    const img = new Image(16, 16)
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img) }
+    img.onerror = reject
+    img.src = url
+  })
+}
+
+/**
+ * Build half-shaded square SVG for Proposed sites.
+ * Same shape as Final but with diagonal half-fill to indicate pending status.
+ */
+function makeHalfSquareImage(fill: string, stroke: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16">
+      <defs>
+        <clipPath id="halfClip">
+          <polygon points="2,2 14,2 14,14"/>
+        </clipPath>
+      </defs>
+      <rect x="2" y="2" width="12" height="12" rx="1"
+            fill="transparent" stroke="${stroke}" stroke-width="1.5"/>
+      <rect x="2" y="2" width="12" height="12" rx="1"
+            fill="${fill}" clip-path="url(#halfClip)"/>
+    </svg>`
+    const blob = new Blob([svgStr], { type: 'image/svg+xml' })
+    const url = URL.createObjectURL(blob)
+    const img = new Image(16, 16)
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img) }
+    img.onerror = reject
+    img.src = url
+  })
+}
+
+/**
+ * Build square-with-X SVG as an Image object for MapLibre sprite registration.
+ * Used for Deleted NPL sites per UCD-17 (original TOXMAP used crossed-out squares).
+ * Same color scheme as other Superfund icons for consistency.
+ */
+function makeXSquareImage(color: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16">
+      <rect x="2" y="2" width="12" height="12" rx="1"
+            fill="transparent" stroke="${color}" stroke-width="1.5"/>
+      <line x1="4" y1="4" x2="12" y2="12" stroke="${color}" stroke-width="2"/>
+      <line x1="12" y1="4" x2="4" y2="12" stroke="${color}" stroke-width="2"/>
     </svg>`
     const blob = new Blob([svgStr], { type: 'image/svg+xml' })
     const url = URL.createObjectURL(blob)
@@ -160,6 +214,7 @@ export function MapContainer({
   superfundSites,
   showSuperfundLayer,
   onSuperfundSiteClick,
+  selectedSuperfundEpaId = null,
   sidebarWidth = 0,
   demographics,
   demographicLayer,
@@ -170,7 +225,7 @@ export function MapContainer({
   const [mapLoaded, setMapLoaded] = useState(false)
   /** True once TRI source/layers are created — gates setData updates */
   const [triLayersReady, setTriLayersReady] = useState(false)
-  /** True once both SVG diamond sprites are registered — gates the superfund-sites layer */
+  /** True once all Superfund SVG sprites are registered — gates the superfund-sites layer */
   const [spritesReady, setSpritesReady] = useState(false)
 
   // Emit bbox whenever the map stops moving
@@ -196,13 +251,19 @@ export function MapContainer({
     // index when setData() is called on a source created with empty data. The source
     // must be created with actual data present.
 
-    // ── Superfund diamond sprites ──────────────────────────────────────────
+    // ── Superfund status sprites (UCD-17: 3-way distinction) ─────────────────
+    // NPL Final → solid dark red square (no stroke)
+    // Proposed → half-shaded dark red square (diagonal fill)
+    // Deleted → dark red outline square with dark red X
+    const SUPERFUND_COLOR = '#b91c1c' // red-700 for better contrast
     Promise.all([
-      makeDiamondImage('#ef4444', 'white'),   // filled — NPL sites
-      makeDiamondImage('transparent', '#ef4444'), // outline — CERCLIS/Deleted
-    ]).then(([filled, outline]) => {
-      if (!map.hasImage('superfund-diamond-filled')) map.addImage('superfund-diamond-filled', filled)
-      if (!map.hasImage('superfund-diamond-outline')) map.addImage('superfund-diamond-outline', outline)
+      makeSquareImage(SUPERFUND_COLOR, SUPERFUND_COLOR), // NPL Final: solid square
+      makeHalfSquareImage(SUPERFUND_COLOR, SUPERFUND_COLOR), // Proposed: half-shaded
+      makeXSquareImage(SUPERFUND_COLOR),              // Deleted: outline + X
+    ]).then(([nplSquare, proposedDiamond, deletedXSquare]) => {
+      if (!map.hasImage('superfund-npl-final')) map.addImage('superfund-npl-final', nplSquare)
+      if (!map.hasImage('superfund-proposed')) map.addImage('superfund-proposed', proposedDiamond)
+      if (!map.hasImage('superfund-deleted')) map.addImage('superfund-deleted', deletedXSquare)
       setSpritesReady(true)
     }).catch(() => { /* sprite registration failure is non-fatal */ })
   }, [handleMoveEnd])
@@ -290,21 +351,27 @@ export function MapContainer({
       paint: {
         'circle-color': [
           'match', ['get', 'color_band'],
-          'green', '#4CAF50',
-          'yellow', '#FFEB3B',
-          'orange', '#FF9800',
-          'red', '#F44336',
-          '#9E9E9E',
+          'green', '#1B5E20',  // green-900 (deep forest green)
+          'yellow', '#FBC02D', // yellow-700 (true yellow)
+          'orange', '#E65100', // orange-900 (deep burnt orange)
+          'red', '#7F0000',    // dark maroon (very dark red)
+          '#424242',           // gray-800 (fallback)
         ],
         'circle-radius': [
           'interpolate', ['linear'], ['zoom'],
-          4, 4,   // Small at continental zoom
-          8, 6,   // Medium at regional zoom
-          12, 8,  // Larger at city zoom
-          16, 10, // Full size at street zoom
+          // At each zoom level, radius varies by tier: red=full, green=smallest
+          3, ['match', ['get', 'color_band'],
+            'red', 3, 'orange', 2.5, 'yellow', 2, 'green', 1.5, 2],
+          5, ['match', ['get', 'color_band'],
+            'red', 4, 'orange', 3.3, 'yellow', 2.7, 'green', 2, 2.7],
+          8, ['match', ['get', 'color_band'],
+            'red', 6, 'orange', 5, 'yellow', 4, 'green', 3, 4],
+          12, ['match', ['get', 'color_band'],
+            'red', 9, 'orange', 7.5, 'yellow', 6, 'green', 4.5, 6],
+          16, ['match', ['get', 'color_band'],
+            'red', 12, 'orange', 10, 'yellow', 8, 'green', 6, 8],
         ],
-        'circle-stroke-width': 1.5,
-        'circle-stroke-color': '#ffffff',
+        'circle-opacity': 0.8,
       },
     })
 
@@ -324,16 +391,18 @@ export function MapContainer({
     if (!triLayersReady) return
     const map = mapRef.current?.getMap()
     if (!map || !map.getLayer('facility-circles')) return
+    // Show white stroke only on selected/highlighted facilities
     const strokeWidth = (selectedFacilityId || highlightedFacilityId)
       ? ['case',
           ['any',
             ['==', ['get', 'tri_facility_id'], selectedFacilityId ?? ''],
             ['==', ['get', 'tri_facility_id'], highlightedFacilityId ?? ''],
           ],
-          4, 2,
+          3, 0,
         ]
-      : 2
+      : 0
     map.setPaintProperty('facility-circles', 'circle-stroke-width', strokeWidth)
+    map.setPaintProperty('facility-circles', 'circle-stroke-color', '#ffffff')
   }, [selectedFacilityId, highlightedFacilityId, triLayersReady])
 
   // When a popup is about to open, pan right if the marker falls within the
@@ -362,7 +431,7 @@ export function MapContainer({
     }
   }, [selectedFacilityId, facilities, sidebarWidth, mapLoaded])
 
-  // Scroll map to center on selected facility from results table.
+  // Scroll map to center on highlighted TRI facility from results table.
   // With camera padding set, easeTo centers on the usable viewport automatically.
   useEffect(() => {
     if (!highlightedFacilityId || !facilities) return
@@ -373,6 +442,31 @@ export function MapContainer({
     const [lon, lat] = feature.geometry.coordinates
     mapRef.current?.getMap()?.easeTo({ center: [lon, lat], zoom: 12, duration: 500 })
   }, [highlightedFacilityId, facilities])
+
+  // Scroll map to center on highlighted Superfund site from results table.
+  // Uses the same highlightedFacilityId state (can be TRI ID or Superfund EPA ID).
+  useEffect(() => {
+    if (!highlightedFacilityId || !superfundSites) return
+    // Check if the highlighted ID matches a Superfund site (by EPA ID)
+    const feature = superfundSites.features.find(
+      (f) => f.properties.epa_id === highlightedFacilityId,
+    )
+    if (!feature) return
+    const [lon, lat] = feature.geometry.coordinates
+    mapRef.current?.getMap()?.easeTo({ center: [lon, lat], zoom: 12, duration: 500 })
+  }, [highlightedFacilityId, superfundSites])
+
+  // Get the highlighted TRI facility feature for showing the hover tooltip
+  // Don't show hover tooltip if the facility is already selected (has its own popup)
+  const highlightedFeature = highlightedFacilityId && highlightedFacilityId !== selectedFacilityId && facilities
+    ? facilities.features.find((f) => f.properties.tri_facility_id === highlightedFacilityId)
+    : null
+
+  // Get the highlighted Superfund site feature for showing the hover tooltip
+  // Don't show hover tooltip if the site is already selected (has its own drawer)
+  const highlightedSuperfundFeature = highlightedFacilityId && highlightedFacilityId !== selectedSuperfundEpaId && superfundSites
+    ? superfundSites.features.find((f) => f.properties.epa_id === highlightedFacilityId)
+    : null
 
   return (
     <div
@@ -464,17 +558,81 @@ export function MapContainer({
               id="superfund-sites"
               type="symbol"
               layout={{
+                // UCD-17: 3-way status distinction
+                // NPL → filled red square
+                // Proposed → red diamond outline
+                // Deleted → gray X-square
                 'icon-image': [
                   'match', ['get', 'status'],
-                  'NPL', 'superfund-diamond-filled',
-                  'superfund-diamond-outline',
+                  'NPL', 'superfund-npl-final',
+                  'Proposed', 'superfund-proposed',
+                  'Deleted', 'superfund-deleted',
+                  'superfund-proposed', // fallback
                 ] as unknown as string,
-                'icon-size': 1,
+                'icon-size': [
+                  'interpolate', ['linear'], ['zoom'],
+                  3, 0.5,  // Small at full country zoom
+                  5, 0.7,  // Medium-small at continental zoom  
+                  8, 0.9,  // Medium at regional zoom
+                  12, 1.2, // Large at city zoom
+                ],
                 'icon-allow-overlap': true,
               }}
-              paint={{}}
+              paint={{
+                'icon-opacity': 0.8,
+              }}
             />
           </Source>
+        )}
+
+        {/* Hover tooltip for highlighted facility from results table */}
+        {highlightedFeature && (
+          <Popup
+            longitude={highlightedFeature.geometry.coordinates[0]}
+            latitude={highlightedFeature.geometry.coordinates[1]}
+            anchor="bottom"
+            closeButton={false}
+            closeOnClick={false}
+            offset={[0, -15]}
+            style={{ zIndex: 10 }}
+          >
+            <div style={{
+              padding: '6px 10px',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: '#1f2937',
+              maxWidth: '200px',
+              textAlign: 'center',
+              lineHeight: 1.3,
+            }}>
+              {highlightedFeature.properties.name}
+            </div>
+          </Popup>
+        )}
+
+        {/* Hover tooltip for highlighted Superfund site from results table */}
+        {highlightedSuperfundFeature && (
+          <Popup
+            longitude={highlightedSuperfundFeature.geometry.coordinates[0]}
+            latitude={highlightedSuperfundFeature.geometry.coordinates[1]}
+            anchor="bottom"
+            closeButton={false}
+            closeOnClick={false}
+            offset={[0, -15]}
+            style={{ zIndex: 10 }}
+          >
+            <div style={{
+              padding: '6px 10px',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: '#991b1b',
+              maxWidth: '200px',
+              textAlign: 'center',
+              lineHeight: 1.3,
+            }}>
+              {highlightedSuperfundFeature.properties.name}
+            </div>
+          </Popup>
         )}
 
         {children}

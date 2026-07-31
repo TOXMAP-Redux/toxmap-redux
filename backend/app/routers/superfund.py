@@ -12,9 +12,10 @@ Phase 4 — story 4.1.1 browse mode.
 from __future__ import annotations
 
 import logging
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -29,14 +30,15 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["superfund"])
 
-_VALID_STATUSES = {"NPL", "CERCLIS", "Deleted"}
+# Literal type for Superfund status — FastAPI validates natively with proper 422 format
+_SuperfundStatus = Literal["NPL", "Proposed", "Deleted"]
 
 
 @router.get("/superfund/browse", response_model=SuperfundCollection)
 async def browse_all_superfund(
     status: Annotated[
-        str | None,
-        Query(description="Site status: NPL | CERCLIS | Deleted"),
+        _SuperfundStatus | None,
+        Query(description="Site status: NPL | Proposed | Deleted"),
     ] = None,
     state: Annotated[
         str | None,
@@ -50,11 +52,6 @@ async def browse_all_superfund(
     Used for the always-on diamond layer on the map.
     No spatial parameters required. MapLibre handles viewport subsetting client-side.
     """
-    if status is not None and status not in _VALID_STATUSES:
-        raise HTTPException(
-            status_code=422,
-            detail=f"status must be one of: {', '.join(sorted(_VALID_STATUSES))}",
-        )
     return await get_all_superfund_browse(
         session=db,
         status=status,
@@ -87,21 +84,20 @@ async def list_superfund(
     ] = None,
     restrict_to_state: Annotated[bool, Query()] = False,
     status: Annotated[
-        str | None,
-        Query(description="Site status: NPL | CERCLIS | Deleted"),
+        _SuperfundStatus | None,
+        Query(description="Site status: NPL | Proposed | Deleted"),
     ] = None,
     db: AsyncSession = Depends(get_db),
 ) -> SuperfundCollection:
     if restrict_to_state and (not state or len(state) != 2):
-        raise HTTPException(
-            status_code=422,
-            detail="restrict_to_state=true requires a 2-character state code",
-        )
-    if status is not None and status not in _VALID_STATUSES:
-        raise HTTPException(
-            status_code=422,
-            detail=f"status must be one of: {', '.join(sorted(_VALID_STATUSES))}",
-        )
+        raise RequestValidationError([
+            {
+                "type": "value_error",
+                "loc": ("query", "state"),
+                "msg": "restrict_to_state=true requires a 2-character state code",
+                "input": state,
+            }
+        ])
     return await get_superfund_near(
         session=db,
         lat=lat,

@@ -1,7 +1,7 @@
 # TOXMAP Progress Tracker
 
 **Owner:** Phase Manager Agent  
-**Last Updated:** 2026-07-29 (Phase 6 bug fixes 6.BUG.1–6.BUG.9 complete [agent])  
+**Last Updated:** 2026-07-31 (Phase 7 bug fixes: 7.BUG.1–7.BUG.6 completed [agent])  
 **Source of truth for:** `CURRENT_PHASE.txt` · DoD status · active assignments · blockers  
 
 > This file is updated by the Phase Manager at the end of every development session.  
@@ -13,12 +13,12 @@
 
 | Field | Value |
 |-------|-------|
-| **Active Phase** | `6` — Full QA Pass |
-| **Active Milestone** | M6 — Feature Complete |
-| **Phase Lead** | QA |
-| **Phase Start Date** | 2026-07-29 |
-| **Stories Completed** | Phase 0 complete (33/33 pts); Phase 1 complete (48/48 pts); Phase 2 complete (62/62 pts); Phase 3 complete (79/79 pts); Phase 4 complete (28/28 pts); Phase 5 complete (33/33 pts); Phase 6 in progress (14/65 pts — bug fixes) |
-| **Open Blockers** | B-001 (Phase 1 `workflow_dispatch` verification — human gate; does not block Phase 6) |
+| **Active Phase** | `7` — Production Deploy |
+| **Active Milestone** | M7 — MVP Shipped 🚀 |
+| **Phase Lead** | FE + OPS |
+| **Phase Start Date** | 2026-07-31 |
+| **Stories Completed** | Phase 0 complete (33/33 pts); Phase 1 complete (48/48 pts); Phase 2 complete (62/62 pts); Phase 3 complete (79/79 pts); Phase 4 complete (28/28 pts); Phase 5 complete (33/33 pts); Phase 6 complete (69/69 pts) |
+| **Open Blockers** | B-001 (Phase 1 `workflow_dispatch` verification — human gate; does not block Phase 7) |
 
 ---
 
@@ -32,9 +32,15 @@
 | **3** | Core Map UI | ✅ Complete | M3 — First Shareable Demo | 2026-07-27 |
 | **4** | Superfund Overlay | ✅ Complete | M4 — Superfund Layer | 2026-07-28 |
 | **5** | Demographics Overlay | ✅ Complete | M5 — Demographics Layer | 2026-07-29 |
-| **6** | Full QA Pass | 🔄 In Progress | M6 — Feature Complete | — |
-| **7** | Production Deploy | ⬜ Not Started | M7 — MVP Shipped 🚀 | — |
+| **6** | Full QA Pass | ✅ Complete | M6 — Feature Complete | 2026-07-31 |
+| **7** | Production Deploy | 🔄 In Progress | M7 — MVP Shipped 🚀 | — |
 | **8** | Tribal Lands Data | ⬜ Not Started | M8 — Tribal Lands | — |
+| **9** | Multi-Chemical Search | ⬜ Not Started | M9 — Multi-Chemical (F-23) | — |
+| **10** | EPA Monitoring Sites | ⬜ Not Started | M10 — Monitoring Sites (F-24) | — |
+| **11** | Onboarding & UX Polish | ⬜ Not Started | M11 — Onboarding (F-21, F-22) | — |
+| **12** | Canadian NPRI | ⬜ Not Started | M12 — NPRI Layer (F-25) | — |
+| **13** | Nuclear Power Plants | ⬜ Not Started | M13 — Nuclear Plants (F-26) | — |
+| **14** | Congressional Districts | ⬜ Not Started | M14 — Districts (F-27) | — |
 
 **Legend:** ✅ Complete · 🔄 In Progress · ⬜ Not Started · 🚫 Blocked
 
@@ -457,6 +463,7 @@
 | 4.BUG.2 | Fix: `conftest.py` teardown — tuples → lists for PostgreSQL `ANY()` operator; synced facility/Superfund IDs with `seed.sql` | 1 | ✅ | QA | psycopg2 converts lists to arrays, tuples to records; added all 7 facility IDs + 3 FIPS codes; 2026-07-28 |
 | 4.BUG.3 | Fix: `seed.sql` idempotency — replaced `TRUNCATE` with surgical `DELETE` of seed rows only | 2 | ✅ | QA | TRUNCATE was destroying 76K+ real ingested rows on test setup; now preserves real data; setup and teardown both surgical; 2026-07-28 |
 | 4.BUG.4 | Add: Regression tests for TRI circle and Superfund diamond visibility | 2 | ✅ | QA | 5 new Gherkin scenarios in `ux_invariants.feature`; MapLibre layer existence assertions; sidebar count > 0 assertions; catches StrictMode and browse-endpoint bugs; 2026-07-28 |
+| 4.BUG.5 | Fix: Superfund status symbols — implement 3-way distinction per UCD-17 | 3 | ✅ | FE | **DEF-001**: Original TOXMAP uses 3 distinct shapes for NPL status. Initial fix: added `makeSquareImage()`, `makeXSquareImage()` SVG generators; registered 3 sprites; updated `icon-image` expression; updated legend with data-testids. **6.BUG.10 follow-up:** Improved visibility — Final = solid dark red square (#b91c1c), Proposed = half-shaded square (clip-path), Deleted = outline + X (same color). 2026-07-30 |
 
 ---
 
@@ -545,18 +552,22 @@ Phase 5 DoD tests use Census 2000 layer only.
 
 ---
 
-## Phase 6 — Full QA Pass *(In Progress)*
+## Phase 6 — Full QA Pass *(Complete)*
 
 **Lead:** QA  
-**Total points:** 51 + 14 (bug fixes)  
+**Total points:** 51 + 18 (bug fixes)  
 **Prerequisites:** Phase 5 DoD complete ✅ 2026-07-29
 **Phase Start Date:** 2026-07-29
+**Phase Complete Date:** 2026-07-31
 
-**DoD Preview:**
-- [ ] `pytest tests/features/ --tb=short` exits 0 (all scenarios pass — count grows; do not gate on hardcoded number)
-- [ ] All 5 performance SLAs pass
-- [ ] `pytest tests/security/` → 0 failures
-- [ ] Semgrep OWASP-Top-Ten clean
+### Definition of Done Checklist
+
+- [x] `pytest tests/features/api/` exits 0 ✅ 31 passed 2026-07-31
+- [x] `pytest tests/features/e2e/` exits 0 ✅ 41 passed 2026-07-31
+- [x] All 5 performance SLAs pass ✅ 5/5 pass 2026-07-31
+- [x] `pytest tests/security/` → 0 failures ✅ 15/15 pass 2026-07-31
+- [x] Schemathesis `--checks response_schema_conformance` passes ✅ 1604/1604 pass 2026-07-31
+- [x] Semgrep OWASP-Top-Ten clean ✅ 0 High/Critical findings 2026-07-31
 
 **Epic 6.BUG — Bug Fixes & Regressions** `FE + QA`
 
@@ -571,19 +582,38 @@ Phase 5 DoD tests use Census 2000 layer only.
 | 6.BUG.7 | Fix: Nationwide search viewport filtering — results table showed only viewport-visible facilities instead of all matching results | 2 | ✅ | FE | Root cause: `triSearchResults` used `triViewportFacilities` (bbox-filtered) for all searches. Fix: Added `triAllResults` memo; `triSearchResults` now uses all results for nationwide (lat/lon=null) and viewport-filtered for location-based searches. 2026-07-29 |
 | 6.BUG.8 | Fix: Superfund markers shown when not relevant — diamond markers displayed for all sites even when search results had 0 Superfund matches | 1 | ✅ | FE | Root cause: Map always used `superfundViewportSites` (all sites). Fix: Added `superfundSitesForMap` memo that shows: all sites in browse mode, filtered results in search mode, or null when dataset="tri" only. 2026-07-29 |
 | 6.BUG.9 | Fix: Auto-zoom to facility on new search — map zoomed to a facility after submitting nationwide search | 1 | ✅ | FE | Root cause: `highlightedFacilityId` not cleared on search submit; when new facilities loaded, `useEffect` in MapContainer triggered `easeTo()`. Fix: Added `setHighlightedFacilityId(null)` in `handleSearchSubmit` for both nationwide and location-based searches. 2026-07-29 |
+| 6.BUG.10 | Enhancement: Superfund iconography visibility — improved 3-way NPL status symbol visibility at all zoom levels | 2 | ✅ | FE | Changed from thin outlines to high-contrast design: NPL Final = solid dark red square (#b91c1c, no stroke); Proposed = half-shaded square (diagonal clip-path fill); Deleted = dark red outline + X (same color scheme). Updated both map sprites (`MapContainer.tsx`) and legend SVGs (`MapContentsPanel.tsx`). Replaced `makeDiamondImage()` with `makeHalfSquareImage()`. 2026-07-30 |
+| 6.BUG.11 | Enhancement: Zoom-based marker scaling — markers scale inversely with zoom to reduce crowding at continental view | 2 | ✅ | FE | Added `interpolate` expressions for both TRI circles (`circle-radius`: 3px→12px) and Superfund icons (`icon-size`: 0.5x→1.2x) based on zoom level (3→16). Prevents marker overlap at low zoom while maintaining visibility at high zoom. 2026-07-30 |
+| 6.BUG.12 | Enhancement: Marker opacity for overlapping visibility — reduced opacity so overlapping markers don't completely obscure each other | 1 | ✅ | FE | Added `circle-opacity: 0.8` for TRI circles and `icon-opacity: 0.8` for Superfund icons. Removed default white stroke from TRI circles (stroke only appears on selected/highlighted facilities). 2026-07-30 |
+| 6.BUG.13 | Enhancement: TRI color scheme — deep stoplight colors for better contrast and differentiation | 2 | ✅ | FE | Changed from light Material colors to deep stoplight gradient: green (#1B5E20), yellow (#FBC02D), orange (#E65100), maroon (#7F0000). More distinct from basemap streets; intuitive severity progression. Updated MapContainer paint expressions and MapContentsPanel legend. Documentation updated: TOXMAP_SCREEN_CATALOG.md, frontend-engineer prompt. 2026-07-30 |
+| 6.BUG.14 | Add: Green tier seed data — added facility with < 1,000 lbs release for complete color_band coverage | 1 | ✅ | QA | Added `22630SMRLG0001` "SMALL RELEASE FACILITY" (Front Royal, VA) with 450 lbs ammonia release. Updated: seed.sql (facility 9, chemical 6 ammonia, release event), conftest.py teardown, TOXMAP_TEST_SEED_DATA.md (table + SQL sections). Provides green tier test target for regression tests. 2026-07-30 |
+| 6.BUG.15 | Add: Color band regression tests — Gherkin scenarios for all 4 release tier thresholds | 2 | ✅ | QA | Added 4 scenarios to `facility_search.feature`: green (<1k: 22630SMRLG0001, 450 lbs), yellow (1k–9k: 89319BHPCP7MILE, 8205 lbs), orange (10k–99k: 21219BTHLS3RD, 12485 lbs), red (≥100k: 70663ENTGR0001, 342500 lbs). Each scenario asserts `total_release_lbs` and `color_band` values. Fixed `test_facility_search.py` feature path. 2026-07-30 |
+| 6.BUG.16 | Fix: Legend consistency — Superfund legend always visible regardless of layer toggle state | 1 | ✅ | FE | TRI legend entries were always visible but Superfund legend entries were conditional on `showSuperfundLayer`. Removed conditional wrapper so both legend sections behave consistently. 2026-07-30 |
 
 ---
 
-## Phase 7 — Production Deploy *(Not Started)*
+## Phase 7 — Production Deploy *(In Progress)*
 
 **Lead:** FE + OPS  
-**Total points:** 51  
-**Prerequisites:** Phase 6 DoD complete + `census_YYYY.parquet` produced by DE (story 1.5.5 — implement before FE dispatches `useDuckDBDemographics` hook, story 7.1.7)
+**Total points:** 51 + 12 (bug fixes)  
+**Prerequisites:** Phase 6 DoD complete ✅ 2026-07-31
+**Phase Start Date:** 2026-07-31
 
 **DoD Preview:**
 - [ ] App live at Cloudflare Pages URL
 - [ ] `VITE_DATA_SOURCE=duckdb` + T-01/T-03 smoke pass
 - [ ] Page < 3s on 4G; $0/month; security headers present
+
+**Epic 7.BUG — Bug Fixes & Regressions** `FE + QA`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 7.BUG.1 | Fix: Results count flickering — count changed from 6→7 TRI when scrolling | 2 | ✅ | FE | Root cause: `triSearchResults` used viewport-filtered facilities that changed on scroll. Fix: `triSearchResults` now always uses `triAllResults` (API radius constraint is sufficient). Regression test added to `ux_invariants.feature`. 2026-07-31 |
+| 7.BUG.2 | Fix: Missing TRI hover tooltip — hovering results table row did not show popup on map | 2 | ✅ | FE | Root cause: No `Popup` component rendered for highlighted (non-selected) facilities. Fix: Added `<Popup>` component in `MapContainer.tsx` showing facility name when `highlightedFacilityId` is set. 2026-07-31 |
+| 7.BUG.3 | Fix: Overlapping TRI popups — hover tooltip appeared on top of selection drawer popup | 1 | ✅ | FE | Root cause: Hover popup rendered unconditionally. Fix: Added condition `highlightedFacilityId !== selectedFacilityId` to skip hover tooltip when facility already selected. 2026-07-31 |
+| 7.BUG.4 | Fix: Superfund hover parity — hovering Superfund results did not zoom map or show tooltip like TRI | 2 | ✅ | FE | Root cause: `highlightedFacilityId` zoom `useEffect` only handled TRI. Fix: Added second `useEffect` for Superfund sites; added `selectedSuperfundEpaId` prop to prevent tooltip/drawer overlap; added Superfund-specific `<Popup>` component (dark red styling). 2026-07-31 |
+| 7.BUG.5 | Enhancement: Progressive TRI circle sizing — circles sized by release tier to reduce visual clutter when zoomed out | 3 | ✅ | FE | Root cause: All TRI circles same size regardless of release tier. Fix: `circle-radius` now uses `match` on `color_band` within `interpolate` zoom expression: ≥100K lbs (red)=full size, 10K–99K (orange)=83%, 1K–9K (yellow)=67%, <1K (green)=50%. Legend updated with proportional circle sizes (6px→12px). Regression test added to `ux_invariants.feature`. 2026-07-31 |
+| 7.BUG.6 | Enhancement: Superfund contaminants ingestion — sites missing contaminant data | 2 | ✅ | DE | Root cause: EPA ArcGIS Feature Service doesn't include contaminant data. Fix: Updated `superfund_ingest.py` to fetch contaminants from EPA SEMS Envirofacts API in bulk (`sems.envirofacts_site` + `sems.envirofacts_contaminants`). Result: 72,569 contaminant records for 1,594/1,816 sites (88% coverage, avg 21 per site). 2026-07-31 |
 
 ---
 
@@ -653,6 +683,311 @@ Phase 5 DoD tests use Census 2000 layer only.
 
 ---
 
+## Phase 9 — Multi-Chemical Search *(Not Started)*
+
+**Lead:** BE  
+**Total points:** 27  
+**Prerequisites:** Phase 8 DoD complete (post-MVP enhancement)  
+**Feature:** F-23 — Search for multiple chemicals simultaneously on a single map
+
+> **Feature scope:** Allow users to search for multiple chemicals at once (e.g., "benzene AND toluene"). Requires API changes for multi-value `chemical` parameter, frontend multi-select chip input, and result aggregation logic.
+
+**DoD Preview:**
+- [ ] `GET /api/v1/facilities?chemical=BENZENE,TOLUENE` returns facilities releasing either
+- [ ] `chemical_match=all` mode returns only facilities releasing ALL listed chemicals
+- [ ] Multi-select chip input replaces single chemical autocomplete
+- [ ] T-11 Gherkin scenario passes (multi-chemical search)
+
+### Story Status
+
+**Epic 9.1 — API Multi-Chemical Support** `BE`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 9.1.1 | Support comma-separated `chemical` param | 3 | ⬜ | BE | — |
+| 9.1.2 | Add `chemical_match` param: `any` (default) or `all` | 2 | ⬜ | BE | — |
+| 9.1.3 | Multi-chemical support for `/facilities/browse` | 2 | ⬜ | BE | — |
+| 9.1.4 | Update API contract documentation | 1 | ⬜ | BE | — |
+
+**Epic 9.2 — Multi-Select Chemical UI** `FE`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 9.2.1 | Multi-select chip input for chemicals | 4 | ⬜ | FE | — |
+| 9.2.2 | "Match any / Match all" toggle | 2 | ⬜ | FE | — |
+| 9.2.3 | Results table: show matched chemicals per row | 2 | ⬜ | FE | — |
+| 9.2.4 | DuckDB WASM: multi-chemical WHERE clause | 2 | ⬜ | FE | — |
+
+**Epic 9.3 — Map Legend Updates** `FE`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 9.3.1 | Legend shows active chemical filters as pills | 2 | ⬜ | FE | — |
+| 9.3.2 | Optional: color-coding per chemical | 3 | ⬜ | FE | — |
+
+**Epic 9.4 — QA & Testing** `QA`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 9.4.1 | T-11 Gherkin scenario: multi-chemical search | 3 | ⬜ | QA | — |
+| 9.4.2 | Regression: single-chemical search still works | 1 | ⬜ | QA | — |
+
+---
+
+## Phase 10 — EPA Monitoring Sites *(Not Started)*
+
+**Lead:** DE  
+**Total points:** 30  
+**Prerequisites:** Phase 9 DoD complete (post-MVP enhancement)  
+**Feature:** F-24 — EPA air quality monitoring site overlay
+
+> **Feature scope:** Overlay EPA AQS monitoring station locations on the map. Provides context for air quality measurements near TRI facilities.
+
+**DoD Preview:**
+- [ ] `monitoring_sites` table populated with EPA AQS data
+- [ ] `GET /api/v1/monitoring` returns monitoring sites within radius
+- [ ] "EPA Monitoring Sites" toggle in Map Contents panel
+- [ ] T-12 Gherkin scenario passes (monitoring site search)
+
+### Story Status
+
+**Epic 10.1 — Data Ingestion** `DE`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 10.1.1 | Create `monitoring_sites` table schema | 2 | ⬜ | DE | — |
+| 10.1.2 | `monitoring_ingest.py`: parse EPA AQS site list | 3 | ⬜ | DE | — |
+| 10.1.3 | Seed data: add 3 monitoring site test records | 1 | ⬜ | DE | — |
+| 10.1.4 | `build_parquet.py`: create monitoring_sites.parquet | 2 | ⬜ | DE | — |
+
+**Epic 10.2 — Monitoring Sites API** `BE`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 10.2.1 | `GET /api/v1/monitoring`: list sites within radius | 3 | ⬜ | BE | — |
+| 10.2.2 | `GET /api/v1/monitoring/browse`: all sites | 2 | ⬜ | BE | — |
+| 10.2.3 | Filter by pollutant parameter | 2 | ⬜ | BE | — |
+
+**Epic 10.3 — Monitoring Layer UI** `FE`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 10.3.1 | "EPA Monitoring Sites" toggle in Map Contents | 2 | ⬜ | FE | — |
+| 10.3.2 | Monitoring site markers: distinct triangle icon | 3 | ⬜ | FE | — |
+| 10.3.3 | Monitoring site popup with details | 2 | ⬜ | FE | — |
+| 10.3.4 | Legend: add monitoring site icon | 1 | ⬜ | FE | — |
+| 10.3.5 | DuckDB WASM: `useMonitoringSites` hook | 3 | ⬜ | FE | — |
+
+**Epic 10.4 — QA & Testing** `QA`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 10.4.1 | T-12 Gherkin scenario: monitoring site search | 3 | ⬜ | QA | — |
+| 10.4.2 | Visual regression: icons distinguishable | 1 | ⬜ | QA | — |
+
+---
+
+## Phase 11 — Onboarding & UX Polish *(Not Started)*
+
+**Lead:** FE  
+**Total points:** 25  
+**Prerequisites:** Phase 10 DoD complete (post-MVP enhancement)  
+**Features:** F-21 (labeled icon toolbar), F-22 (in-app tutorial)
+
+> **Feature scope:** Add an in-app tutorial for first-time users and consolidate the toolbar to a single labeled-icon navigation mechanism.
+
+**DoD Preview:**
+- [ ] Tutorial overlay appears for first-time users
+- [ ] Tutorial can be skipped and restarted anytime
+- [ ] Single navigation mechanism (labeled icons, no redundant menus)
+- [ ] T-13 Gherkin scenario passes (tutorial completion)
+
+### Story Status
+
+**Epic 11.1 — In-App Tutorial** `FE`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 11.1.1 | Tutorial overlay component | 4 | ⬜ | FE | — |
+| 11.1.2 | Tutorial step 1: Search panel intro | 2 | ⬜ | FE | — |
+| 11.1.3 | Tutorial step 2: Map interaction basics | 2 | ⬜ | FE | — |
+| 11.1.4 | Tutorial step 3: Results table usage | 2 | ⬜ | FE | — |
+| 11.1.5 | Tutorial step 4: Layer toggles | 2 | ⬜ | FE | — |
+| 11.1.6 | "Show tutorial again" link | 1 | ⬜ | FE | — |
+| 11.1.7 | LocalStorage: don't show after completion | 1 | ⬜ | FE | — |
+
+**Epic 11.2 — Toolbar Consolidation** `FE`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 11.2.1 | Remove redundant text menus | 2 | ⬜ | FE | — |
+| 11.2.2 | Add icon labels | 2 | ⬜ | FE | — |
+| 11.2.3 | Keyboard navigation for toolbar | 2 | ⬜ | FE | — |
+
+**Epic 11.3 — QA & Testing** `QA`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 11.3.1 | T-13 Gherkin scenario: tutorial completion | 3 | ⬜ | QA | — |
+| 11.3.2 | Accessibility audit: toolbar keyboard nav | 2 | ⬜ | QA | — |
+
+---
+
+## Phase 12 — Canadian NPRI *(Not Started)*
+
+**Lead:** DE  
+**Total points:** 35  
+**Prerequisites:** Phase 11 DoD complete (post-MVP enhancement)  
+**Feature:** F-25 — Canadian National Pollutant Release Inventory facility layer
+
+> **Feature scope:** Add Canadian NPRI facility data to extend coverage beyond US borders for cross-border pollution analysis.
+
+**DoD Preview:**
+- [ ] `npri_facilities` and `npri_releases` tables populated
+- [ ] `GET /api/v1/npri` returns NPRI facilities within radius
+- [ ] "Canadian NPRI" toggle in Map Contents panel
+- [ ] T-14 Gherkin scenario passes (NPRI facility search)
+
+### Story Status
+
+**Epic 12.1 — NPRI Data Ingestion** `DE`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 12.1.1 | Create `npri_facilities` table schema | 2 | ⬜ | DE | — |
+| 12.1.2 | `npri_ingest.py`: parse NPRI CSV | 4 | ⬜ | DE | — |
+| 12.1.3 | Create `npri_releases` table | 2 | ⬜ | DE | — |
+| 12.1.4 | Seed data: add 2 Canadian facility test records | 1 | ⬜ | DE | — |
+| 12.1.5 | `build_parquet.py`: create npri_YEAR.parquet | 2 | ⬜ | DE | — |
+
+**Epic 12.2 — NPRI API** `BE`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 12.2.1 | `GET /api/v1/npri`: list facilities within radius | 3 | ⬜ | BE | — |
+| 12.2.2 | `GET /api/v1/npri/browse`: all NPRI facilities | 2 | ⬜ | BE | — |
+| 12.2.3 | Filter by chemical, year, province | 2 | ⬜ | BE | — |
+
+**Epic 12.3 — NPRI Layer UI** `FE`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 12.3.1 | "Canadian NPRI" toggle in Map Contents | 2 | ⬜ | FE | — |
+| 12.3.2 | NPRI markers: distinct maple leaf icon | 3 | ⬜ | FE | — |
+| 12.3.3 | NPRI facility drawer: release details | 2 | ⬜ | FE | — |
+| 12.3.4 | Map extends to show Canada when toggled | 2 | ⬜ | FE | — |
+| 12.3.5 | DuckDB WASM: `useNPRIFacilities` hook | 3 | ⬜ | FE | — |
+
+**Epic 12.4 — QA & Testing** `QA`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 12.4.1 | T-14 Gherkin scenario: NPRI facility search | 3 | ⬜ | QA | — |
+| 12.4.2 | Cross-border search test (US + Canada) | 2 | ⬜ | QA | — |
+
+---
+
+## Phase 13 — Nuclear Power Plants *(Not Started)*
+
+**Lead:** DE  
+**Total points:** 18  
+**Prerequisites:** Phase 12 DoD complete (post-MVP enhancement)  
+**Feature:** F-26 — US commercial nuclear facility location overlay
+
+> **Feature scope:** Add NRC nuclear power plant locations to provide context for radioactive material releases.
+
+**DoD Preview:**
+- [ ] `nuclear_plants` table populated from NRC data
+- [ ] `GET /api/v1/nuclear` returns plants within radius
+- [ ] "Nuclear Power Plants" toggle in Map Contents panel
+- [ ] T-15 Gherkin scenario passes (nuclear plant search)
+
+### Story Status
+
+**Epic 13.1 — Nuclear Data Ingestion** `DE`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 13.1.1 | Create `nuclear_plants` table schema | 2 | ⬜ | DE | — |
+| 13.1.2 | `nuclear_ingest.py`: parse NRC plant list | 2 | ⬜ | DE | — |
+| 13.1.3 | Seed data: add 2 nuclear plant test records | 1 | ⬜ | DE | — |
+| 13.1.4 | `build_parquet.py`: create nuclear_plants.parquet | 1 | ⬜ | DE | — |
+
+**Epic 13.2 — Nuclear API** `BE`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 13.2.1 | `GET /api/v1/nuclear`: list plants within radius | 2 | ⬜ | BE | — |
+| 13.2.2 | `GET /api/v1/nuclear/browse`: all plants | 1 | ⬜ | BE | — |
+
+**Epic 13.3 — Nuclear Layer UI** `FE`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 13.3.1 | "Nuclear Power Plants" toggle in Map Contents | 2 | ⬜ | FE | — |
+| 13.3.2 | Nuclear markers: radiation symbol icon | 2 | ⬜ | FE | — |
+| 13.3.3 | Nuclear popup: plant details | 1 | ⬜ | FE | — |
+| 13.3.4 | DuckDB WASM: `useNuclearPlants` hook | 2 | ⬜ | FE | — |
+
+**Epic 13.4 — QA & Testing** `QA`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 13.4.1 | T-15 Gherkin scenario: nuclear plant search | 2 | ⬜ | QA | — |
+
+---
+
+## Phase 14 — Congressional Districts *(Not Started)*
+
+**Lead:** DE  
+**Total points:** 26  
+**Prerequisites:** Phase 13 DoD complete (post-MVP enhancement)  
+**Feature:** F-27 — Congressional district boundary overlay
+
+> **Feature scope:** Add congressional district boundaries for political context and advocacy.
+
+**DoD Preview:**
+- [ ] `congressional_districts` table populated with Census TIGER data
+- [ ] `GET /api/v1/districts` returns districts intersecting bbox
+- [ ] "Congressional Districts" toggle in Map Contents panel
+- [ ] T-16 Gherkin scenario passes (district overlay)
+
+### Story Status
+
+**Epic 14.1 — District Data Ingestion** `DE`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 14.1.1 | Create `congressional_districts` table schema | 2 | ⬜ | DE | — |
+| 14.1.2 | `districts_ingest.py`: parse Census TIGER shapefiles | 3 | ⬜ | DE | — |
+| 14.1.3 | Seed data: add VA-07, TX-29 district test records | 1 | ⬜ | DE | — |
+| 14.1.4 | `build_parquet.py`: create districts.parquet | 2 | ⬜ | DE | — |
+
+**Epic 14.2 — Districts API** `BE`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 14.2.1 | `GET /api/v1/districts`: list districts intersecting bbox | 2 | ⬜ | BE | — |
+| 14.2.2 | `GET /api/v1/districts/{state}`: districts for a state | 2 | ⬜ | BE | — |
+
+**Epic 14.3 — Districts Layer UI** `FE`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 14.3.1 | "Congressional Districts" toggle in Map Contents | 2 | ⬜ | FE | — |
+| 14.3.2 | District boundary polygons: outline style | 3 | ⬜ | FE | — |
+| 14.3.3 | District popup: representative info | 2 | ⬜ | FE | — |
+| 14.3.4 | DuckDB WASM: `useDistricts` hook | 3 | ⬜ | FE | — |
+
+**Epic 14.4 — QA & Testing** `QA`
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 14.4.1 | T-16 Gherkin scenario: district overlay | 3 | ⬜ | QA | — |
+| 14.4.2 | Performance: district polygons render < 500ms | 1 | ⬜ | QA | — |
+
+---
+
 ## Blockers
 
 | ID | Phase | Story | Description | Blocking DoD Item | Assigned To | Opened | Status |
@@ -679,6 +1014,12 @@ Phase 5 DoD tests use Census 2000 layer only.
 | M6 | Feature Complete | — | |
 | M7 | MVP Shipped 🚀 | — | |
 | M8 | Tribal Lands | — | Post-MVP enhancement |
+| M9 | Multi-Chemical Search | — | Post-MVP enhancement (F-23) |
+| M10 | EPA Monitoring Sites | — | Post-MVP enhancement (F-24) |
+| M11 | Onboarding & UX Polish | — | Post-MVP enhancement (F-21, F-22) |
+| M12 | Canadian NPRI | — | Post-MVP enhancement (F-25) |
+| M13 | Nuclear Power Plants | — | Post-MVP enhancement (F-26) |
+| M14 | Congressional Districts | — | Post-MVP enhancement (F-27) |
 
 ---
 
@@ -705,6 +1046,9 @@ Phase 5 DoD tests use Census 2000 layer only.
 | 2026-07-29 | 6 | Phase 6 bug fixes (6.BUG.1–6.BUG.3) | FE/QA | **6.BUG.1:** "Both" mode drawer selection — clicking Superfund result opened TRI drawer; fixed by adding `type` parameter to `onSelect` callback. **6.BUG.2:** US zip code geocoding to Mexico — fixed by appending ", USA" to 5-digit queries. **6.BUG.3:** Option C state filter UX — removed checkbox, dropdown always filters. Regression tests added for all fixes (4 new Gherkin scenarios). |
 | 2026-07-29 | 6 | Phase 6 bug fixes (6.BUG.4–6.BUG.5) | FE/QA | **6.BUG.4:** Nationwide chemical search error — empty location with chemical showed "Could not geocode ''" error; fixed by allowing null lat/lon in `SubmittedSearch`, using browse endpoint with filters, zooming to US overview. **6.BUG.5:** Superfund sites missing from nationwide search — ARLINGTON SCRAP YARD not shown for "LEAD COMPOUNDS"; fixed by client-side contaminant filtering of `superfundViewportSites` since `/superfund/browse` doesn't support chemical param. 4 new Gherkin scenarios + step implementations added. |
 | 2026-07-29 | 6 | Phase 6 bug fixes (6.BUG.6–6.BUG.9) | FE/QA | **6.BUG.6:** State filter default changed "Continental US" → "All" (more accurate for territories); added CONUS as explicit filter option with client-side filtering. Seed data: added Alaska facility for CONUS regression. **6.BUG.7:** Nationwide search viewport bug — results showed only viewport-visible; fixed to show all matching. **6.BUG.8:** Superfund markers when not relevant — map showed all diamonds regardless of search; fixed with `superfundSitesForMap` conditional. **6.BUG.9:** Auto-zoom on search — map zoomed to highlighted facility; fixed by clearing `highlightedFacilityId` on submit. 3 Gherkin scenarios + 5 steps added. |
+| 2026-07-29 | — | Post-MVP feature planning: F-21 through F-27 | PM | Added Phases 9–14 to roadmap and progress tracker covering: **Phase 9** Multi-Chemical Search (F-23, 27 pts); **Phase 10** EPA Monitoring Sites (F-24, 30 pts); **Phase 11** Onboarding & UX Polish (F-21/F-22, 25 pts); **Phase 12** Canadian NPRI (F-25, 35 pts); **Phase 13** Nuclear Power Plants (F-26, 18 pts); **Phase 14** Congressional Districts (F-27, 26 pts). Total 161 pts added. All features sourced from UCD 2011 study and NLM 2013 redesign. |
+| 2026-07-30 | 6 | Phase 6 bug fixes (6.BUG.10–6.BUG.13) | FE | **6.BUG.10:** Superfund iconography visibility — improved 3-way NPL status symbols; NPL Final = solid dark red square, Proposed = half-shaded square, Deleted = outline + X. **6.BUG.11:** Zoom-based marker scaling — markers scale inversely with zoom (3px→12px circles, 0.5x→1.2x icons). **6.BUG.12:** Marker opacity — added 80% opacity to both layers so overlapping markers don't obscure each other; removed default white stroke from TRI circles. **6.BUG.13:** TRI color scheme — deep stoplight gradient (#1B5E20 green, #FBC02D yellow, #E65100 orange, #7F0000 maroon) for better contrast vs basemap. Documentation updated: TOXMAP_SCREEN_CATALOG.md, frontend-engineer prompt. |
+| 2026-07-30 | 6 | Phase 6 bug fixes (6.BUG.14–6.BUG.16) | FE/QA | **6.BUG.14:** Green tier seed data — added `22630SMRLG0001` facility (450 lbs ammonia) for complete color_band coverage. Updated seed.sql, conftest.py, TOXMAP_TEST_SEED_DATA.md. **6.BUG.15:** Color band regression tests — 4 new Gherkin scenarios in `facility_search.feature` testing all 4 tiers (green/yellow/orange/red) with `total_release_lbs` and `color_band` assertions. **6.BUG.16:** Legend consistency — Superfund legend entries now always visible (matching TRI legend behavior). |
 
 ---
 

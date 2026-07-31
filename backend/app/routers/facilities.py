@@ -12,9 +12,10 @@ from __future__ import annotations
 
 import datetime
 import logging
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -34,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["facilities"])
 
-_VALID_MEDIA = {"air", "water", "land", "underground"}
+_ReleaseMedia = Literal["air", "water", "land", "underground"]
 
 
 @router.get("/facilities/browse", response_model=FacilityCollection)
@@ -48,7 +49,7 @@ async def browse_all_facilities(
         Query(description="Filter by chemical name (partial, case-insensitive)"),
     ] = None,
     medium: Annotated[
-        str | None,
+        _ReleaseMedia | None,
         Query(description="Release medium: air | water | land | underground"),
     ] = None,
     state: Annotated[
@@ -63,12 +64,6 @@ async def browse_all_facilities(
     Used for the initial map view showing all facilities nationwide.
     No spatial parameters required. MapLibre handles viewport subsetting client-side.
     """
-    if medium is not None and medium not in _VALID_MEDIA:
-        raise HTTPException(
-            status_code=422,
-            detail=f"medium must be one of: {', '.join(sorted(_VALID_MEDIA))}",
-        )
-
     return await get_all_facilities_browse(
         session=db,
         year=year,
@@ -110,7 +105,7 @@ async def list_facilities(
         Query(description="Filter by NAICS code prefix"),
     ] = None,
     medium: Annotated[
-        str | None,
+        _ReleaseMedia | None,
         Query(description="Release medium: air | water | land | underground"),
     ] = None,
     state: Annotated[
@@ -121,16 +116,15 @@ async def list_facilities(
     limit: Annotated[int, Query(ge=1, le=2000)] = 500,
     db: AsyncSession = Depends(get_db),
 ) -> FacilityCollection:
-    if medium is not None and medium not in _VALID_MEDIA:
-        raise HTTPException(
-            status_code=422,
-            detail=f"medium must be one of: {', '.join(sorted(_VALID_MEDIA))}",
-        )
     if restrict_to_state and (not state or len(state) != 2):
-        raise HTTPException(
-            status_code=422,
-            detail="restrict_to_state=true requires a 2-character state code",
-        )
+        raise RequestValidationError([
+            {
+                "type": "value_error",
+                "loc": ("query", "state"),
+                "msg": "restrict_to_state=true requires a 2-character state code",
+                "input": state,
+            }
+        ])
 
     raw_query: dict[str, Any] = {
         "lat": lat,
@@ -183,18 +177,12 @@ async def list_facility_releases(
     from_year: Annotated[int | None, Query()] = None,
     to_year: Annotated[int | None, Query()] = None,
     chemical_id: Annotated[int | None, Query()] = None,
-    medium: Annotated[str | None, Query()] = None,
+    medium: Annotated[_ReleaseMedia | None, Query()] = None,
     db: AsyncSession = Depends(get_db),
 ) -> list[ReleaseEventSchema]:
     today = datetime.date.today()
     eff_from = from_year if from_year is not None else today.year - 14
     eff_to = to_year if to_year is not None else today.year
-
-    if medium is not None and medium not in _VALID_MEDIA:
-        raise HTTPException(
-            status_code=422,
-            detail=f"medium must be one of: {', '.join(sorted(_VALID_MEDIA))}",
-        )
 
     releases = await get_facility_releases(
         session=db,

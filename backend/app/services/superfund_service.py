@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 _MILES_TO_METERS = 1609.344
 
-_VALID_STATUSES = {"NPL", "CERCLIS", "Deleted"}
+_VALID_STATUSES = {"NPL", "Proposed", "Deleted"}
 
 
 async def get_all_superfund_browse(

@@ -250,6 +250,7 @@ export function CensusHealthPanel({
                     <input
                       type="radio"
                       name="mortality-gender"
+                      value="male"
                       checked={gender === 'male'}
                       onChange={() => setGender('male')}
                       style={{ accentColor: '#2563eb' }}
@@ -260,6 +261,7 @@ export function CensusHealthPanel({
                     <input
                       type="radio"
                       name="mortality-gender"
+                      value="female"
                       checked={gender === 'female'}
                       onChange={() => setGender('female')}
                       style={{ accentColor: '#2563eb' }}

@@ -116,36 +116,58 @@ export function MapContentsPanel({
         <p style={{ margin: '0 0 4px', fontSize: '10px', color: '#9ca3af', fontWeight: 500 }}>TRI Release Tiers</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginBottom: '10px' }}>
           {[
-            { color: '#22c55e', label: '< 1,000 lbs', shape: 'circle' },
-            { color: '#eab308', label: '1,000 – 9,999 lbs', shape: 'circle' },
-            { color: '#f97316', label: '10,000 – 99,999 lbs', shape: 'circle' },
-            { color: '#ef4444', label: '≥ 100,000 lbs', shape: 'circle' },
-          ].map(({ color, label }) => (
-            <div key={color} className="toxmap-legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+            { color: '#1B5E20', label: '< 1,000 lbs', size: 6 },
+            { color: '#FBC02D', label: '1,000 – 9,999 lbs', size: 8 },
+            { color: '#E65100', label: '10,000 – 99,999 lbs', size: 10 },
+            { color: '#7F0000', label: '≥ 100,000 lbs', size: 12 },
+          ].map(({ color, label, size }) => (
+            <div key={color} className="toxmap-legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', minHeight: '14px' }}>
               <span
                 className="toxmap-legend-swatch"
-                style={{ width: '12px', height: '12px', borderRadius: '50%', flexShrink: 0, background: color, display: 'inline-block' }}
+                style={{ width: `${size}px`, height: `${size}px`, borderRadius: '50%', flexShrink: 0, background: color, display: 'inline-block' }}
               />
               <span>{label}</span>
             </div>
           ))}
         </div>
 
-        {/* Superfund entry */}
-        {showSuperfundLayer && (
-          <>
-            <p style={{ margin: '0 0 4px', fontSize: '10px', color: '#9ca3af', fontWeight: 500 }}>Superfund</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
-              {/* Diamond SVG swatch (distinct from circle — UX invariant 6) */}
-              <svg width="14" height="14" viewBox="0 0 14 14" style={{ flexShrink: 0 }}>
-                <rect x="1" y="1" width="12" height="12" rx="1"
-                  fill="#ef4444" stroke="white" strokeWidth="1.5"
-                  transform="rotate(45 7 7)" />
-              </svg>
-              <span>Superfund NPL site</span>
-            </div>
-          </>
-        )}
+        {/* Superfund status entries (UCD-17: 3-way distinction) */}
+        <p style={{ margin: '0 0 4px', fontSize: '10px', color: '#9ca3af', fontWeight: 500 }}>Superfund NPL Status</p>
+        <div data-testid="superfund-legend" style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+          {/* NPL Final — solid dark red square (no stroke) */}
+          <div data-testid="superfund-legend-npl-final" className="toxmap-legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+            <svg data-testid="superfund-icon-square" width="14" height="14" viewBox="0 0 14 14" style={{ flexShrink: 0 }}>
+              <rect x="1" y="1" width="12" height="12" rx="1"
+                fill="#b91c1c" />
+            </svg>
+            <span>NPL (Final)</span>
+          </div>
+          {/* Proposed — half-shaded dark red square */}
+          <div data-testid="superfund-legend-proposed" className="toxmap-legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+            <svg data-testid="superfund-icon-halfsquare" width="14" height="14" viewBox="0 0 14 14" style={{ flexShrink: 0 }}>
+              <defs>
+                <clipPath id="legendHalfClip">
+                  <polygon points="1,1 13,1 13,13" />
+                </clipPath>
+              </defs>
+              <rect x="1" y="1" width="12" height="12" rx="1"
+                fill="transparent" stroke="#b91c1c" strokeWidth="1.5" />
+              <rect x="1" y="1" width="12" height="12" rx="1"
+                fill="#b91c1c" clipPath="url(#legendHalfClip)" />
+            </svg>
+            <span>Proposed</span>
+          </div>
+          {/* Deleted — dark red outline square with dark red X */}
+          <div data-testid="superfund-legend-deleted" className="toxmap-legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+            <svg data-testid="superfund-icon-xsquare" width="14" height="14" viewBox="0 0 14 14" style={{ flexShrink: 0 }}>
+              <rect x="1" y="1" width="12" height="12" rx="1"
+                fill="transparent" stroke="#b91c1c" strokeWidth="1.5" />
+              <line x1="3" y1="3" x2="11" y2="11" stroke="#b91c1c" strokeWidth="2" />
+              <line x1="11" y1="3" x2="3" y2="11" stroke="#b91c1c" strokeWidth="2" />
+            </svg>
+            <span>Deleted</span>
+          </div>
+        </div>
       </section>
 
       {/* Divider before Census panel */}

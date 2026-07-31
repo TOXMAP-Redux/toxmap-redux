@@ -2,8 +2,8 @@
 
 All figures in `docs/product/figs/` are screenshots reproduced from two peer-reviewed articles
 published in *Medical Reference Services Quarterly* (Taylor & Francis) and hosted on
-PubMed Central (PMC). They are included **for design reference and documentation purposes only**
-and are not distributed as part of the application.
+PubMed Central (PMC), plus one usability evaluation report prepared for NLM. They are included
+**for design reference and documentation purposes only** and are not distributed as part of the application.
 
 > **Fair use notice:** These figures are reproduced under 17 U.S.C. § 107 for non-commercial,
 > educational, and research purposes — specifically to guide the open-source recreation of a
@@ -12,7 +12,7 @@ and are not distributed as part of the application.
 
 ---
 
-## Source Articles
+## Source Documents
 
 ### Article 1 — 2006 (ArcIMS Era)
 
@@ -27,6 +27,13 @@ and are not distributed as part of the application.
 > *Medical Reference Services Quarterly*. 2014;33(4):397–411.
 > DOI: [10.1080/02763869.2014.957088](https://doi.org/10.1080/02763869.2014.957088)
 > PMC: [PMC4251466](https://pmc.ncbi.nlm.nih.gov/articles/PMC4251466/)
+
+### Report 3 — 2011 (UCD Usability Evaluation)
+
+> User-Centered Design, Inc. TOXMAP Usability Evaluation: Final Report.
+> Prepared for National Library of Medicine, Division of Specialized Information Services.
+> August 2011. Contract FR508_10-4004.
+> PDF: [FR508_10-4004_NLM_11-03-11.pdf](https://dpcpsi.nih.gov/sites/g/files/mnhszr346/files/FR508_10-4004_NLM_11-03-11.pdf)
 
 ---
 
@@ -66,10 +73,50 @@ Directory: `docs/product/figs/2015/`
 
 ---
 
+## Figure Index — 2011 Usability Report (FR508_10-4004)
+
+Directory: `docs/product/figs/2011/`
+
+| File | Figure | Caption |
+|------|--------|---------|
+| `FR508_10-4004_NLM_11-03-11_fig1.png` | Fig. 1 | Welcome screen |
+| `FR508_10-4004_NLM_11-03-11_fig2.png` | Fig. 2 | Mockup of alternative welcome screen |
+| `FR508_10-4004_NLM_11-03-11_fig3.png` | Fig. 3 | State menu within "Find Address" |
+| `FR508_10-4004_NLM_11-03-11_fig4.png` | Fig. 4 | State menu within "Quick Search" |
+| `FR508_10-4004_NLM_11-03-11_fig5.png` | Fig. 5 | Menus and icons (highlighted) to access the main functionality of TOXMAP |
+| `FR508_10-4004_NLM_11-03-11_fig6.png` | Fig. 6 | Mockup of labeled icons |
+| `FR508_10-4004_NLM_11-03-11_fig7.png` | Fig. 7 | Browse TOXMAP facilities in Continental US |
+| `FR508_10-4004_NLM_11-03-11_fig8.png` | Fig. 8 | Panel with radio buttons for both Quick Search and TOXMAP Data (highlighted) |
+| `FR508_10-4004_NLM_11-03-11_fig9.png` | Fig. 9 | Quick Search results panel on right |
+| `FR508_10-4004_NLM_11-03-11_fig10.png` | Fig. 10 | Mockup of combined panel, showing Search Results |
+| `FR508_10-4004_NLM_11-03-11_fig11.png` | Fig. 11 | Mockup of combined panel, showing TOXMAP Data |
+| *(fig12 not extracted)* | Fig. 12 | TRI and Superfund tabs (highlighted) in Search Results |
+| `FR508_10-4004_NLM_11-03-11_fig13.png` | Fig. 13 | Mockup of Search Results |
+| `FR508_10-4004_NLM_11-03-11_fig14.png` | Fig. 14 | Search results when Nevada was specified as the state |
+| `FR508_10-4004_NLM_11-03-11_fig15.png` | Fig. 15 | Inaccessible close button (highlighted) on a facility pop-up box |
+| `FR508_10-4004_NLM_11-03-11_fig16.png` | Fig. 16 | Demographics box |
+| `FR508_10-4004_NLM_11-03-11_fig17.png` | Fig. 17 | Demographic layer can be only one color when user is zoomed in |
+| `FR508_10-4004_NLM_11-03-11_fig18.png` | Fig. 18 | Mockup of demographics instructions |
+| `FR508_10-4004_NLM_11-03-11_fig19.png` | Fig. 19 | Mockup of mortality tab |
+| `FR508_10-4004_NLM_11-03-11_fig20.png` | Fig. 20 | Mortality options within Demographics |
+| `FR508_10-4004_NLM_11-03-11_fig21.png` | Fig. 21 | Demographics legend |
+| `FR508_10-4004_NLM_11-03-11_fig22.png` | Fig. 22 | Examples of legend values |
+| `FR508_10-4004_NLM_11-03-11_fig23.png` | Fig. 23 | Chemical Information box |
+| `FR508_10-4004_NLM_11-03-11_fig24.png` | Fig. 24 | Quick Search with lookup box for chemical name |
+| *(fig25 not extracted)* | Fig. 25 | Icon (highlighted) for minimized Quick Search box |
+| *(fig26 not extracted)* | Fig. 26 | Double arrow icon (highlighted) that collapses the side panel |
+| *(fig27 not extracted)* | Fig. 27 | Facility pop-up box title (highlighted) |
+| *(fig28 not extracted)* | Fig. 28 | TRI Facilities label for only the most recent data (highlighted) in TOXMAP Data panel |
+
+**Note:** Figures 12, 25–28 are referenced in the report but their image files were not extracted from the source PDF.
+
+---
+
 ## How These Figures Are Referenced
 
 These files are used exclusively in:
-- [`docs/product/TOXMAP_SCREEN_CATALOG.md`](product/TOXMAP_SCREEN_CATALOG.md) — design reference for the clone's UI
+- [`docs/product/TOXMAP_SCREEN_CATALOG.md`](TOXMAP_SCREEN_CATALOG.md) — design reference for the clone's UI (2006/2015 figures)
+- [`docs/product/TOXMAP_UCD_2011_FIGURES.md`](TOXMAP_UCD_2011_FIGURES.md) — usability findings and design implications (2011 figures)
 
 They are **not** bundled into the frontend build. The `docs/` directory is excluded from
 `npm run build` output by Vite's default configuration (only `frontend/src/` and
@@ -77,6 +124,7 @@ They are **not** bundled into the frontend build. The `docs/` directory is exclu
 
 ---
 
-*For questions about copyright or licensing, contact the publisher:*
+*For questions about copyright or licensing, contact the publishers:*
 *Taylor & Francis — https://www.tandfonline.com/journals/wmrs20*
+*NIH/NLM — https://www.nlm.nih.gov/*
 

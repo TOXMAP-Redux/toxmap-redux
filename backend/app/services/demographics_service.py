@@ -36,10 +36,12 @@ def _county_to_feature(county: CensusCounty) -> DemographicsFeature:
     def _f(val: object) -> float | None:
         return float(val) if val is not None else None  # type: ignore[arg-type]
 
+    state_fips = county.fips_code[:2] if county.fips_code else None
     props = DemographicsFeatureProperties(
         fips_code=county.fips_code,
         name=county.name,
         state_code=county.state_code,
+        state_fips=state_fips,
         census_year=county.census_year,
         total_pop=county.total_pop,
         median_income=_f(county.median_income),

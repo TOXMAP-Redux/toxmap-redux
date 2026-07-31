@@ -370,36 +370,84 @@ All POM classes live in `tests/e2e/pages/`. Full implementations in `e2e_steps.p
 
 ## Appendix C — Run Commands
 
+> **📘 For comprehensive setup and troubleshooting, see [RUNNING_TESTS.md](RUNNING_TESTS.md)**
+
+### Prerequisites
+
 ```bash
-# Prerequisites: all services running (see §2 Test Architecture)
-docker compose up -d postgres
-uvicorn app.main:create_app --factory --port 8000 &
-npm run dev &
+# 1. Start all services via Docker Compose
+docker compose up -d
 
-# Install browsers (once)
+# 2. Verify services are healthy
+docker compose ps
+
+# 3. Seed the database (required for E2E tests)
+docker cp tests/fixtures/seed.sql toxmap-postgres:/tmp/seed.sql
+docker exec toxmap-postgres psql -U postgres -d toxmap -f /tmp/seed.sql
+
+# 4. Install Playwright browsers (one-time)
 playwright install chromium firefox webkit
-
-# Smoke suite (every PR — T-01, T-03, T-08 + Invariants 1–4, 7–9, 11)
-pytest tests/features/e2e/ -m smoke -v --browser chromium
-
-# Full E2E suite (main branch)
-pytest tests/features/e2e/ -v --browser chromium
-
-# Specific task scenario
-pytest tests/features/e2e/ -k "T_01" -v --browser chromium
-
-# Cross-browser (sequential)
-pytest tests/features/e2e/ -v --browser chromium --browser firefox
-
-# Accessibility
-pytest tests/a11y/ -v --browser chromium
-
-# Production smoke (Cloudflare Pages)
-TEST_MODE=prod BASE_URL=https://toxmap.pages.dev \
-  pytest tests/e2e_prod/test_smoke_prod.py -m smoke -v --browser chromium
-
-# With retry on flaky assertions
-pytest tests/features/e2e/ -m smoke -v --browser chromium \
-  --reruns 2 --reruns-delay 1
 ```
+
+### E2E Test Execution
+
+```bash
+# ─── Environment Variables (required) ─────────────────────────────────────────
+export DATABASE_URL_SYNC="postgresql://postgres:postgres@localhost:5433/toxmap"
+export PYTHONPATH=".:backend"
+
+# ─── Full E2E Suite (headless — CI style) ─────────────────────────────────────
+pytest tests/features/e2e/ -v --tb=short
+
+# ─── Full E2E Suite (headed — watch browser) ──────────────────────────────────
+pytest tests/features/e2e/ -v --tb=short --headed
+
+# ─── UCD Task Scenarios Only ──────────────────────────────────────────────────
+pytest tests/features/e2e/test_ucd_task_scenarios.py -v --headed
+
+# ─── UX Invariants Only ───────────────────────────────────────────────────────
+pytest tests/features/e2e/test_ux_invariants.py -v --headed
+
+# ─── Specific Task Scenario ───────────────────────────────────────────────────
+pytest tests/features/e2e/ -k "t01" -v --headed       # T-01: Lead near Sparrows Point
+pytest tests/features/e2e/ -k "t03" -v --headed       # T-03: Copper near Ely NV
+pytest tests/features/e2e/ -k "t07" -v --headed       # T-07: Chlorine releases
+pytest tests/features/e2e/ -k "t08" -v --headed       # T-08: ToxFAQ link
+
+# ─── Smoke Suite (fast — 3 key scenarios) ─────────────────────────────────────
+pytest tests/features/e2e/ -k "t01 or t03 or t08" -v --headed
+
+# ─── Cross-Browser Testing ────────────────────────────────────────────────────
+pytest tests/features/e2e/ -v --browser firefox       # Firefox
+pytest tests/features/e2e/ -v --browser webkit        # Safari/WebKit
+
+# ─── Accessibility Tests (WCAG 2.1 AA) ────────────────────────────────────────
+pytest tests/a11y/ -v --headed
+
+# ─── Visual Regression Tests ──────────────────────────────────────────────────
+pytest tests/visual/ -v --headed
+
+# ─── With Retry for Flaky Tests ───────────────────────────────────────────────
+pip install pytest-rerunfailures
+pytest tests/features/e2e/ -v --reruns 2 --reruns-delay 1
+```
+
+### CI/CD Pipeline (Headless)
+
+In the CI pipeline (`.github/workflows/ci.yml`), tests run **headless** by default:
+
+```yaml
+# CI runs headless Chromium + Firefox smoke
+- name: Run E2E tests (Chromium)
+  run: pytest tests/features/e2e/ -v --browser chromium
+  
+- name: Run E2E smoke (Firefox)  
+  run: pytest tests/features/e2e/ -v --browser firefox -k "t01 or Invariant_1"
+```
+
+**Key differences from local execution:**
+- No `--headed` flag (headless is default)
+- Port 5432 (CI service container) vs. 5433 (local Docker Compose)
+- Playwright installed with `--with-deps` for system libraries
+
 

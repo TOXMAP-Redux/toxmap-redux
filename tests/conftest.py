@@ -18,6 +18,10 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 import os
+# M-12: Set TESTING=1 before any app module is imported. database.py reads this
+# at module-load time to select NullPool — prevents asyncpg connections created
+# in one event loop from being reused in another ("attached to different loop").
+os.environ["TESTING"] = "1"
 import pytest
 import psycopg2
 from pathlib import Path
@@ -69,9 +73,11 @@ def seed_db(db_connection):
         '70663ENTGR0001',  # Enterprise Gas
         '77536EXXO00001',  # ExxonMobil
         '77536LYND00001',  # LyondellBasell
+        '99501ANCHO0001',  # Alaska Mining (CONUS filter test)
+        '22630SMRLG0001',  # Small Release Facility (green tier test)
     ]
-    # Seed EPA IDs for Superfund (T-04):
-    _seed_epa_ids = ['VAD070358684', 'VAD980554587']
+    # Seed EPA IDs for Superfund (T-04, UCD-17 all 3 status types):
+    _seed_epa_ids = ['VAD070358684', 'VAD980554587', 'VAD987654321', 'VAD123456789']
     # Seed FIPS codes for census (T-05):
     _seed_fips = ['51187', '48201', '45003']
     with db_connection.cursor() as cur:
