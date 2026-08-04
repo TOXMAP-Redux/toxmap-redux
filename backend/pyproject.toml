@@ -30,7 +30,7 @@ test = [
     "pytest-bdd==8.1.0",
     "pytest-asyncio==0.25.3",
     "pytest-benchmark==5.1.0",
-    "pytest-cov==6.1.1",
+    "pytest-cov==7.1.0",
     "pytest-rerunfailures==15.0",
     "psycopg2-binary==2.9.10",
     "playwright==1.52.0",
