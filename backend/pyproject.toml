@@ -44,7 +44,7 @@ test = [
 dev = [
     "toxmap-backend[test]",
     "ruff==0.11.0",
-    "mypy==1.15.0",
+    "mypy==2.3.0",
 ]
 
 [build-system]
