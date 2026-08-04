@@ -35,7 +35,7 @@ test = [
     "psycopg2-binary==2.9.10",
     "playwright==1.52.0",
     "pytest-playwright==0.7.0",
-    "schemathesis==3.39.14",
+    "schemathesis==4.24.3",
     "mutmut==3.2.0",
 ]
 # dev = test + linting tools; used by CI: pip install -e ".[dev]"
