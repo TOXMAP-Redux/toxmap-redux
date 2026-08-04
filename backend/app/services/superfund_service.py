@@ -168,7 +168,20 @@ async def get_superfund_detail(
     # Enrich contaminant names with CAS numbers, ATSDR URLs, and PubChem URLs
     # from the chemicals table via a single batch name-match query.
     # For contaminants not in TRI, use the supplementary CAS lookup.
-    contaminant_names: list[str] = list(site.contaminants or [])
+    # 7.BUG.23: Filter out placeholder contaminant names that have no informational value
+    _PLACEHOLDER_CONTAMINANTS = {
+        "NOT PROVIDED",
+        "UNKNOWN",
+        "UNKNOWN LIQ WASTE",
+        "N/A",
+        "NA",
+        "NONE",
+        "",
+    }
+    contaminant_names: list[str] = [
+        c for c in (site.contaminants or [])
+        if c.upper().strip() not in _PLACEHOLDER_CONTAMINANTS
+    ]
     if contaminant_names:
         chem_rows = (
             await session.execute(
@@ -197,7 +210,12 @@ async def get_superfund_detail(
         
         # Check supplementary lookup for ATSDR URL (fallback for TRI entries missing ATSDR)
         lookup_result = SUPERFUND_CAS_LOOKUP.get(name_upper)
-        supplementary_atsdr = lookup_result[1] if lookup_result else None
+        supplementary_atsdr = None
+        supplementary_pubchem = None
+        if lookup_result:
+            # Handle both 2-tuple (cas, atsdr) and 3-tuple (cas, atsdr, pubchem)
+            supplementary_atsdr = lookup_result[1] if len(lookup_result) > 1 else None
+            supplementary_pubchem = lookup_result[2] if len(lookup_result) > 2 else None
         
         if name_upper in chem_map:
             # Found in TRI chemicals table
@@ -213,10 +231,13 @@ async def get_superfund_detail(
             )
         # Not in TRI - use supplementary lookup
         if lookup_result:
-            cas, atsdr = lookup_result
+            cas = lookup_result[0]
+            atsdr = lookup_result[1] if len(lookup_result) > 1 else None
+            # Use explicit PubChem URL if provided, else auto-generate from CAS
             pubchem = None
-            if cas and cas != "N/A":
-                # Build PubChem URL from CAS number (skip N/A entries)
+            if len(lookup_result) > 2 and lookup_result[2]:
+                pubchem = lookup_result[2]
+            elif cas and cas != "N/A":
                 pubchem = f"https://pubchem.ncbi.nlm.nih.gov/compound/{cas}"
             return SuperfundContaminant(
                 name=name,

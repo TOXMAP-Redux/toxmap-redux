@@ -170,7 +170,7 @@ export function SearchPanel({
               className="toxmap-chem-link"
               style={{ fontSize: '11px', color: '#2563eb', textDecoration: 'none', display: 'block', marginTop: '3px' }}
             >
-              ToxFAQs™: {selectedChemical.name} ↗
+              See ToxFAQs™: {selectedChemical.name} ↗
             </a>
           )}
 

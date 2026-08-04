@@ -8,17 +8,25 @@
 > - **Full session**: load this file *alongside* files 1–8 — it supplements the full context load, not replaces it
 > - **Always load:** `CURRENT_PHASE.txt` and `TOXMAP_PROGRESS_TRACKER.md` regardless of context size — they are Priority 0
 
-**Last Updated:** 2026-07-29
+**Last Updated:** 2026-08-03 (**ROLLBACK** — Phase 7 reverted to Phase 6)
+
+---
+
+## ⚠️ DEVELOPMENT HALTED (2026-08-03)
+
+**Phase 7 has been rolled back to Phase 6.** New defects discovered pre-deployment. Development is paused until QA completes triage and resolution.
+
+See: [ROLLBACK_PHASE7_TO_PHASE6_20260803.md](docs/escalations/ROLLBACK_PHASE7_TO_PHASE6_20260803.md)
 
 ---
 
 ## Current Phase
 
 ```
-cat CURRENT_PHASE.txt   → 6  (Full QA Pass)
+cat CURRENT_PHASE.txt   → 6  (Full QA Pass — ROLLBACK)
 ```
 
-Active milestone: **M6 — Feature Complete** (Phase 5 complete 2026-07-29; Phase 6 in progress)
+Active milestone: **M6 — Feature Complete** (REOPENED 2026-08-03 after rollback from Phase 7)
 
 Full status: `docs/product/TOXMAP_PROGRESS_TRACKER.md`
 

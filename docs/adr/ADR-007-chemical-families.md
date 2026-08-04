@@ -257,7 +257,7 @@ Initial release includes the following families (to be expanded based on user fe
 | 7. Detail view | ⬜ | Deferred — breakdown by chemical variant in facility detail |
 | 8. Documentation | ✅ | ADR-007 accepted; API contract updated |
 
-### Bug Fixes (7.BUG.9–7.BUG.15)
+### Bug Fixes (7.BUG.9–7.BUG.15, 7.BUG.20)
 
 | Bug | Issue | Fix |
 |-----|-------|-----|
@@ -268,6 +268,18 @@ Initial release includes the following families (to be expanded based on user fe
 | 7.BUG.13 | Sidebar resize lag/map interference | Direct DOM manipulation + capture-phase events |
 | 7.BUG.14 | PostCSS ESM error | Changed to CommonJS syntax |
 | 7.BUG.15 | MERCURY family not expanding | Added whitespace normalization to seed script; fixed MERCURY/CHROMIUM/ZINC/etc. families with correct TRI chemical names (35 members total) |
+| 7.BUG.20 | Family members missing ToxFAQs links | ATSDR URL inheritance: `backfill_atsdr_urls.py` now inherits `atsdr_url` from family parent when child has no direct match (e.g., ZINC COMPOUNDS → ZINC). Updated `tri_ingest.py` to populate on new ingestion. |
+
+### ATSDR ToxFAQs URL Inheritance
+
+Family member chemicals (e.g., "ZINC COMPOUNDS", "LEAD AND LEAD COMPOUNDS") inherit their `atsdr_url` from the family parent chemical (e.g., "ZINC", "LEAD") when no direct ATSDR match exists. This ensures citizens searching for any variant of a toxic metal see the ToxFAQs health information link.
+
+**Lookup priority:**
+1. Exact chemical name match in `_ATSDR` lookup table
+2. Chemical family parent name match (via `chemical_family_members` join)
+
+**Example:**
+- "ZINC COMPOUNDS" → no direct ATSDR entry → family = "ZINC" → inherits `https://wwwn.cdc.gov/TSP/ToxFAQs/ToxFAQsDetails.aspx?faqid=301&toxid=54`
 
 ---
 

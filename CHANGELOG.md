@@ -14,7 +14,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Milestone M6 — Feature Complete 🎉 (2026-07-31) [agent]
+### ⚠️ Phase Rollback (2026-08-03) [agent]
+
+**Phase 7 (Production Deploy) rolled back to Phase 6 (Full QA Pass).**
+
+Development halted due to new defects discovered pre-Phase 7 deployment. Phase 6 DoD verification was premature.
+
+- Reverted `CURRENT_PHASE.txt` from `7` to `6`
+- Updated `TOXMAP_PROGRESS_TRACKER.md` with rollback status
+- Created `docs/escalations/ROLLBACK_PHASE7_TO_PHASE6_20260803.md`
+- Updated `README.md` to indicate development halt
+
+**Required actions:** QA triage of new defects → bug fixes → Phase 6 DoD re-verification.
+
+---
+
+### ~~Milestone M6 — Feature Complete 🎉 (2026-07-31) [agent]~~ **REVOKED**
 
 Phase 6 (Full QA Pass) complete. All acceptance criteria verified:
 - API feature tests: 31/31 pass
@@ -103,6 +118,43 @@ Bug fixes shipped (7.BUG.9–7.BUG.19):
   chemicals (CFCs, alkylbenzenes, metal oxides, petroleum fractions, nitrosamines).
 - **7.BUG.19:** ATSDR external links now display as "ToxFAQs™" instead of "ATSDR" for
   transparency — users know they're accessing the CDC/ATSDR ToxFAQs chemical database
+- **7.BUG.20:** Fixed TRI chemicals missing ATSDR ToxFAQs links — "ZINC COMPOUNDS",
+  "LEAD AND LEAD COMPOUNDS", and other chemical family members had no ToxFAQs despite
+  parent element (ZINC, LEAD) having ATSDR URL. Root cause: (1) `tri_ingest.py` never
+  populated `atsdr_url` — only `pubchem_url`; (2) backfill only did exact name match.
+  Fix: Updated `tri_ingest.py` to populate `atsdr_url` on ingest; updated backfill
+  script to inherit ATSDR URL from chemical family parent per ADR-007. Results: 61
+  exact matches + 19 family inheritance = 80 chemicals with ATSDR URLs.
+  (2026-08-03) [agent]
+- **7.BUG.21:** Fixed Superfund contaminants missing PubChem links for petroleum
+  mixtures — TPH, JP-5, JP-8, Fuel Oil had broken `/compound/` URLs that either
+  returned 404 or redirected to wrong compounds. Root cause: PubChem `/compound/`
+  URLs don't work for complex mixtures (e.g., `/compound/JP-5` redirects to an
+  organic molecule CID 156012505, not jet fuel). Fix: Updated `superfund_cas_lookup.py`
+  to use 3-tuple format `(CAS, ATSDR, PUBCHEM)` with explicit PubChem URLs:
+  TPH→`/substance/135312467`, JP-5→`/substance/135356845`, JP-8→`/substance/505788256`,
+  Fuel Oils→`/compound/Fuel-Oils`. Updated `superfund_service.py` to handle both
+  2-tuple and 3-tuple lookups. Regression tests added to `test_superfund_cas_lookup.py`.
+  (2026-08-03) [agent]
+- **7.BUG.22 (CRITICAL):** Fixed TRI chemical categories with broken PubChem URLs —
+  34 chemicals used EPA Form R category codes (N010, N090, N100, etc.) as CAS numbers,
+  generating 404 URLs like `/compound/N090`. Root cause: EPA TRI data uses N### codes
+  for compound families (ANTIMONY COMPOUNDS=N010, COPPER COMPOUNDS=N100, etc.) — these
+  are NOT CAS numbers. Fix: (1) Updated `_pubchem_url()` in `tri_ingest.py` to validate
+  CAS format (`^\d{2,7}-\d{2}-\d$`) and detect N### codes; (2) Added `_TRI_CATEGORY_PUBCHEM`
+  mapping all 34 codes to correct URLs: metals→`/element/{Element}` (Copper, Lead, Mercury),
+  compounds→`/compound/{CID}` (Cyanide, Warfarin), classes→`/#query={term}` searches
+  (diisocyanates, dioxin); (3) Created `scripts/fix_tri_category_pubchem_urls.py` migration;
+  (4) Added 79 regression tests in `test_tri_ingest.py`. (2026-08-03) [agent]
+- **7.BUG.23:** Fixed dioxin compound classes missing PubChem links + filtered "NOT PROVIDED"
+  from Superfund contaminants. Two issues: (1) DIOXINS (CHLORINATED DIBENZODIOXINS) and
+  similar compound classes had no PubChem URL because CAS was "N/A"; (2) 26 Superfund sites
+  had "NOT PROVIDED" as a contaminant. Fix: (1) Updated `superfund_cas_lookup.py` dioxin
+  entries to use 3-tuple format with explicit PubChem URLs — specific dioxins→`/compound/{CID}`
+  (2,3,7,8-TCDD→CID 15625), dioxin classes→`/#query={term}` search URLs; (2) Added placeholder
+  filtering in `superfund_service.py` to exclude "NOT PROVIDED", "UNKNOWN", "N/A" values.
+  F.E. Warren AFB now shows 39 contaminants instead of 40. 8 regression tests in
+  `TestDioxinPubChemUrls`. (2026-08-03) [agent]
 
 ### Fixed
 

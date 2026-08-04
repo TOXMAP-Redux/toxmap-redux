@@ -152,12 +152,6 @@ function SuperfundDrawerContent({ site, onClose }: { site: SuperfundDetail; onCl
                     ) : (
                       <span style={{ fontWeight: 500 }}>{c.name}</span>
                     )}
-                    {/* CAS number inline */}
-                    {c.cas_number && (
-                      <span style={{ fontSize: '10px', color: '#9ca3af' }}>
-                        {c.cas_number}
-                      </span>
-                    )}
                     {/* ATSDR link inline if present */}
                     {c.atsdr_url && (
                       <a

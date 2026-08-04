@@ -35,19 +35,29 @@ export function FacilityDrawer({ facilityId, onClose }: FacilityDrawerProps): JS
   const { detail, loading: detailLoading } = useFacilityDetail(facilityId)
   const { releases, loading: releasesLoading } = useFacilityReleases(facilityId)
 
-  // Look up per-chemical URLs for the primary (top) chemical.
+  // Look up per-chemical URLs for all top chemicals.
   // The FacilityDetail schema only returns chemical_name + release amount; URLs
   // live in the chemicals table and are fetched via searchChemicals.
-  const [primaryChemical, setPrimaryChemical] = useState<Chemical | null>(null)
+  const [chemicalData, setChemicalData] = useState<Map<string, Chemical>>(new Map())
   useEffect(() => {
-    const name = detail?.top_chemicals?.[0]?.chemical_name
-    if (!name) return
-    setPrimaryChemical(null)
-    searchChemicals(name)
-      .then((results) => {
-        if (results[0]) setPrimaryChemical(results[0])
-      })
-      .catch(() => {})
+    const names = detail?.top_chemicals?.map((c) => c.chemical_name) ?? []
+    if (names.length === 0) return
+    setChemicalData(new Map())
+    // Fetch each chemical's data in parallel
+    Promise.all(
+      names.map((name) =>
+        searchChemicals(name).then((results) => {
+          const match = results.find((r) => r.name.toUpperCase() === name.toUpperCase())
+          return match ? [name.toUpperCase(), match] as const : null
+        }).catch(() => null)
+      )
+    ).then((results) => {
+      const map = new Map<string, Chemical>()
+      for (const r of results) {
+        if (r) map.set(r[0], r[1])
+      }
+      setChemicalData(map)
+    })
   }, [detail])
 
   // Medium breakdown from most-recent year's releases
@@ -105,31 +115,12 @@ export function FacilityDrawer({ facilityId, onClose }: FacilityDrawerProps): JS
         </button>
       </div>
 
-      {/* External links — show when we have URL data for the primary chemical */}
-      {(primaryChemical?.atsdr_url || primaryChemical?.pubchem_url) && (
-        <div className="toxmap-drawer-links" style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', padding: '8px 16px', borderBottom: '1px solid #f3f4f6', flexShrink: 0 }}>
-          {primaryChemical.atsdr_url && (
-            <a
-              data-testid="atsdr-link"
-              href={primaryChemical.atsdr_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ fontSize: '12px', color: '#2563eb', textDecoration: 'none' }}
-            >
-              ToxFAQs™: {primaryChemical.name} ↗
-            </a>
-          )}
-          {primaryChemical.pubchem_url && (
-            <a
-              data-testid="pubchem-link"
-              href={primaryChemical.pubchem_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ fontSize: '12px', color: '#2563eb', textDecoration: 'none' }}
-            >
-              PubChem ↗
-            </a>
-          )}
+      {/* Note about chemical links */}
+      {chemicalData.size > 0 && (
+        <div className="toxmap-drawer-links" style={{ padding: '6px 16px', borderBottom: '1px solid #f3f4f6', flexShrink: 0 }}>
+          <p style={{ margin: 0, fontSize: '10px', color: '#6b7280' }}>
+            Chemical names link to PubChem. ToxFAQs™ links (if available) provide ATSDR health info.
+          </p>
         </div>
       )}
 
@@ -187,17 +178,49 @@ export function FacilityDrawer({ facilityId, onClose }: FacilityDrawerProps): JS
                 </ResponsiveContainer>
                 <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse', marginTop: '12px' }}>
                   <tbody>
-                    {detail.top_chemicals.map((c) => (
-                      <tr key={c.chemical_name} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                        <td style={{ padding: '4px 0', color: '#374151' }}>{c.chemical_name}</td>
-                        <td
-                          data-testid="facility-release-amount"
-                          style={{ padding: '4px 0', textAlign: 'right', fontFamily: 'monospace', fontWeight: 700 }}
-                        >
-                          {formatLbs(c.total_release_lbs)}
-                        </td>
-                      </tr>
-                    ))}
+                    {detail.top_chemicals.map((c) => {
+                      const chem = chemicalData.get(c.chemical_name.toUpperCase())
+                      return (
+                        <tr key={c.chemical_name} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                          <td style={{ padding: '4px 0' }}>
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', flexWrap: 'wrap' }}>
+                              {/* Chemical name — link to PubChem if available */}
+                              {chem?.pubchem_url ? (
+                                <a
+                                  data-testid="facility-chemical-pubchem"
+                                  href={chem.pubchem_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 500 }}
+                                >
+                                  {c.chemical_name}
+                                </a>
+                              ) : (
+                                <span style={{ color: '#374151', fontWeight: 500 }}>{c.chemical_name}</span>
+                              )}
+                              {/* ToxFAQs™ link if available */}
+                              {chem?.atsdr_url && (
+                                <a
+                                  data-testid="facility-chemical-toxfaqs"
+                                  href={chem.atsdr_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ fontSize: '10px', color: '#059669', textDecoration: 'none' }}
+                                >
+                                  ToxFAQs™
+                                </a>
+                              )}
+                            </div>
+                          </td>
+                          <td
+                            data-testid="facility-release-amount"
+                            style={{ padding: '4px 0', textAlign: 'right', fontFamily: 'monospace', fontWeight: 700 }}
+                          >
+                            {formatLbs(c.total_release_lbs)}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </>

@@ -18,6 +18,7 @@ import argparse
 import io
 import logging
 import os
+import re
 import sys
 from typing import Any
 
@@ -31,6 +32,14 @@ from ingestion.tri_parser import (
     compute_aggregated_release_columns,
     normalize_columns,
 )
+
+# ATSDR ToxFAQs URL lookup — shared with Superfund service
+# Import the dict directly to avoid circular imports
+try:
+    from app.services.superfund_cas_lookup import _ATSDR as ATSDR_LOOKUP
+except ImportError:
+    # Fallback for running script directly outside app context
+    ATSDR_LOOKUP = {}
 
 logger = logging.getLogger(__name__)
 
@@ -113,14 +122,95 @@ def _filter_valid_us_facilities(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# CAS number pattern: 2-7 digits, hyphen, 2 digits, hyphen, 1 digit (e.g., 71-36-3)
+_CAS_PATTERN = re.compile(r"^\d{2,7}-\d{2}-\d$")
+
+# TRI category code pattern: N followed by 3 digits (e.g., N010, N090, N982)
+# These are EPA TRI Form R codes, NOT CAS numbers
+_TRI_CATEGORY_PATTERN = re.compile(r"^N\d{3}$")
+
+# Mapping of TRI category codes (N###) to correct PubChem URLs
+# For element compounds, use /element/{Element}
+# For chemical classes, use search URLs or NULL
+_TRI_CATEGORY_PUBCHEM = {
+    # Metal compounds → link to element page
+    "N010": "https://pubchem.ncbi.nlm.nih.gov/element/Antimony",   # ANTIMONY COMPOUNDS
+    "N020": "https://pubchem.ncbi.nlm.nih.gov/element/Arsenic",    # ARSENIC COMPOUNDS
+    "N040": "https://pubchem.ncbi.nlm.nih.gov/element/Barium",     # BARIUM COMPOUNDS
+    "N050": "https://pubchem.ncbi.nlm.nih.gov/element/Beryllium",  # BERYLLIUM COMPOUNDS
+    "N078": "https://pubchem.ncbi.nlm.nih.gov/element/Cadmium",    # CADMIUM COMPOUNDS
+    "N090": "https://pubchem.ncbi.nlm.nih.gov/element/Chromium",   # CHROMIUM COMPOUNDS
+    "N096": "https://pubchem.ncbi.nlm.nih.gov/element/Cobalt",     # COBALT AND COBALT COMPOUNDS
+    "N100": "https://pubchem.ncbi.nlm.nih.gov/element/Copper",     # COPPER COMPOUNDS
+    "N420": "https://pubchem.ncbi.nlm.nih.gov/element/Lead",       # LEAD AND LEAD COMPOUNDS
+    "N450": "https://pubchem.ncbi.nlm.nih.gov/element/Manganese",  # MANGANESE AND MANGANESE COMPOUNDS
+    "N458": "https://pubchem.ncbi.nlm.nih.gov/element/Mercury",    # MERCURY AND MERCURY COMPOUNDS
+    "N495": "https://pubchem.ncbi.nlm.nih.gov/element/Nickel",     # NICKEL COMPOUNDS
+    "N725": "https://pubchem.ncbi.nlm.nih.gov/element/Selenium",   # SELENIUM COMPOUNDS
+    "N740": "https://pubchem.ncbi.nlm.nih.gov/element/Silver",     # SILVER AND SILVER COMPOUNDS
+    "N760": "https://pubchem.ncbi.nlm.nih.gov/element/Thallium",   # THALLIUM AND THALLIUM COMPOUNDS
+    "N770": "https://pubchem.ncbi.nlm.nih.gov/compound/Vanadium",  # VANADIUM COMPOUNDS (no element page)
+    "N982": "https://pubchem.ncbi.nlm.nih.gov/element/Zinc",       # ZINC COMPOUNDS
+    # Other categories → specific compound or search URL
+    "N084": "https://pubchem.ncbi.nlm.nih.gov/#query=chlorophenols",        # CHLOROPHENOLS
+    "N106": "https://pubchem.ncbi.nlm.nih.gov/compound/Cyanide",            # CYANIDE COMPOUNDS (CID 768)
+    "N120": "https://pubchem.ncbi.nlm.nih.gov/#query=diisocyanates",        # DIISOCYANATES
+    "N125": "https://pubchem.ncbi.nlm.nih.gov/compound/590836",             # DINP (CID 590836)
+    "N150": "https://pubchem.ncbi.nlm.nih.gov/#query=dioxin",               # DIOXIN AND DIOXIN-LIKE COMPOUNDS
+    "N171": "https://pubchem.ncbi.nlm.nih.gov/#query=ethylenebisdithiocarbamic",  # EBDC salts/esters
+    "N230": "https://pubchem.ncbi.nlm.nih.gov/#query=glycol+ethers",        # CERTAIN GLYCOL ETHERS
+    "N270": "https://pubchem.ncbi.nlm.nih.gov/compound/18529",              # HBCD (CID 18529)
+    "N503": "https://pubchem.ncbi.nlm.nih.gov/compound/89594",              # NICOTINE (CID 89594)
+    "N511": None,  # NITRATE COMPOUNDS - too broad, no single compound
+    "N530": "https://pubchem.ncbi.nlm.nih.gov/compound/1752",               # NONYLPHENOL (CID 1752)
+    "N535": "https://pubchem.ncbi.nlm.nih.gov/#query=nonylphenol+ethoxylates",  # NPEs
+    "N575": "https://pubchem.ncbi.nlm.nih.gov/#query=polybrominated+biphenyls",  # PBBs
+    "N583": "https://pubchem.ncbi.nlm.nih.gov/#query=polychlorinated+alkanes",   # PCAs
+    "N590": "https://pubchem.ncbi.nlm.nih.gov/#query=polycyclic+aromatic",       # PACs
+    "N746": "https://pubchem.ncbi.nlm.nih.gov/compound/441071",             # STRYCHNINE (CID 441071)
+    "N874": "https://pubchem.ncbi.nlm.nih.gov/compound/54678486",           # WARFARIN (CID 54678486)
+}
+
+
 def _pubchem_url(cas: str | None) -> str | None:
-    """Return a PubChem compound URL for a CAS number, or None if CAS is absent.
+    """Return a PubChem compound URL for a CAS number, or None if invalid/absent.
 
     PubChem resolves /compound/<CAS> to the canonical compound page, so no
     API call is required — the URL is constructed directly from the CAS number.
+
+    IMPORTANT: TRI category codes (N###) are NOT CAS numbers. They are EPA
+    Form R codes for chemical categories. We handle these separately:
+    - If a TRI category code has a known PubChem mapping, use that
+    - Otherwise, return None to avoid broken 404 links
+
+    7.BUG.22 fix: Validate CAS format before generating URL.
     """
-    if cas:
-        return f"https://pubchem.ncbi.nlm.nih.gov/compound/{cas}"
+    if not cas:
+        return None
+
+    cas = cas.strip()
+
+    # Check if this is a TRI category code (N###)
+    if _TRI_CATEGORY_PATTERN.match(cas):
+        # Use the mapping, or None if not mapped
+        return _TRI_CATEGORY_PUBCHEM.get(cas)
+
+    # Validate CAS number format (e.g., 71-36-3, 7440-50-8)
+    if not _CAS_PATTERN.match(cas):
+        logger.warning("Invalid CAS number format: %r — skipping PubChem URL", cas)
+        return None
+
+    return f"https://pubchem.ncbi.nlm.nih.gov/compound/{cas}"
+
+
+def _atsdr_url(name: str | None) -> str | None:
+    """Return an ATSDR ToxFAQs URL for a chemical name, or None if not covered.
+
+    ATSDR only publishes ToxFAQs for ~200 priority hazardous substances.
+    The lookup is done by exact chemical name match (uppercase).
+    """
+    if name and ATSDR_LOOKUP:
+        return ATSDR_LOOKUP.get(name.upper())
     return None
 
 
@@ -142,12 +232,17 @@ def _upsert_chemicals(df: pd.DataFrame, conn: Any) -> dict[str, int]:
 
         result = conn.execute(
             text(
-                "INSERT INTO chemicals (cas_number, name, pubchem_url) "
-                "VALUES (:cas, :name, :pubchem_url) "
+                "INSERT INTO chemicals (cas_number, name, pubchem_url, atsdr_url) "
+                "VALUES (:cas, :name, :pubchem_url, :atsdr_url) "
                 "ON CONFLICT DO NOTHING "
                 "RETURNING id"
             ),
-            {"cas": cas, "name": name, "pubchem_url": _pubchem_url(cas)},
+            {
+                "cas": cas,
+                "name": name,
+                "pubchem_url": _pubchem_url(cas),
+                "atsdr_url": _atsdr_url(name),
+            },
         )
         row_id = result.scalar()
         if row_id is None:

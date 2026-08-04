@@ -192,6 +192,32 @@ def step_first_result_field_str(field, expected, step_context):
     assert str(actual) == expected, f"Expected first[{field}]={expected!r}, got {actual!r}"
 
 
+# 7.BUG.20 regression tests: ATSDR URL family inheritance
+@then(parsers.parse('the response contains a chemical named "{name}" with atsdr_url containing "{substring}"'))
+def step_contains_chemical_with_atsdr(name, substring, step_context):
+    """Check that a chemical has an atsdr_url containing the expected substring.
+
+    Regression test for 7.BUG.20 (ATSDR family inheritance).
+    """
+    body = step_context["response"].json()
+    for c in body:
+        if c["name"] == name:
+            atsdr_url = c.get("atsdr_url")
+            assert atsdr_url is not None, (
+                f"REGRESSION 7.BUG.20: {name!r} has atsdr_url=null. "
+                f"Family inheritance may have failed."
+            )
+            assert substring in atsdr_url, (
+                f"REGRESSION 7.BUG.20: {name!r} atsdr_url missing {substring!r}. "
+                f"Got: {atsdr_url}"
+            )
+            return
+    pytest.fail(
+        f"{name!r} not found in chemical response. "
+        f"Available names: {[c['name'] for c in body]}"
+    )
+
+
 # ─── Then: content type / body assertions ─────────────────────────────────────
 
 

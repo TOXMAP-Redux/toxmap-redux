@@ -4,7 +4,7 @@
 - **Author(s):** Victor Cannestro
 - **Maintained By:** Quality Engineering Team
 - **Version:** 1.0  
-- **Last Updated:** 2026-07-23 — TRI Data Audit remediation: CB-11 (gram-unit scaling), CF-04/CF-05 (new CSV columns), FF-09/FF-10 (unit labels), GB-06 (unit_of_measure in GeoJSON) added
+- **Last Updated:** 2026-08-03 — Added 4.11 Superfund CAS Lookup tests (7.BUG.17–7.BUG.21): ATSDR toxid correctness, PubChem URL validation for petroleum mixtures
 - **Test Type:** Unit Test (pure logic — zero I/O, zero infrastructure)
 
 ---
@@ -35,6 +35,7 @@ This plan covers unit-level testing of all pure-logic modules in the TOXMAP back
 | Query param validation | Python | `app/schemas/query_params.py` | Pydantic models for all endpoint parameters |
 | CSV row formatter | Python | `app/domain/csv_formatter.py` | Formats facility + release data into CSV row dicts |
 | Meta response builder | Python | `app/domain/meta_builder.py` | Constructs `/api/v1/meta` response with vintage fallback logic |
+| Superfund CAS lookup | Python | `app/services/superfund_cas_lookup.py` | Provides CAS numbers, ATSDR ToxFAQs URLs, and PubChem URLs for Superfund contaminants not in TRI chemicals table |
 | Number formatters | TypeScript | `src/utils/formatters.ts` | Comma-formats release quantities; appends units (`%`, `$`) |
 | Color band CSS mapping | TypeScript | `src/utils/colorBand.ts` | Maps `color_band` string to hex color for MapLibre GL |
 | Sidebar state machine | TypeScript | `src/state/sidebarState.ts` | Enforces mutual exclusion of Map Contents and Search Results panels |
@@ -265,6 +266,26 @@ Unit tests use **inline parametrize values only**. No SQL files, no fixtures, no
 | BX-05 | Latest year option text               | —                         | Includes `"(latest year)"` suffix (UX Invariant 7) |
 | BX-06 | Year not in `available_years`         | —                         | Treated as invalid selection                       |
 
+### 4.11 Superfund CAS Lookup
+
+**File:** `tests/unit/test_superfund_cas_lookup.py`  
+**Prefix:** `SL` (Superfund Lookup)
+
+Regression tests for bug fixes 7.BUG.17, 7.BUG.18, 7.BUG.19, 7.BUG.21. Validates CAS numbers, ATSDR ToxFAQs URLs (correct toxid mappings), and PubChem URLs (correct patterns for petroleum mixtures).
+
+| ID    | Class                    | Test                                      | Assertion                                                                 |
+|-------|--------------------------|-------------------------------------------|---------------------------------------------------------------------------|
+| SL-01 | `TestATSDRToxidCorrectness` | `test_atsdr_toxid_is_correct`           | 30+ chemicals have correct ATSDR toxid (e.g., MANGANESE=23, not 42)       |
+| SL-02 | `TestATSDRToxidCorrectness` | `test_manganese_not_methylene_chloride` | MANGANESE links to toxid=23, NOT toxid=42 (7.BUG.18 regression)           |
+| SL-03 | `TestATSDRUrlFormat`     | `test_all_atsdr_urls_use_toxfaqs_format`  | All ATSDR URLs use `ToxFAQsDetails.aspx`, not `ToxSubstance.aspx`         |
+| SL-04 | `TestCASNumberCoverage`  | `test_cas_number_correct`                 | 30+ key chemicals have verified CAS numbers                               |
+| SL-05 | `TestCASNumberCoverage`  | `test_lookup_has_minimum_coverage`        | Lookup has ≥200 entries                                                   |
+| SL-06 | `TestChemicalNameVariants` | `test_all_variants_present`             | Chemical name variants (TCE, PERC, DCE, DDT, xylenes) all present         |
+| SL-07 | `TestPubChemUrlValidation` | `test_petroleum_mixture_pubchem_urls`   | TPH, JP-5, JP-8 use `/substance/` URLs; Fuel Oils use `/compound/Fuel-Oils` (7.BUG.21) |
+| SL-08 | `TestPubChemUrlValidation` | `test_tph_not_compound_url`             | TPH does NOT use `/compound/` URL (returns 404)                           |
+| SL-09 | `TestPubChemUrlValidation` | `test_jp5_not_compound_url`             | JP-5 does NOT use `/compound/JP-5` URL (redirects to wrong compound)     |
+| SL-10 | `TestPubChemUrlValidation` | `test_all_pubchem_urls_are_valid_format`| All explicit PubChem URLs match `/compound/` or `/substance/` patterns    |
+
 ---
 
 ## 5. Entry & Exit Criteria
@@ -326,6 +347,11 @@ Unit tests use **inline parametrize values only**. No SQL files, no fixtures, no
 | UT-14   | SS-01–SS-05   | Sidebar state machine                       | `sidebarState.test.ts`    | ⚠️ Planned |
 | UT-15   | BX-01–BX-03   | BBox utilities                              | `bboxUtils.test.ts`       | ⚠️ Planned |
 | UT-16   | BX-04–BX-06   | Year picker logic                           | `yearPicker.test.ts`      | ⚠️ Planned |
+| UT-17   | SL-01–SL-02   | ATSDR toxid correctness (7.BUG.18)          | `test_superfund_cas_lookup.py` | ✅ Implemented |
+| UT-18   | SL-03         | ATSDR URL format validation (7.BUG.19)      | `test_superfund_cas_lookup.py` | ✅ Implemented |
+| UT-19   | SL-04–SL-05   | CAS number coverage (7.BUG.17)              | `test_superfund_cas_lookup.py` | ✅ Implemented |
+| UT-20   | SL-06         | Chemical name variants                      | `test_superfund_cas_lookup.py` | ✅ Implemented |
+| UT-21   | SL-07–SL-10   | PubChem URL validation (7.BUG.21)           | `test_superfund_cas_lookup.py` | ✅ Implemented |
 
 ### Automation Status Key
 

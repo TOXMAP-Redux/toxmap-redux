@@ -5,7 +5,7 @@
 [![CI](https://github.com/VictorCannestro/toxmap/actions/workflows/ci.yml/badge.svg)](https://github.com/VictorCannestro/toxmap/actions/workflows/ci.yml)
 [![Security](https://github.com/VictorCannestro/toxmap/actions/workflows/security.yml/badge.svg)](https://github.com/VictorCannestro/toxmap/actions/workflows/security.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Phase](https://img.shields.io/badge/Phase-6%20%E2%80%94%20Full%20QA%20Pass-blue)](docs/product/TOXMAP_PROGRESS_TRACKER.md)
+[![Phase](https://img.shields.io/badge/Phase-6%20%E2%80%94%20Full%20QA%20Pass%20(ROLLBACK)-orange)](docs/product/TOXMAP_PROGRESS_TRACKER.md)
 [![Data: EPA TRI](https://img.shields.io/badge/Data-EPA%20TRI%201987%E2%80%93present-green)](https://www.epa.gov/toxics-release-inventory-tri-program)
 [![Cost: $0/month](https://img.shields.io/badge/hosting-%240%2Fmonth-brightgreen)](docs/adr/ADR-004-zero-budget-hosting.md)
 
@@ -42,7 +42,7 @@ This project is an open-source recreation of that tool — built on modern, open
 
 ## Live Demo
 
-> **Under construction — Phase 6 (Full QA Pass) in progress.** Core features are complete. The app is not yet deployed to production. Follow the [build roadmap](docs/product/TOXMAP_DEVELOPMENT_ROADMAP.md) or [contribute](#contributing) to help ship it faster.
+> **⚠️ DEVELOPMENT HALTED — Phase 6 rollback in progress (2026-08-03).** New defects were discovered pre-Phase 7 deployment. Development is paused while QA triages and resolves outstanding issues. See [progress tracker](docs/product/TOXMAP_PROGRESS_TRACKER.md) for details.
 
 When live: **[https://toxmap.pages.dev](https://toxmap.pages.dev)**
 

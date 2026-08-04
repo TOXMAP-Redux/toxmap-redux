@@ -1,7 +1,7 @@
 # TOXMAP Progress Tracker
 
 **Owner:** Phase Manager Agent  
-**Last Updated:** 2026-07-31 (Phase 7 bug fixes: 7.BUG.1–7.BUG.19 completed [agent])  
+**Last Updated:** 2026-08-03 (**ROLLBACK** from Phase 7 → Phase 6 due to pre-deployment defects [agent])  
 **Source of truth for:** `CURRENT_PHASE.txt` · DoD status · active assignments · blockers  
 
 > This file is updated by the Phase Manager at the end of every development session.  
@@ -9,16 +9,28 @@
 
 ---
 
+## ⚠️ PHASE ROLLBACK NOTICE (2026-08-03)
+
+**Phase 7 was reverted to Phase 6.** Development halted to address new defects discovered before production deployment.
+
+**Reason:** Multiple new defects were found pre-Phase 7 deployment. Phase 6 DoD verification was premature.
+
+**Action Required:** QA team must triage and resolve all newly discovered defects before re-certifying Phase 6 DoD.
+
+See: [ROLLBACK_PHASE7_TO_PHASE6_20260803.md](../escalations/ROLLBACK_PHASE7_TO_PHASE6_20260803.md)
+
+---
+
 ## Current Status
 
 | Field | Value |
 |-------|-------|
-| **Active Phase** | `7` — Production Deploy |
-| **Active Milestone** | M7 — MVP Shipped 🚀 |
-| **Phase Lead** | FE + OPS |
-| **Phase Start Date** | 2026-07-31 |
-| **Stories Completed** | Phase 0 complete (33/33 pts); Phase 1 complete (48/48 pts); Phase 2 complete (62/62 pts); Phase 3 complete (79/79 pts); Phase 4 complete (28/28 pts); Phase 5 complete (33/33 pts); Phase 6 complete (69/69 pts) |
-| **Open Blockers** | B-001 (Phase 1 `workflow_dispatch` verification — human gate; does not block Phase 7) |
+| **Active Phase** | `6` — Full QA Pass (**ROLLBACK**) |
+| **Active Milestone** | M6 — Feature Complete |
+| **Phase Lead** | QA |
+| **Phase Start Date** | 2026-07-29 (resumed 2026-08-03 after rollback) |
+| **Stories Completed** | Phase 0 complete (33/33 pts); Phase 1 complete (48/48 pts); Phase 2 complete (62/62 pts); Phase 3 complete (79/79 pts); Phase 4 complete (28/28 pts); Phase 5 complete (33/33 pts); **Phase 6 re-opened** |
+| **Open Blockers** | **B-002 (Phase 6 rollback — new defects pre-Phase 7; blocks M7)** · B-001 (Phase 1 `workflow_dispatch` verification — human gate; does not block Phase 7) |
 
 ---
 
@@ -32,8 +44,8 @@
 | **3** | Core Map UI | ✅ Complete | M3 — First Shareable Demo | 2026-07-27 |
 | **4** | Superfund Overlay | ✅ Complete | M4 — Superfund Layer | 2026-07-28 |
 | **5** | Demographics Overlay | ✅ Complete | M5 — Demographics Layer | 2026-07-29 |
-| **6** | Full QA Pass | ✅ Complete | M6 — Feature Complete | 2026-07-31 |
-| **7** | Production Deploy | 🔄 In Progress | M7 — MVP Shipped 🚀 | — |
+| **6** | Full QA Pass | 🔄 **ROLLBACK** | M6 — Feature Complete | — |
+| **7** | Production Deploy | ⬜ Blocked | M7 — MVP Shipped 🚀 | — |
 | **8** | Tribal Lands Data | ⬜ Not Started | M8 — Tribal Lands | — |
 | **9** | Multi-Chemical Search | ⬜ Not Started | M9 — Multi-Chemical (F-23) | — |
 | **10** | EPA Monitoring Sites | ⬜ Not Started | M10 — Monitoring Sites (F-24) | — |
@@ -552,22 +564,25 @@ Phase 5 DoD tests use Census 2000 layer only.
 
 ---
 
-## Phase 6 — Full QA Pass *(Complete)*
+## Phase 6 — Full QA Pass *(REOPENED — Rollback from Phase 7)*
 
 **Lead:** QA  
-**Total points:** 51 + 18 (bug fixes)  
+**Total points:** 51 + 18 (bug fixes) + TBD (new defects)  
 **Prerequisites:** Phase 5 DoD complete ✅ 2026-07-29
-**Phase Start Date:** 2026-07-29
-**Phase Complete Date:** 2026-07-31
+**Phase Start Date:** 2026-07-29 (resumed 2026-08-03 after rollback)
+**Phase Complete Date:** ~~2026-07-31~~ **REVOKED**
+
+> ⚠️ **ROLLBACK (2026-08-03):** Phase 6 was prematurely marked complete. New defects discovered pre-Phase 7 deployment require re-verification of DoD items.
 
 ### Definition of Done Checklist
 
-- [x] `pytest tests/features/api/` exits 0 ✅ 31 passed 2026-07-31
-- [x] `pytest tests/features/e2e/` exits 0 ✅ 41 passed 2026-07-31
-- [x] All 5 performance SLAs pass ✅ 5/5 pass 2026-07-31
-- [x] `pytest tests/security/` → 0 failures ✅ 15/15 pass 2026-07-31
-- [x] Schemathesis `--checks response_schema_conformance` passes ✅ 1604/1604 pass 2026-07-31
-- [x] Semgrep OWASP-Top-Ten clean ✅ 0 High/Critical findings 2026-07-31
+- [ ] `pytest tests/features/api/` exits 0 — **re-verification required**
+- [ ] `pytest tests/features/e2e/` exits 0 — **re-verification required**
+- [ ] All 5 performance SLAs pass — **re-verification required**
+- [ ] `pytest tests/security/` → 0 failures — **re-verification required**
+- [ ] Schemathesis `--checks response_schema_conformance` passes — **re-verification required**
+- [ ] Semgrep OWASP-Top-Ten clean — **re-verification required**
+- [ ] **NEW:** All newly discovered defects triaged and resolved
 
 **Epic 6.BUG — Bug Fixes & Regressions** `FE + QA`
 
@@ -592,12 +607,14 @@ Phase 5 DoD tests use Census 2000 layer only.
 
 ---
 
-## Phase 7 — Production Deploy *(In Progress)*
+## Phase 7 — Production Deploy *(Blocked — awaiting Phase 6 re-completion)*
 
 **Lead:** FE + OPS  
-**Total points:** 51 + 12 (bug fixes)  
-**Prerequisites:** Phase 6 DoD complete ✅ 2026-07-31
-**Phase Start Date:** 2026-07-31
+**Total points:** 51 + 15 (bug fixes)  
+**Prerequisites:** Phase 6 DoD complete ❌ **BLOCKED** (rollback 2026-08-03)
+**Phase Start Date:** ~~2026-07-31~~ **REVOKED**
+
+> 🚧 **BLOCKED:** Phase 7 cannot proceed until Phase 6 DoD is re-verified after rollback.
 
 **DoD Preview:**
 - [ ] App live at Cloudflare Pages URL
@@ -627,6 +644,10 @@ Phase 5 DoD tests use Census 2000 layer only.
 | 7.BUG.17 | Enhancement: Comprehensive Superfund contaminant CAS lookup + UI redesign | 3 | ✅ | BE/FE | Root cause: PAHs, PCBs, chlorinated solvents, and other non-TRI Superfund contaminants had no CAS numbers or PubChem links. Fix: Added `_SUPERFUND_CAS_LOOKUP` dict (180+ chemicals including Aroclors, benzo compounds, dioxins, pesticides, nitrates, radionuclides, PFAS, explosives) to `superfund_service.py`. Updated `_enrich_contaminant()` to fall back to lookup when chemical not in TRI table. Redesigned `SuperfundDrawer.tsx` UI: chemical names are now PubChem links (blue), CAS inline (gray), ATSDR below (green), more compact layout. 2026-07-31 |
 | 7.BUG.18 | **CRITICAL**: ATSDR ToxFAQs links pointing to wrong chemicals — MANGANESE linked to Methylene Chloride | 3 | ✅ | BE | Root cause: ATSDR toxid values in `superfund_cas_lookup.py` were fabricated incorrectly instead of sourced from verified scraped data in `scripts/atsdr_toxid_map.csv`. Example: Manganese had toxid=42 (Methylene Chloride) instead of correct toxid=23 (Manganese). Fix: Rebuilt entire `_ATSDR` dict using verified URLs from `scripts/atsdr_toxid_map.csv`. Corrected ~15 toxid mappings: Manganese=23, Mercury=24, Barium=57, TCE=30, TPH=75, Dieldrin=56, etc. Added 80+ missing chemicals (CFCs, alkylbenzenes, nitrosamines, metal oxides, petroleum fractions). Regression test added to `test_superfund_cas_lookup.py`. 2026-07-31 |
 | 7.BUG.19 | Enhancement: ATSDR links now display as "ToxFAQs™" for transparency | 1 | ✅ | FE | Root cause: Green external links just said "ATSDR" which doesn't communicate the specific resource being linked. Fix: Changed link text from "ATSDR" to "ToxFAQs™" in `SuperfundDrawer.tsx`, `FacilityDrawer.tsx`, and `SearchPanel.tsx`. Users now know they're going to the CDC/ATSDR ToxFAQs database. 2026-07-31 |
+| 7.BUG.20 | Fix: TRI chemicals missing ATSDR ToxFAQs links — "ZINC COMPOUNDS", "LEAD AND LEAD COMPOUNDS" had no ToxFAQs despite parent having ATSDR URL | 3 | ✅ | BE/DE | Root cause: (1) `tri_ingest.py` never populated `atsdr_url` column — only `pubchem_url`; (2) backfill script only did exact name match, missing family variants (e.g., "ZINC COMPOUNDS" not in ATSDR dict, but family parent "ZINC" is). Fix: Updated `tri_ingest.py` to import `_ATSDR` lookup and populate `atsdr_url` on ingest. Updated `backfill_atsdr_urls.py` to inherit ATSDR URL from chemical family parent per ADR-007. Results: 61 chemicals updated via exact match, 19 via family inheritance. Regression tests added to `test_atsdr_family_inheritance.py`. 2026-08-03 |
+| 7.BUG.21 | Fix: Superfund contaminants missing PubChem links for petroleum mixtures — TPH, JP-5, JP-8, Fuel Oil had broken `/compound/` URLs | 2 | ✅ | BE | Root cause: PubChem `/compound/` URLs don't work for complex mixtures (e.g., `/compound/Total-petroleum-hydrocarbons` returns 404, `/compound/JP-5` redirects to wrong compound). Fix: Updated `superfund_cas_lookup.py` to use 3-tuple format `(CAS, ATSDR, PUBCHEM)` with explicit PubChem URLs: TPH→`/substance/135312467`, JP-5→`/substance/135356845`, JP-8→`/substance/505788256`, Fuel Oils→`/compound/Fuel-Oils`. Updated `superfund_service.py` to handle both 2-tuple and 3-tuple lookups. Regression tests added to `test_superfund_cas_lookup.py`. 2026-08-03 |
+| 7.BUG.22 | **CRITICAL**: TRI chemical categories have broken PubChem URLs — N### codes (EPA Form R codes) used as CAS numbers | 3 | ✅ | BE/DE | Root cause: EPA TRI data uses category codes (N010=ANTIMONY COMPOUNDS, N090=CHROMIUM COMPOUNDS, N100=COPPER COMPOUNDS, etc.) for compound families — these are NOT CAS numbers. `tri_ingest.py` blindly constructed `/compound/N090` URLs that return 404. 34 chemicals affected (all metal compounds and chemical classes). Fix: (1) Updated `_pubchem_url()` in `tri_ingest.py` to validate CAS format (regex `^\d{2,7}-\d{2}-\d$`) and detect N### pattern; (2) Added `_TRI_CATEGORY_PUBCHEM` mapping of all 34 codes to correct URLs: metals→`/element/{Element}` (e.g., Copper, Lead, Mercury), compounds→`/compound/{CID}` (e.g., Cyanide, Warfarin), classes→`/#query={term}` searches (e.g., diisocyanates, dioxin); (3) Created `scripts/fix_tri_category_pubchem_urls.py` migration to fix existing records; (4) 79 regression tests in `test_tri_ingest.py`. Verified all URL types work: `/element/Copper`, `/compound/Cyanide`, `/#query=diisocyanates`. 2026-08-03 |
+| 7.BUG.23 | Fix: Dioxins missing PubChem links + filter "NOT PROVIDED" from contaminants | 2 | ✅ | BE | Two issues: (1) Dioxin compound classes (DIOXINS (CHLORINATED DIBENZODIOXINS), CHLORINATED DIOXINS AND FURANS, etc.) had no PubChem URL because CAS was "N/A" and no explicit URL; (2) 26 Superfund sites had "NOT PROVIDED" as a contaminant from EPA data. Fix: (1) Updated `superfund_cas_lookup.py` dioxin entries to use 3-tuple format with explicit PubChem URLs: specific dioxins→`/compound/{CID}` (e.g., 2,3,7,8-TCDD→CID 15625), dioxin classes→`/#query={term}` search URLs; (2) Added placeholder filtering in `superfund_service.py` to exclude "NOT PROVIDED", "UNKNOWN", "N/A" from contaminant display. F.E. Warren AFB now shows 39 contaminants instead of 40. 8 regression tests in `TestDioxinPubChemUrls`. 2026-08-03 |
 
 ---
 

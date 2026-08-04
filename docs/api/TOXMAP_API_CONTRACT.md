@@ -403,6 +403,7 @@ None.
 **Contract invariants:**
 - Sorted alphabetically by `name`
 - `atsdr_url` and `pubchem_url` may be `null` if not yet populated; never omitted from response
+- `atsdr_url` for family member chemicals (e.g., "ZINC COMPOUNDS") is inherited from the family parent ("ZINC") per ADR-007 when no direct ATSDR match exists
 
 ---
 
