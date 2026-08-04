@@ -1,12 +1,12 @@
 # TOXMAP Acceptance Tests — Gherkin Feature Specifications
 
 **Date:** 2026-07-15  
-**Last Updated:** 2026-07-28 — Added Superfund browse mode scenarios (`GET /api/v1/superfund/browse`) matching TRI facilities browse pattern; Feature 4 updated  
+**Last Updated:** 2026-08-04 — Added geocoding confidence scoring regression tests (ADR-008); Feature 8 updated  
 **Format:** Gherkin BDD (pytest-bdd / behave)  
 **Test Runner:** `pytest` + `pytest-bdd` (API layer) · `pytest-playwright` (E2E layer)  
 **Seed Data:** [TOXMAP_TEST_SEED_DATA.md](TOXMAP_TEST_SEED_DATA.md)  
 **API Contract:** [TOXMAP_API_CONTRACT.md](../api/TOXMAP_API_CONTRACT.md)  
-**Source Requirements:** [ADR-001](../adr/ADR-001-fastapi-postgis-react.md) · [Tech Stack Analysis §3](../adr/TOXMAP_TECH_STACK_ANALYSIS.md)
+**Source Requirements:** [ADR-001](../adr/ADR-001-fastapi-postgis-react.md) · [ADR-008](../adr/ADR-008-geocoding-confidence-scoring.md) · [Tech Stack Analysis §3](../adr/TOXMAP_TECH_STACK_ANALYSIS.md)
 
 ---
 
@@ -791,6 +791,50 @@ Feature: UX Design Invariants
     When I search for "LEAD COMPOUNDS" near "Sparrows Point, MD" in year "2008"
     Then every row in the results table that shows a release quantity also shows a unit label
     And no release quantity appears without an adjacent unit label
+
+  # ── Invariant 13: Geocoding confidence feedback (ADR-008) ────────────────────
+  # Users must see the resolved canonical address and a confidence indicator
+  # to set appropriate expectations for address-level geocoding accuracy.
+
+  Scenario: Resolved geocode location is displayed with confidence badge
+    Given I am on the map page
+    When I type "100 Mill Rd, Port Townsend, WA" into the location field
+    And I click "Search"
+    Then the resolved location panel is visible
+    And the resolved location panel shows a canonical address
+    And a geocode confidence badge is visible (Exact, High, Approximate, or Low)
+
+  Scenario: Low-confidence geocodes show a warning message
+    Given I am on the map page
+    When I type "100 Mill Rd" into the location field (ambiguous query)
+    And I click "Search"
+    Then the resolved location panel shows "Approximate" or "Low" confidence
+    And a warning message is visible suggesting to add city/state
+
+  # ── Regression: Geocoding Confidence Scoring (7.BUG.25) ───────────────────────
+  # Full address → high confidence; partial address → approximate + warning.
+  # See ADR-008 for scoring algorithm and confidence thresholds.
+
+  Scenario: Regression — Full address geocodes with high confidence
+    Given I am on the map page
+    When I type "100 Mill Rd, Port Townsend, WA" into the location field
+    And I click "Search"
+    Then the geocode confidence badge shows "High" or "Exact"
+    And the resolved address contains "Port Townsend"
+
+  Scenario: Regression — Partial address shows approximate confidence warning
+    Given I am on the map page
+    When I type "100 Mill Rd" into the location field
+    And I click "Search"
+    Then the geocode confidence badge shows "Approximate" or "Low"
+    And the approximate location warning is visible
+
+  Scenario: Regression — Resolved location shows canonical address from Photon
+    Given I am on the map page
+    When I type "Sparrows Point, MD" into the location field
+    And I click "Search"
+    Then the resolved location panel shows a different address than "Sparrows Point, MD"
+    And the resolved address contains "MD" or "Maryland"
 ```
 
 ---

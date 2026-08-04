@@ -149,9 +149,12 @@ const results = await conn.query(`
 |---------|---------|-----------|
 | **Cloudflare Pages** | React app hosting | Unlimited requests, unlimited bandwidth |
 | **Cloudflare R2** | Parquet + PMTiles static files | 10 GB storage, 10M reads/month — free forever |
+| **Cloudflare Workers** | Optional geocoding proxy (ADR-009) | 100K requests/day — enables global cache + rate limiting |
 | **GitHub Actions** | Annual data build + CI | 2,000 min/month free |
 | **GitHub Releases** | Parquet file versioning | Unlimited storage for public repos |
 | **Protomaps** | US basemap tile generation | Open-source tool, self-run |
+| **Photon (Komoot)** | Geocoding (ADR-006) | Free, fair-use policy |
+| **OpenFreeMap** | Basemap tiles (ADR-005) | Free, no limits stated |
 
 **Total monthly cost: $0.00**
 

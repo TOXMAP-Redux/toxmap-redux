@@ -9,7 +9,6 @@ PostGIS distance calculations use Geography cast for accurate metre-based result
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
@@ -56,9 +55,7 @@ async def _resolve_year(session: AsyncSession, year: int | None) -> int | None:
     """Return *year* if provided, else MAX(reporting_year) from release_events."""
     if year is not None:
         return year
-    result = await session.execute(
-        select(func.max(ReleaseEvent.reporting_year))
-    )
+    result = await session.execute(select(func.max(ReleaseEvent.reporting_year)))
     return result.scalar()
 
 
@@ -67,25 +64,25 @@ async def _expand_chemical_family(
     chemical: str | None,
 ) -> tuple[list[str] | None, SearchExpansion | None]:
     """Expand a chemical to its family members (ADR-007).
-    
+
     Returns:
         Tuple of (list of chemical names to search, SearchExpansion info)
         If chemical doesn't belong to a family, returns (None, None)
     """
     if not chemical:
         return None, None
-    
+
     # Check if this chemical belongs to a family
     family_chemicals = await get_family_chemical_names(session, chemical)
     if family_chemicals is None or len(family_chemicals) <= 1:
         # Not in a family or is the only member
         return None, None
-    
+
     # Get family info for the response
     family_info = await get_family_info_by_chemical(session, chemical)
     if family_info is None:
         return None, None
-    
+
     expansion = SearchExpansion(
         expanded=True,
         family_name=family_info.family_name,
@@ -93,7 +90,7 @@ async def _expand_chemical_family(
         description=family_info.description,
         nlm_url=family_info.nlm_url,
     )
-    
+
     return family_chemicals, expansion
 
 
@@ -185,18 +182,14 @@ async def get_facilities_near(
                 stmt = stmt.where(
                     func.ST_Within(
                         Facility.location,
-                        func.ST_MakeEnvelope(
-                            min_lon, min_lat, max_lon, max_lat, 4326
-                        ),
+                        func.ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, 4326),
                     )
                 )
             except ValueError:
                 logger.warning("Ignoring invalid bbox parameter: %s", bbox)
 
     # Count rows before applying LIMIT (used for truncated flag)
-    count_result = await session.execute(
-        select(func.count()).select_from(stmt.subquery())
-    )
+    count_result = await session.execute(select(func.count()).select_from(stmt.subquery()))
     total_count: int = count_result.scalar() or 0
 
     # Apply ordering + limit
@@ -207,12 +200,8 @@ async def get_facilities_near(
     for row in rows:
         facility: Facility = row[0]
         total_lbs_raw = row[1]
-        rep_year: int = (
-            row[2] if row[2] is not None else (effective_year or 0)
-        )
-        total_lbs: float | None = (
-            float(total_lbs_raw) if total_lbs_raw is not None else None
-        )
+        rep_year: int = row[2] if row[2] is not None else (effective_year or 0)
+        total_lbs: float | None = float(total_lbs_raw) if total_lbs_raw is not None else None
         shape = to_shape(facility.location)
         geom: dict[str, Any] = {
             "type": "Point",
@@ -252,13 +241,14 @@ async def get_all_facilities_browse(
     chemical: str | None,
     medium: str | None,
     state: str | None,
+    bbox: str | None = None,
     exact_match: bool = False,
     limit: int = _BROWSE_LIMIT,
 ) -> FacilityCollection:
     """Browse mode: fetch ALL facilities without radius constraint.
-    
+
     Used for the initial map view showing all TRI facilities nationwide.
-    Filters by year/chemical/medium/state are applied but no spatial constraint.
+    Filters by year/chemical/medium/state/bbox are applied but no spatial constraint.
     Results are ordered by total_release_lbs desc.
     ADR-007: Expands chemical families automatically (unless exact_match).
     """
@@ -308,18 +298,30 @@ async def get_all_facilities_browse(
     rel_sub = rel_stmt.subquery()
 
     # Main query - no spatial constraint
-    stmt = (
-        select(Facility, rel_sub.c.total_lbs, rel_sub.c.reporting_year)
-        .join(rel_sub, rel_sub.c.facility_id == Facility.id)
+    stmt = select(Facility, rel_sub.c.total_lbs, rel_sub.c.reporting_year).join(
+        rel_sub, rel_sub.c.facility_id == Facility.id
     )
 
     if state:
         stmt = stmt.where(Facility.state_code == state.upper()[:2])
 
+    # Apply bbox filter if provided (format: "min_lon,min_lat,max_lon,max_lat")
+    if bbox:
+        parts = bbox.split(",")
+        if len(parts) == 4:
+            try:
+                min_lon, min_lat, max_lon, max_lat = (float(p) for p in parts)
+                stmt = stmt.where(
+                    func.ST_Within(
+                        Facility.location,
+                        func.ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, 4326),
+                    )
+                )
+            except ValueError:
+                logger.warning("Ignoring invalid bbox parameter: %s", bbox)
+
     # Count total before limit
-    count_result = await session.execute(
-        select(func.count()).select_from(stmt.subquery())
-    )
+    count_result = await session.execute(select(func.count()).select_from(stmt.subquery()))
     total_count: int = count_result.scalar() or 0
 
     # Apply ordering + limit
@@ -331,9 +333,7 @@ async def get_all_facilities_browse(
         facility: Facility = row[0]
         total_lbs_raw = row[1]
         rep_year: int = row[2] if row[2] is not None else (effective_year or 0)
-        total_lbs: float | None = (
-            float(total_lbs_raw) if total_lbs_raw is not None else None
-        )
+        total_lbs: float | None = float(total_lbs_raw) if total_lbs_raw is not None else None
         shape = to_shape(facility.location)
         geom: dict[str, Any] = {
             "type": "Point",
@@ -390,9 +390,7 @@ async def get_facility_detail(
 
     # Latest reporting year for this facility
     yr_result = await session.execute(
-        select(func.max(ReleaseEvent.reporting_year)).where(
-            ReleaseEvent.facility_id == facility.id
-        )
+        select(func.max(ReleaseEvent.reporting_year)).where(ReleaseEvent.facility_id == facility.id)
     )
     latest_year: int | None = yr_result.scalar()
 
@@ -529,9 +527,7 @@ async def get_export_rows(
                 stmt = stmt.where(
                     func.ST_Within(
                         Facility.location,
-                        func.ST_MakeEnvelope(
-                            min_lon, min_lat, max_lon, max_lat, 4326
-                        ),
+                        func.ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, 4326),
                     )
                 )
             except ValueError:

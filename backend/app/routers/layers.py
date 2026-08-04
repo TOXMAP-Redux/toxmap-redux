@@ -32,9 +32,7 @@ async def get_nuclear_layer(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Return all nuclear power plants as a GeoJSON FeatureCollection."""
-    plants = (
-        await db.execute(select(NuclearPlant))
-    ).scalars().all()
+    plants = (await db.execute(select(NuclearPlant))).scalars().all()
 
     features: list[dict[str, Any]] = []
     for plant in plants:

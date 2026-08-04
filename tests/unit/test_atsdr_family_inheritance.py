@@ -22,6 +22,7 @@ class TestATSDRFamilyLookup:
     """
 
     # Chemical families per ADR-007
+    # NOTE: toxid values are from actual ATSDR ToxFAQs URLs (scraped from scripts/atsdr_toxid_map.csv)
     METAL_FAMILIES = [
         # (parent_name, expected_in_atsdr, toxid_in_url)
         ("LEAD", True, "22"),
@@ -30,15 +31,15 @@ class TestATSDRFamilyLookup:
         ("CHROMIUM", True, "17"),
         ("ARSENIC", True, "3"),
         ("CADMIUM", True, "15"),
-        ("NICKEL", True, "18"),
+        ("NICKEL", True, "44"),  # toxid=44, not 18
         ("COPPER", True, "37"),
         ("MANGANESE", True, "23"),
         ("BARIUM", True, "57"),
-        ("COBALT", True, "19"),
-        ("BERYLLIUM", True, "12"),
-        ("ANTIMONY", True, "6"),
-        ("SELENIUM", True, "46"),
-        ("SILVER", True, "47"),
+        ("COBALT", True, "64"),  # toxid=64, not 19
+        ("BERYLLIUM", True, "33"),  # toxid=33, not 12
+        ("ANTIMONY", True, "58"),  # toxid=58, not 6
+        ("SELENIUM", True, "28"),  # toxid=28, not 46
+        ("SILVER", True, "97"),  # toxid=97, not 47
         ("THALLIUM", True, "49"),
         ("VANADIUM", True, "50"),
     ]
@@ -199,7 +200,15 @@ class TestCommonTRIChemicals:
     ]
 
     # Known gaps - chemicals without ATSDR ToxFAQs
-    KNOWN_GAPS = {"METHANOL", "CERTAIN GLYCOL ETHERS", "N-BUTYL ALCOHOL"}
+    # NOTE: ATSDR has "Sulfur Trioxide & Sulfuric Acid" but not these exact names
+    KNOWN_GAPS = {
+        "METHANOL",
+        "CERTAIN GLYCOL ETHERS",
+        "N-BUTYL ALCOHOL",
+        "SULFURIC ACID",  # ATSDR uses "Sulfur Trioxide & Sulfuric Acid"
+        "HYDROCHLORIC ACID",  # Not in ATSDR ToxFAQs
+        "NITRIC ACID",  # Not in ATSDR ToxFAQs
+    }
 
     @pytest.mark.parametrize("chemical", TOP_TRI_CHEMICALS)
     def test_top_tri_chemical_coverage(self, chemical: str):

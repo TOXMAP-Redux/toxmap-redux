@@ -403,3 +403,75 @@ Feature: UX Design Invariants
     When I type "ARSENIC" into the chemical field
     And I click "Search"
     Then the chemical family banner is visible
+
+  # ── ADR-008: Geocoding Confidence Scoring (7.BUG.25) ─────────────────────
+  # Regression tests for: Geocoding fidelity gap (Google Maps vs Photon).
+  # Root cause: First-result acceptance without scoring; no viewport bias.
+  # Fix: Multi-candidate scoring with confidence levels and UI feedback.
+
+  Scenario: Regression — Full address geocodes with high confidence badge
+    Given I am on the map page
+    When I type "100 Mill Rd, Port Townsend, WA" into the location field
+    And I click "Search"
+    Then the resolved location panel is visible
+    And the geocode confidence badge shows "High" or "Exact"
+    And the resolved address contains "Port Townsend"
+    And the map is centered near Port Townsend, WA
+
+  Scenario: Regression — Partial address shows approximate confidence warning
+    Given I am on the map page
+    When I type "100 Mill Rd" into the location field
+    And I click "Search"
+    Then the resolved location panel is visible
+    And the geocode confidence badge shows "Approximate" or "Low"
+    And the approximate location warning is visible
+
+  Scenario: Regression — Geocoding uses viewport bias for ambiguous queries
+    Given I am on the map page
+    And the map is zoomed to Port Townsend, WA area
+    When I type "Mill Road" into the location field
+    And I click "Search"
+    Then the resolved address is closer to Port Townsend than to other states
+
+  Scenario: Regression — Resolved location shows canonical address from Photon
+    Given I am on the map page
+    When I type "Sparrows Point, MD" into the location field
+    And I click "Search"
+    Then the resolved location panel is visible
+    And the resolved address contains "MD" or "Maryland"
+    And the resolved address is not equal to "Sparrows Point, MD"
+
+  Scenario: Regression — Address with typo shows low confidence
+    Given I am on the map page
+    When I type "100 Mill Rd Port Townsed" into the location field
+    And I click "Search"
+    Then the resolved location panel is visible
+    And the geocode confidence badge is NOT "Exact"
+
+  # ── 6.UX.1: Superfund Panel UI Improvements ──────────────────────────────
+  # Regression tests for: EPA ID link + CAS number removal.
+  # Fix: (1) EPA ID now links to EPA Site Progress Profile via SEMS site_id
+  #      (2) CAS numbers removed from contaminants list for cleaner UI
+
+  @regression @6UX1
+  Scenario: Regression — Superfund EPA ID is clickable
+    Given I am on the map page
+    When I select the "Superfund" dataset
+    And I type "Front Royal, VA" into the location field
+    And I click "Search"
+    Then the results sidebar shows "AVTEX FIBERS INC"
+    When I click on "AVTEX FIBERS INC" in the Superfund results
+    Then the Superfund detail panel opens
+    And the EPA ID link is visible
+    And the EPA ID links to "cumulis.epa.gov/supercpad"
+
+  @regression @6UX1
+  Scenario: Regression — Superfund contaminants do NOT show CAS numbers
+    Given I am on the map page
+    When I select the "Superfund" dataset
+    And I type "Front Royal, VA" into the location field
+    And I click "Search"
+    When I click on "AVTEX FIBERS INC" in the Superfund results
+    Then the Superfund detail panel opens
+    And the contaminants list is visible
+    And no contaminant row shows a CAS number pattern

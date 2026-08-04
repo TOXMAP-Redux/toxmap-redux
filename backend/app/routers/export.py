@@ -14,7 +14,8 @@ import datetime
 import io
 import logging
 import re
-from typing import Annotated, Any, Generator
+from collections.abc import Generator
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse

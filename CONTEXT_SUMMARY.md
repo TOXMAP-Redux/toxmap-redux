@@ -36,7 +36,7 @@ Full status: `docs/product/TOXMAP_PROGRESS_TRACKER.md`
 
 - **Backend:** Python 3.12 + FastAPI + SQLAlchemy 2.x async + PostGIS 3.4
 - **Frontend:** React 18 + TypeScript + Vite + MapLibre GL JS + Tailwind CSS
-- **Geocoding:** Photon (photon.komoot.io) — browser-direct, no API key, OSM-backed (ADR-006). Cache + throttle + attribution in `api/geocode.ts`. FastAPI `GET /api/v1/geocode` retained but unused by frontend.
+- **Geocoding:** Photon (photon.komoot.io) — browser-direct, no API key, OSM-backed (ADR-006). Cache + throttle + attribution in `api/geocode.ts`. FastAPI `GET /api/v1/geocode` retained but unused by frontend. **Production scaling:** Cloudflare Workers proxy for global cache + aggregate rate limiting (ADR-009).
 - **Production:** DuckDB WASM + Cloudflare Pages + Cloudflare R2 ($0/month)
 - **Tests:** pytest-bdd (Gherkin) + pytest-playwright + Schemathesis
 

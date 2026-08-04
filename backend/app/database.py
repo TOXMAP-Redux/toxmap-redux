@@ -6,6 +6,7 @@ injection. Alembic uses ``DATABASE_URL_SYNC`` from config (not this module).
 
 import os
 from collections.abc import AsyncGenerator
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
@@ -22,7 +23,7 @@ class Base(DeclarativeBase):
 # pool Futures from leaking across pytest-asyncio's per-test event loops.
 # NullPool creates a fresh connection per request and closes it immediately —
 # no pooling, no cross-loop Future conflicts.
-_engine_kwargs: dict = {"echo": False}
+_engine_kwargs: dict[str, Any] = {"echo": False}
 if os.getenv("TESTING") == "1":
     _engine_kwargs["poolclass"] = NullPool
 else:

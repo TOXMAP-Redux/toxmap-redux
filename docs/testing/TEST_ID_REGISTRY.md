@@ -1,6 +1,6 @@
 # TOXMAP `data-testid` Registry
 
-**Last updated:** 2026-07-21  
+**Last updated:** 2026-08-04  
 **Purpose:** Canonical list of every `data-testid` attribute used in Playwright E2E tests and React components. Frontend developers MUST use these exact strings. QA engineers MUST use these exact strings in selectors.
 
 > **Rule:** If a `data-testid` is not in this registry, it does not exist. Add it here before using it in any test or component.
@@ -148,6 +148,17 @@
 | `interpretation-banner` | Release quantity disclaimer banner                                          | first-load check                                |
 | `onboarding-tooltip`    | Tour tooltip root                                                           | onboarding visible/hidden                       |
 | `data-vintage-label`    | Map footer data vintage indicator (e.g. `"2008 TRI · October 2024 freeze"`) | UX Invariant 11 — vintage visible and non-empty |
+
+---
+
+## Geocoding (ADR-008)
+
+| `data-testid`               | Component                                  | Used in Gherkin Step                                   |
+|-----------------------------|--------------------------------------------|--------------------------------------------------------|
+| `resolved-geocode`          | Resolved location panel container          | UX Invariant 13 — `"resolved location panel is visible"` |
+| `geocode-confidence-badge`  | Confidence level badge (Exact/High/Approximate/Low) | `"geocode confidence badge shows 'High' or 'Exact'"` |
+
+> **Note:** The resolved geocode panel appears below the search form after a location-based search is submitted. It displays the canonical address from Photon and a color-coded confidence badge.
 
 ---
 

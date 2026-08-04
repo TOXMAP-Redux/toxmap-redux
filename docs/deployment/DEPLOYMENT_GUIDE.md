@@ -1,6 +1,6 @@
 # TOXMAP Deployment Guide
 
-**Last Updated:** 2026-07-23 (audited and corrected)  
+**Last Updated:** 2026-08-04 (added Third-Party Service Fair Use & Scaling section)  
 **Audience:** Anyone deploying TOXMAP — no prior ops experience assumed  
 **Related:** [ADR-004 (Hosting Strategy)](../adr/ADR-004-zero-budget-hosting.md) · [ADR-001 (Stack)](../adr/ADR-001-fastapi-postgis-react.md)
 
@@ -105,7 +105,7 @@ ALLOWED_ORIGINS=http://localhost:3000
 VITE_API_BASE_URL=http://localhost:8000
 VITE_DATA_SOURCE=api
 VITE_MAPLIBRE_STYLE=https://tiles.openfreemap.org/styles/liberty
-VITE_NOMINATIM_UA=toxmap-clone/0.1 (github.com/TOXMAP-Redux/toxmap-redux)
+# VITE_NOMINATIM_UA is obsolete — geocoding uses Photon (ADR-006)
 ```
 
 > ⚠️ **Never put secrets in `VITE_`-prefixed variables.** Everything prefixed `VITE_` is bundled into the public
@@ -447,7 +447,7 @@ Edit `frontend/.env.production`:
 VITE_DATA_SOURCE=duckdb
 VITE_R2_BASE_URL=https://pub-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.r2.dev
 VITE_MAPLIBRE_STYLE=https://tiles.openfreemap.org/styles/liberty
-VITE_NOMINATIM_UA=toxmap-clone/0.1 (github.com/TOXMAP-Redux/toxmap-redux)
+# VITE_NOMINATIM_UA is obsolete — geocoding uses Photon (ADR-006)
 ```
 
 Replace the `VITE_R2_BASE_URL` value with the public URL you copied in Step 2.5.
@@ -571,7 +571,7 @@ jobs:
           VITE_DATA_SOURCE: duckdb
           VITE_R2_BASE_URL: ${{ secrets.VITE_R2_BASE_URL }}
           VITE_MAPLIBRE_STYLE: https://tiles.openfreemap.org/styles/liberty
-          VITE_NOMINATIM_UA: toxmap-clone/0.1 (github.com/${{ github.repository }})
+          # VITE_NOMINATIM_UA is obsolete — geocoding uses Photon (ADR-006)
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
@@ -927,6 +927,330 @@ docker compose up --force-recreate frontend
 
 ---
 
+## Third-Party Service Fair Use & Scaling
+
+> **This section is critical for a public health application.** TOXMAP depends on free third-party services for geocoding and basemap tiles. Understanding their usage policies and knowing when to self-host is essential for responsible operation.
+
+### Services Used in Production Mode
+
+| Service | Purpose | Usage Policy | Risk ID |
+|---------|---------|--------------|---------|
+| **[Photon](https://photon.komoot.io/)** (Komoot) | Address → coordinates geocoding | "Please be fair — extensive usage will be throttled" | RISK-009 |
+| **[OpenFreeMap](https://openfreemap.org/)** | MapLibre basemap tiles | "No limits on map views or requests" (but single-developer, no SLA) | RISK-008 |
+| **Cloudflare R2** | Parquet data files | 10M free reads/month; $0.36/M overage | RISK-006 |
+
+### How Production Mode Works
+
+In production (`VITE_DATA_SOURCE=duckdb`), there is **no backend server**. Each user's browser makes direct requests:
+
+```
+User's Browser ──► Photon (geocoding)
+               ──► OpenFreeMap (basemap tiles)
+               ──► Cloudflare R2 (Parquet data)
+```
+
+Per-client mitigations (caching, throttling) limit individual abuse, but **cannot prevent aggregate overload** if TOXMAP becomes popular.
+
+---
+
+### Cloudflare Workers Proxy (Recommended for Production)
+
+**The best solution within the zero-server architecture is a Cloudflare Workers proxy** for geocoding. This adds a lightweight serverless layer that:
+
+1. **Global cache** — All users share one cache (not per-browser)
+2. **Aggregate rate limiting** — Limits total requests to Photon, not just per-user
+3. **Analytics** — See actual request volumes
+4. **Graceful degradation** — Return cached results when rate-limited
+
+#### Cost Estimate
+
+| Tier | Requests | Monthly Cost | Notes |
+|------|----------|--------------|-------|
+| **Free** | 100,000/day (3M/month) | **$0** | Sufficient for <100K users/month |
+| **Paid** | 10M/month included | **$5** | + $0.30 per additional million |
+| **+ KV Cache** | 100K reads/day free | **$0** | 1 GB storage free |
+
+**For TOXMAP:** The free tier (100K requests/day) is likely sufficient. Each search = 1 geocode. 100K searches/day = ~3M/month = comfortably free.
+
+#### Implementation: Geocoding Proxy Worker
+
+Create `workers/geocode-proxy/index.ts`:
+
+```typescript
+/**
+ * Cloudflare Worker: Geocoding proxy with global cache + rate limiting.
+ * 
+ * - Routes /api/geocode?q=... to Photon
+ * - Caches responses globally (Cloudflare Cache API)
+ * - Rate-limits aggregate requests to Photon (KV counter)
+ * - Returns stale cache if rate-limited
+ */
+
+interface Env {
+  // Workers KV namespace for rate limiting
+  RATE_LIMIT: KVNamespace;
+}
+
+// Configuration
+const PHOTON_URL = 'https://photon.komoot.io/api/';
+const CACHE_TTL = 86400; // 24 hours
+const MAX_REQUESTS_PER_MINUTE = 100; // Aggregate limit to Photon
+const RATE_LIMIT_KEY = 'photon_requests';
+
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const url = new URL(request.url);
+    
+    // Only handle /api/geocode
+    if (url.pathname !== '/api/geocode') {
+      return new Response('Not found', { status: 404 });
+    }
+
+    const query = url.searchParams.get('q');
+    if (!query) {
+      return new Response('Missing q parameter', { status: 400 });
+    }
+
+    // Normalize cache key
+    const cacheKey = `geocode:${query.toLowerCase().trim()}`;
+    const cache = caches.default;
+
+    // 1. Check cache first
+    const cachedResponse = await cache.match(new Request(cacheKey));
+    if (cachedResponse) {
+      // Return cached with header indicating cache hit
+      const response = new Response(cachedResponse.body, cachedResponse);
+      response.headers.set('X-Cache', 'HIT');
+      return response;
+    }
+
+    // 2. Check rate limit (sliding window via KV)
+    const now = Math.floor(Date.now() / 60000); // Current minute
+    const rateKey = `${RATE_LIMIT_KEY}:${now}`;
+    const currentCount = parseInt(await env.RATE_LIMIT.get(rateKey) || '0');
+
+    if (currentCount >= MAX_REQUESTS_PER_MINUTE) {
+      // Rate limited - try to return stale cache
+      // (Workers cache may have stale entries even after TTL)
+      return new Response(JSON.stringify({
+        error: 'Rate limited',
+        message: 'Too many geocoding requests. Please try again in a minute.'
+      }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 3. Increment rate limit counter
+    await env.RATE_LIMIT.put(rateKey, String(currentCount + 1), { expirationTtl: 120 });
+
+    // 4. Fetch from Photon
+    const photonUrl = `${PHOTON_URL}?q=${encodeURIComponent(query)}&limit=5&lang=en`;
+    
+    try {
+      const photonResponse = await fetch(photonUrl, {
+        headers: {
+          'User-Agent': 'TOXMAP/1.0 (public health; https://toxmap.example.com)',
+          'Referer': 'https://toxmap.example.com/'
+        }
+      });
+
+      if (!photonResponse.ok) {
+        throw new Error(`Photon returned ${photonResponse.status}`);
+      }
+
+      const data = await photonResponse.json();
+
+      // 5. Cache the response
+      const response = new Response(JSON.stringify(data), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': `public, max-age=${CACHE_TTL}`,
+          'X-Cache': 'MISS',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+
+      // Store in cache (non-blocking)
+      ctx.waitUntil(cache.put(new Request(cacheKey), response.clone()));
+
+      return response;
+    } catch (error) {
+      return new Response(JSON.stringify({
+        error: 'Geocoding failed',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  }
+};
+```
+
+#### Wrangler Configuration
+
+Create `workers/geocode-proxy/wrangler.toml`:
+
+```toml
+name = "toxmap-geocode-proxy"
+main = "index.ts"
+compatibility_date = "2024-01-01"
+
+# KV namespace for rate limiting
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "your-kv-namespace-id"
+```
+
+#### Deployment Steps
+
+```bash
+# 1. Install Wrangler
+npm install -g wrangler
+
+# 2. Login to Cloudflare
+wrangler login
+
+# 3. Create KV namespace
+wrangler kv:namespace create "RATE_LIMIT"
+# Copy the ID to wrangler.toml
+
+# 4. Deploy
+cd workers/geocode-proxy
+wrangler deploy
+
+# 5. Note the Worker URL (e.g., https://toxmap-geocode-proxy.your-account.workers.dev)
+```
+
+#### Update Frontend
+
+In `frontend/src/api/geocode.ts`:
+
+```typescript
+// Before (direct to Photon):
+const _PHOTON_URL = 'https://photon.komoot.io/api/'
+
+// After (via Workers proxy):
+const _PHOTON_URL = import.meta.env.VITE_GEOCODE_PROXY_URL || 'https://photon.komoot.io/api/'
+```
+
+In `frontend/.env.production`:
+
+```bash
+VITE_GEOCODE_PROXY_URL=https://toxmap-geocode-proxy.your-account.workers.dev/api/geocode
+```
+
+#### What This Provides
+
+| Feature | Without Workers | With Workers Proxy |
+|---------|-----------------|-------------------|
+| Cache scope | Per browser tab | **Global (all users)** |
+| Rate limiting | Per user only | **Aggregate (all users)** |
+| Analytics | None | **Workers analytics** |
+| Cache hit rate | ~10-20% | **~60-80%** (common queries cached) |
+| Cost | $0 | **$0** (free tier) to $5 |
+| Control | None | **Full control** |
+
+#### Monitoring
+
+In the Cloudflare dashboard (Workers & Pages → your worker → Analytics):
+- Requests/day
+- Cache hit rate
+- Error rate
+- Geographic distribution
+
+Set up alerts if requests exceed thresholds.
+
+---
+
+### Current Mitigations (Without Workers)
+
+| Service | Mitigation | Implementation |
+|---------|-----------|----------------|
+| Photon | 200-entry LRU cache | `frontend/src/api/geocode.ts` |
+| Photon | 1-second minimum between requests | `_throttledFetch()` in `geocode.ts` |
+| Photon | User-triggered only (no polling) | Search fires only on explicit button click |
+| OpenFreeMap | Browser tile cache | MapLibre GL JS native caching |
+| R2 | HTTP range caching | Browser cache + Cloudflare edge (if custom domain) |
+
+### Scaling Thresholds — When to Self-Host
+
+| Trigger Condition | Action |
+|-------------------|--------|
+| **Photon:** >10,000 geocode requests/day (estimate from Cloudflare analytics) | Self-host Photon (see below) |
+| **Photon:** Users report "geocoding failed" errors consistently | Self-host Photon immediately |
+| **OpenFreeMap:** Basemap goes blank or loads slowly | Switch to self-hosted PMTiles on R2 (see `docs/deployment/PMTILES_R2_UPLOAD.md`) |
+| **R2:** Monthly reads exceed 5M (50% of free tier) | Add custom domain for CDN caching; consider upgrading R2 plan |
+| **Traffic:** Cloudflare analytics >50,000 page views/month | Proactively evaluate all third-party service load |
+
+### Self-Hosting Photon (10-minute setup)
+
+Photon is Apache 2.0-licensed and easy to self-host. For full step-by-step instructions including VPS selection, cost estimates, and operational procedures, see **[SELF_HOSTING_GUIDE.md](SELF_HOSTING_GUIDE.md)**.
+
+**Quick start (US-only, ~$16/month on Hetzner):**
+
+```bash
+# On a VPS with 8+ GB RAM, Ubuntu 24.04
+
+# 1. Install Java 21
+apt update && apt install -y openjdk-21-jre-headless pbzip2 wget
+
+# 2. Download Photon
+mkdir -p /opt/photon && cd /opt/photon
+wget https://github.com/komoot/photon/releases/download/1.2.1/photon-1.2.1.jar
+mv photon-1.2.1.jar photon.jar
+
+# 3. Download the database (~62 GB compressed, 2-4 hours)
+wget -O - https://download1.graphhopper.com/public/photon-db-planet-1.0-latest.tar.bz2 | pbzip2 -cd | tar x
+
+# 4. Start Photon
+java -Xmx6g -jar photon.jar serve
+# Now listening on http://localhost:2322
+
+# 5. Update frontend to use your self-hosted instance
+# In frontend/src/api/geocode.ts, change:
+#   const _PHOTON_URL = 'https://photon.komoot.io/api/'
+# To:
+#   const _PHOTON_URL = 'https://your-server.com:2322/api/'
+```
+
+For production deployment with systemd, HTTPS, and monitoring, see the full guide.
+
+### Self-Hosting Basemap Tiles
+
+If OpenFreeMap becomes unreliable, switch to self-hosted Protomaps PMTiles. For full step-by-step instructions, see **[SELF_HOSTING_GUIDE.md](SELF_HOSTING_GUIDE.md)**.
+
+**Quick summary:**
+
+1. Extract US tiles from Protomaps planet build: `pmtiles extract --bbox=-127,17,-64,50 --maxzoom=13`
+2. Upload to R2 using `scripts/upload_r2.py` (see [PMTILES_R2_UPLOAD.md](PMTILES_R2_UPLOAD.md))
+3. Update `VITE_MAPLIBRE_STYLE` to point to your R2 bucket
+4. Rebuild and redeploy the frontend
+
+**Cost:** ~$0/month within R2 free tier for moderate traffic.
+
+### Pre-Launch Outreach (Recommended)
+
+Before public launch, consider emailing service operators:
+
+- **Photon:** Contact Komoot via their support channels
+- **OpenFreeMap:** zsolt@openfreemap.org
+
+Introduce TOXMAP, explain the public-health use case, confirm you're operating within fair-use, and establish a point of contact if issues arise.
+
+### Attribution Requirements
+
+Both services require attribution. TOXMAP displays this in the map footer:
+
+```
+Geocoding: Photon/Komoot | OpenFreeMap © OpenMapTiles Data from OpenStreetMap
+```
+
+Verify attribution is visible before launch. See `frontend/src/components/Map/MapContainer.tsx` for the implementation.
+
+---
+
 ## Reference: What Each File Controls
 
 | File | What it does |
@@ -962,6 +1286,16 @@ docker compose up --force-recreate frontend
 - [ ] No CORS errors in browser DevTools console
 - [ ] Vintage label visible in the UI (from `.meta.json` sidecar)
 - [ ] Automated deploy workflow (`deploy-frontend.yml`) committed to repo
+
+### Third-Party Service Compliance (Before Public Launch)
+
+- [ ] **Attribution visible:** Map footer shows "Geocoding: Photon/Komoot | OpenFreeMap © OpenMapTiles Data from OpenStreetMap"
+- [ ] **Photon test:** Geocoding works; no rate-limit errors in browser console
+- [ ] **OpenFreeMap test:** Basemap tiles load correctly; no 403/429 errors
+- [ ] **Cloudflare Web Analytics enabled:** (optional but recommended) to monitor traffic
+- [ ] **ACCEPTED_RISKS.md reviewed:** RISK-008 (OpenFreeMap), RISK-009 (Photon), RISK-010 (aggregate load) understood
+- [ ] **Scaling thresholds documented:** Team knows when to self-host (see "Third-Party Service Fair Use & Scaling" above)
+- [ ] **Outreach complete:** (optional) Emailed Photon/OpenFreeMap operators to introduce the project
 
 ### Data Update Checklist (3x/year)
 

@@ -92,7 +92,20 @@ function SuperfundDrawerContent({ site, onClose }: { site: SuperfundDetail; onCl
           </button>
         </div>
         <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#6b7280', fontFamily: 'monospace' }}>
-          EPA ID: {site.epa_id}
+          EPA ID:{' '}
+          {site.epa_progress_url ? (
+            <a
+              href={site.epa_progress_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#2563eb', textDecoration: 'none' }}
+              data-testid="superfund-epa-id-link"
+            >
+              {site.epa_id}
+            </a>
+          ) : (
+            site.epa_id
+          )}
         </p>
         <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#6b7280' }}>
           {[site.address, site.city, site.state_code, site.zip_code].filter(Boolean).join(', ')}

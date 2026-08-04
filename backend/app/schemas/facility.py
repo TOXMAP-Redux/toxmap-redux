@@ -10,10 +10,10 @@ from typing import Any
 
 from pydantic import BaseModel
 
-
 # ---------------------------------------------------------------------------
 # Color-band helper
 # ---------------------------------------------------------------------------
+
 
 def assign_color_band(total_lbs: float | None) -> str:
     """Map total release pounds to a NLM color band."""
@@ -32,8 +32,10 @@ def assign_color_band(total_lbs: float | None) -> str:
 # ADR-007: Chemical family search expansion
 # ---------------------------------------------------------------------------
 
+
 class SearchExpansion(BaseModel):
     """Info about chemical family search expansion (ADR-007)."""
+
     expanded: bool = False
     family_name: str | None = None
     searched_chemicals: list[str] = []
@@ -48,6 +50,7 @@ class SearchExpansion(BaseModel):
 # ---------------------------------------------------------------------------
 # GET /api/v1/facilities — FeatureCollection
 # ---------------------------------------------------------------------------
+
 
 class FacilityFeatureProperties(BaseModel):
     id: int
@@ -89,6 +92,7 @@ class FacilityCollection(BaseModel):
 # GET /api/v1/facilities/{tri_facility_id} — FacilityDetail
 # ---------------------------------------------------------------------------
 
+
 class TopChemical(BaseModel):
     chemical_name: str
     cas_number: str | None = None
@@ -118,6 +122,7 @@ class FacilityDetail(BaseModel):
 # GET /api/v1/facilities/{tri_facility_id}/releases — ReleaseEventSchema
 # ---------------------------------------------------------------------------
 
+
 class ReleaseEventSchema(BaseModel):
     reporting_year: int
     chemical_name: str
@@ -134,6 +139,7 @@ class ReleaseEventSchema(BaseModel):
 # ---------------------------------------------------------------------------
 # GET /api/v1/releases/largest — LargestReleaseResponse
 # ---------------------------------------------------------------------------
+
 
 class LargestReleaseResponse(BaseModel):
     tri_facility_id: str

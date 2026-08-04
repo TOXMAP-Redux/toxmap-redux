@@ -207,6 +207,6 @@ backend/
 └── Dockerfile
 scripts/
 ├── build_parquet.py       ← Produces .parquet + .meta.json per year + manifest.json
-└── build_pmtiles.py       ← US basemap tile generation via Protomaps
+└── (build_pmtiles.py)     ← SUPERSEDED by ADR-005; basemap served from OpenFreeMap
 ```
 

@@ -25,6 +25,11 @@ RUN pip install --no-cache-dir -e ".[test,ingestion]"
 # Copy application source
 COPY . .
 
+# Create non-root user for security (semgrep: dockerfile.security.missing-user)
+RUN useradd --create-home --shell /bin/bash appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
 # Expose uvicorn port
 EXPOSE 8000
 

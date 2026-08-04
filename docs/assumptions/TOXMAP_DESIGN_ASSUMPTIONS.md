@@ -1,12 +1,12 @@
 # TOXMAP Design & Technical Assumptions
 
 **Date:** 2026-07-17  
-**Last Updated:** 2026-07-23 — Revised per TRI Data Audit (`TOXMAP_TRI_DATA_AUDIT.md`): A-006 updated; A-047–A-050 added; A-038 updated; Summary Table revised  
+**Last Updated:** 2026-08-04 — Phase 6 audit: ADR-005/006/007/008 added; A-014/A-015/A-020 updated (Photon/OpenFreeMap); A-051–A-053 added; A-038/A-041 corrected; Summary Table revised  
 **Scope:** Full project — data, architecture, infrastructure, UX, security, and testing  
-**Sources Reviewed:** ADR-001, ADR-002, ADR-003, ADR-004, WASM_MEMORY_LIMIT_ASSESSMENT.md,  
-TOXMAP_TECH_STACK_ANALYSIS.md, TWO_MODES_DEEP_DIVE.md, TECH_STACK_ONBOARDING.md,  
-GOVERNANCE.md, AGENTS.md, TOXMAP_API_CONTRACT.md, TOXMAP_TESTING_STRATEGY.md,  
-TOXMAP_TRI_DATA_AUDIT.md
+**Sources Reviewed:** ADR-001, ADR-002, ADR-003, ADR-004, ADR-005, ADR-006, ADR-007, ADR-008,  
+WASM_MEMORY_LIMIT_ASSESSMENT.md, TOXMAP_TECH_STACK_ANALYSIS.md, TWO_MODES_DEEP_DIVE.md,  
+TECH_STACK_ONBOARDING.md, GOVERNANCE.md, AGENTS.md, TOXMAP_API_CONTRACT.md,  
+TOXMAP_TESTING_STRATEGY.md, TOXMAP_TRI_DATA_AUDIT.md
 
 > **Why this document exists:** Design transparency. Every non-trivial decision in this project
 > rests on at least one unstated premise. Listing those premises up front lets contributors
@@ -55,9 +55,10 @@ Validate these before the corresponding feature ships — getting any of them wr
 | **A-013** | All state fits in a URL hash; no server session needed               | Before any feature requiring persistence |
 | **A-028** | Co-occurrence disclaimer required on mortality tab only              | Before the demographics overlay ships    |
 | **A-034** | No auth needed; fully public read-only                               | Before any write feature is considered   |
-| **A-035** | R2 CORS `Range` header is required; omitting it silences all queries | Before first production deploy           |
+| **A-035** | R2 CORS `Range` header is required; omitting it silences Parquet queries | Before first production deploy       |
 | **A-045** | All dependencies must be MIT/Apache 2.0 compatible                   | On every new dependency PR               |
 | **A-048** | Dioxin releases are stored in grams; `unit_of_measure` column required | Before first dioxin facility ingest run |
+| **A-051** | OpenFreeMap availability is a runtime dependency for basemap tiles   | Monitor for outages post-launch          |
 
 ---
 
@@ -98,7 +99,7 @@ Validate these before the corresponding feature ships — getting any of them wr
 ### A-005 · Superfund/NPL dataset is ~1,500 sites; NPRI is ~7,000 facilities; both are negligible in size
 **Confidence:** High  
 **Source:** ADR-001 §Data Model; TOXMAP_TECH_STACK_ANALYSIS.md §2.2 Data Sources  
-**Detail:** Superfund `parquet` and `us_counties.geojson` are described as small files. The 600 MB PMTiles basemap file is served by MapLibre GL, not loaded into DuckDB, so it does not contribute to the DuckDB memory budget.  
+**Detail:** Superfund `parquet` and `us_counties.geojson` are described as small files. The basemap tiles are served by OpenFreeMap (not loaded into DuckDB), so they do not contribute to the DuckDB memory budget.  
 **Risk if Wrong:** If congressional district shapefiles (~60 MB uncompressed) or Census TIGER data are ever piped through DuckDB rather than served as static GeoJSON, the working set grows. Current design correctly routes these through direct `fetch()`.
 
 ---
@@ -198,28 +199,36 @@ The computed-aggregation approach for release medium totals is now the canonical
 
 ---
 
-### A-014 · Address geocoding via Nominatim (OSM) is sufficient for location search
-**Confidence:** Medium  
-**Source:** ADR-001 §Geocoding Specification (H-3)  
-**Detail:** Address-to-coordinate conversion uses the Nominatim public API (OpenStreetMap). In dev mode this is proxied server-side; in production mode it is called directly from the browser. The service is free, has no registration requirement, but has a rate limit of 1 request/second per the OSM usage policy.  
-**Risk if Wrong:** Nominatim's coverage for rural US addresses and industrial facility addresses is imperfect. Addresses not found fall through to a hardcoded lookup table covering only the 4 seed city coordinates. Users typing an unrecognized address would receive no geocoding result. A broader fallback (e.g., US Census TIGER geocoder) may be needed for production.
+### A-014 · Address geocoding via Photon (Komoot) is sufficient for location search
+**Confidence:** High  
+**Source:** ADR-006 §Decision (supersedes ADR-001 §Geocoding Specification)  
+**Detail:** Address-to-coordinate conversion uses the Photon geocoder (photon.komoot.io) operated by Komoot GmbH. Photon is called directly from the browser with full CORS support. It requires no API key, has no registration requirement, and is backed by OpenStreetMap data. The frontend `geocode.ts` module implements an in-memory LRU cache (max 200 entries) and a 1-second throttle between distinct requests. A scoring algorithm (ADR-008) ranks candidates by address component match, and viewport proximity bias favors nearby results.  
+**Risk if Wrong:** Photon's coverage for rural US addresses and industrial facility addresses depends on OSM data quality. The geocoding confidence scoring (A-052) mitigates this by flagging low-confidence results in the UI. If Komoot ever discontinues the service, a self-hosted Photon instance or switch to the US Census TIGER geocoder would be required.
 
 ---
 
-### A-015 · Nominatim's 1 req/s rate limit is manageable with 500ms debounce
-**Confidence:** Medium  
-**Source:** ADR-001 §Geocoding Specification (H-3) — React hook pattern  
-**Detail:** The `useGeocode` hook debounces address input by 500ms before issuing a Nominatim request. A single user typing an address triggers at most 2 requests/second (less in practice). The assumption is that a public TOXMAP deployment will not see burst geocoding traffic that violates OSM policy.  
-**Risk if Wrong:** If TOXMAP is embedded in a high-traffic page or used programmatically (scrapers, automated tests hitting live), Nominatim rate limits could be exceeded, resulting in IP bans. In that case, self-hosting a Nominatim instance or switching to the US Census geocoder API (which has no published rate limit) would be required.
+### A-015 · Photon's fair-use guidelines are satisfied with cache + 1-second throttle
+**Confidence:** High  
+**Source:** ADR-006 §Fair-Use Status; `frontend/src/api/geocode.ts`  
+**Detail:** Photon does not publish a strict rate limit, but the OpenStreetMap ecosystem convention is 1 request/second. The `geocode.ts` module enforces ≥1,000ms between distinct HTTP requests and caches up to 200 results in memory. Geocoding is triggered only on explicit Search button click (not on every keystroke), so the throttle rarely introduces perceptible latency. Attribution text linking to Photon/Komoot and OpenStreetMap is rendered in the map footer.  
+**Risk if Wrong:** If TOXMAP is embedded in a high-traffic page or called programmatically without the frontend safeguards, Photon could block the origin. Self-hosting a Photon instance would eliminate this dependency but adds operational complexity.
+
+---
+
+### A-052 · Geocoding confidence scoring distinguishes high-fidelity from approximate matches
+**Confidence:** High  
+**Source:** ADR-008 §Scoring Algorithm; `frontend/src/api/geocode.ts`  
+**Detail:** The Photon client requests 5 candidates and scores each against the original query using weighted signals: house number match (+0.35), street name similarity (+0.25), city match (+0.10), state match (+0.10), postal code match (+0.10), and viewport proximity (+0.10). Results are classified as `exact` (≥0.85), `high` (0.65–0.84), `approximate` (0.40–0.64), or `low` (<0.40). The UI displays a confidence badge and warning text for approximate/low results. Viewport bias passes the current map center (`lat`/`lon`) to Photon to favor nearby matches for ambiguous queries.  
+**Risk if Wrong:** If the scoring weights are miscalibrated, users may see incorrect confidence badges (e.g., "exact" for an interpolated street-level match). The mitigations are: (1) conservative thresholds, (2) always showing the resolved canonical address so users can visually verify.
 
 ---
 
 ## 3. Hosting & Infrastructure Assumptions
 
-### A-016 · Cloudflare R2 free tier (10 GB storage, 10M reads/month) is sufficient for the full deployment
+### A-016 · Cloudflare R2 free tier (10 GB storage, 10M reads/month) is sufficient for Parquet data
 **Confidence:** High  
-**Source:** ADR-004 §Free Services Used  
-**Detail:** Full TRI Parquet history is ~150 MB; PMTiles basemap is ~600 MB; all other static files are small. Total storage is well under 1 GB — roughly 1% of the 10 GB free allowance. 10M reads/month at the per-year query pattern (one R2 read = 5–20 MB range request) allows ~500K–2M queries/month on the free tier.  
+**Source:** ADR-004 §Free Services Used; ADR-005 (amendment — basemap tiles no longer on R2)  
+**Detail:** Full TRI Parquet history is ~150 MB; Superfund Parquet is <5 MB; all other static files are small. Total storage is well under 500 MB — roughly 5% of the 10 GB free allowance. With ADR-005, the basemap tiles are served by OpenFreeMap (not R2), so the original ~600 MB PMTiles estimate no longer applies. 10M reads/month at the per-year query pattern (one R2 read = 5–20 MB range request) allows ~500K–2M queries/month on the free tier.  
 **Risk if Wrong:** A viral event (heavy press coverage) could spike reads beyond 10M/month. Cloudflare R2 charges $0.015/GB for egress beyond the free tier — not a budget crisis, but not zero either. A cost cap alert on the R2 bucket is recommended before production launch.
 
 ---
@@ -248,11 +257,19 @@ The computed-aggregation approach for release medium totals is now the canonical
 
 ---
 
-### A-020 · The PMTiles basemap file (~600 MB) is served via Cloudflare R2 and consumed exclusively by MapLibre GL
+### A-020 · The basemap is served by OpenFreeMap and consumed exclusively by MapLibre GL
 **Confidence:** High  
-**Source:** WASM_MEMORY_LIMIT_ASSESSMENT.md §The PMTiles Tile File; ADR-004 §Option A  
-**Detail:** PMTiles is consumed by the MapLibre GL JS PMTiles protocol handler. MapLibre GL streams tiles on demand using WebGL and does not hold 600 MB in RAM at any point. The PMTiles memory space is entirely separate from DuckDB WASM's heap.  
-**Risk if Wrong:** No realistic risk under current design. A developer incorrectly trying to query the PMTiles file through DuckDB would encounter a schema error immediately, not a silent memory issue.
+**Source:** ADR-005 §Decision (supersedes ADR-004 §Option A PMTiles assumption)  
+**Detail:** The original ADR-004 assumed a self-hosted Protomaps PMTiles file (~600 MB for US) on Cloudflare R2. ADR-005 documented that the actual US extract is 2–5 GiB (127 GiB for the full planet build), Wrangler CLI has a 300 MiB upload limit, and the upload/refresh pipeline added significant operational complexity. The decision was to switch to OpenFreeMap (openfreemap.org), a free hosted vector tile service backed by OSM data. MapLibre GL JS streams tiles on demand from OpenFreeMap's CDN using the "Liberty" style. No PMTiles file is self-hosted; no R2 storage is consumed by basemap data.  
+**Risk if Wrong:** OpenFreeMap is a third-party service with no SLA. If Tilen Mrak (operator) discontinues the service, the fallback is to self-host a Protomaps extract (scripts/upload_r2.py exists for this purpose) or switch to another tile provider. The basemap is visual-only — its unavailability does not affect data queries or facility markers.
+
+---
+
+### A-051 · OpenFreeMap availability is a runtime dependency; outages degrade UX but not data access
+**Confidence:** High  
+**Source:** ADR-005 §Risk Analysis  
+**Detail:** Unlike the Parquet data files (which can be cached in the browser and served from R2), the basemap tiles are streamed on demand from OpenFreeMap's CDN. If OpenFreeMap experiences an outage, users see a blank or partially-loaded basemap but facility markers and data queries continue to work. The fallback `scripts/upload_r2.py` script exists to self-host a PMTiles extract if a long-term outage occurs, but this requires manual intervention and R2 storage provisioning.  
+**Risk if Wrong:** If OpenFreeMap becomes permanently unavailable without warning, there is no automatic fallback. A status check or tile-load error handler could detect the failure and display a degraded-UX warning, but this is not currently implemented.
 
 ---
 
@@ -324,11 +341,11 @@ The computed-aggregation approach for release medium totals is now the canonical
 
 ---
 
-### A-029 · Nominatim address lookup user data does not need to be private within the application
+### A-029 · Geocoding requests transmit user addresses to a third-party service (Photon)
 **Confidence:** High  
-**Source:** ADR-001 §Geocoding Specification (H-3)  
-**Detail:** In production (DuckDB WASM mode), user-typed addresses are sent directly to `nominatim.openstreetmap.org`. This is documented explicitly in the spec: "Privacy: User-typed addresses are sent to nominatim.openstreetmap.org." There is no server between the user and Nominatim to intercept or log address queries.  
-**Risk if Wrong:** Users in privacy-sensitive contexts (e.g., entering a home address to check nearby facilities) may be uncomfortable with their address being transmitted to a third-party OSM service. A privacy disclosure in the UI near the location search field is recommended.
+**Source:** ADR-006 §Privacy; `frontend/src/api/geocode.ts`  
+**Detail:** In both dev and production modes, user-typed addresses are sent to `photon.komoot.io`. The frontend calls Photon directly (browser-to-service). Komoot GmbH operates the service; their privacy policy applies to geocoding queries. There is no TOXMAP backend intermediary to log address queries.  
+**Risk if Wrong:** Users in privacy-sensitive contexts (e.g., entering a home address to check nearby facilities) may be uncomfortable with their address being transmitted to a third-party service. A privacy disclosure in the UI near the location search field is recommended.
 
 ---
 
@@ -405,8 +422,8 @@ The computed-aggregation approach for release medium totals is now the canonical
 ### A-038 · Parquet files must carry vintage metadata (.meta.json sidecar); omitting it is a data integrity issue
 **Confidence:** High  
 **Source:** ADR-004 §Build Pipeline (Amendment Note); TWO_MODES_DEEP_DIVE.md §Data Vintage Metadata; TOXMAP_TRI_DATA_AUDIT.md (L-3)  
-**Detail:** A `tri_YEAR.parquet` filename is ambiguous without a sidecar — it could be a July preliminary (raw, incomplete), October freeze (authoritative), or spring refresh (corrected). The React app reads the `.meta.json` to display the vintage label to users. Omitting the sidecar means users cannot assess data currency and the UI falls back to showing no vintage information. The `SCHEMA_VERSION` constant in `build_parquet.py` is pinned at `"1.1"` following the TRI Data Audit schema expansion (2026-07-23), which added `unit_of_measure`, `form_type`, `frs_id`, `primary_sic`, and `off_site_lbs` to the schema. DuckDB WASM consumers must verify `schema_version` in the sidecar before executing queries against cached Parquet files to detect schema drift between the cached file and the current query expectations.  
-**Risk if Wrong:** Users (researchers, public health officials, journalists) make decisions based on reported release quantities. A user looking at July preliminary data without knowing it's preliminary may draw incorrect conclusions that the October-freeze data would correct. Additionally, a DuckDB WASM consumer querying a `schema_version = "1.0"` Parquet file predating the `unit_of_measure` column would silently mishandle dioxin records — displaying gram quantities as if they were pounds (see A-048).
+**Detail:** A `tri_YEAR.parquet` filename is ambiguous without a sidecar — it could be a July preliminary (raw, incomplete), October freeze (authoritative), or spring refresh (corrected). The React app reads the `.meta.json` to display the vintage label to users. Omitting the sidecar means users cannot assess data currency and the UI falls back to showing no vintage information. The `SCHEMA_VERSION` constant in `build_parquet.py` is pinned at `"1.0.0"`. DuckDB WASM consumers must verify `schema_version` in the sidecar before executing queries against cached Parquet files to detect schema drift between the cached file and the current query expectations.  
+**Risk if Wrong:** Users (researchers, public health officials, journalists) make decisions based on reported release quantities. A user looking at July preliminary data without knowing it's preliminary may draw incorrect conclusions that the October-freeze data would correct. Additionally, a DuckDB WASM consumer querying a Parquet file with an older schema would fail to find expected columns (e.g., `unit_of_measure` for dioxin handling — see A-048).
 
 ---
 
@@ -434,12 +451,20 @@ The computed-aggregation approach for release medium totals is now the canonical
 
 ---
 
+### A-053 · Chemical Families transparently expand searches to include related TRI reporting categories
+**Confidence:** High  
+**Source:** ADR-007 §Decision; `backend/app/models/chemical_family.py`  
+**Detail:** EPA TRI allows facilities to report the same element under multiple categories (e.g., LEAD, LEAD COMPOUNDS, LEAD AND LEAD COMPOUNDS). A citizen searching for "lead" may inadvertently see incomplete results. ADR-007 introduces a Chemical Families feature: when a user searches for a parent element, the system auto-expands the search to include all related TRI reporting categories, aggregates releases across family members per facility per year, preserves an audit trail showing breakdown by chemical variant, and discloses the expansion with a banner. The data model uses `chemical_families` (parent → children mapping) and `chemical_family_members` (join table with `is_parent` flag) tables.  
+**Risk if Wrong:** Without chemical families, users searching for "lead" would miss facilities that reported under "LEAD COMPOUNDS" only — defeating the purpose of right-to-know legislation. The opt-out ("Search exact term only") exists for researchers who need raw TRI data without aggregation.
+
+---
+
 ## 9. Testing Assumptions
 
-### A-041 · All 57 Gherkin acceptance scenarios run against the FastAPI dev server, not the DuckDB WASM path
+### A-041 · All Gherkin acceptance scenarios run against the FastAPI dev server, not the DuckDB WASM path
 **Confidence:** High  
 **Source:** TWO_MODES_DEEP_DIVE.md §Running the Tests in Dev Mode; ADR-004 §Neutral Consequences  
-**Detail:** The acceptance test suite (`TOXMAP_ACCEPTANCE_TESTS.md`) runs against `docker compose`-hosted FastAPI. The tests need a real queryable server to verify behaviors like `restrict_to_state=true` returning only in-state facilities. Playwright E2E tests can run against either mode; most are mode-agnostic.  
+**Detail:** The acceptance test suite (`TOXMAP_ACCEPTANCE_TESTS.md`) runs against `docker compose`-hosted FastAPI. As of Phase 6, there are 111 Gherkin scenarios across 9 feature files. The tests need a real queryable server to verify behaviors like `restrict_to_state=true` returning only in-state facilities. Playwright E2E tests can run against either mode; most are mode-agnostic.  
 **Risk if Wrong:** Any behavior that diverges between the FastAPI path and the DuckDB WASM path would pass acceptance tests but fail in production. The Playwright E2E suite (which can be pointed at the DuckDB build) is the primary guard for production-mode regressions.
 
 ---
@@ -503,8 +528,8 @@ The computed-aggregation approach for release medium totals is now the canonical
 | A-011 | Architecture         | High       | Low        |
 | A-012 | Architecture         | High       | Low        |
 | A-013 | Architecture         | High       | **High**   |
-| A-014 | Geocoding            | Medium     | Medium     |
-| A-015 | Geocoding            | Medium     | Medium     |
+| A-014 | Geocoding            | High       | Medium     |
+| A-015 | Geocoding            | High       | Low        |
 | A-016 | Hosting              | High       | Low        |
 | A-017 | Hosting              | High       | Low        |
 | A-018 | Hosting              | High       | Low        |
@@ -540,8 +565,13 @@ The computed-aggregation approach for release medium totals is now the canonical
 | A-048 | Data Integrity       | High       | **High**   |
 | A-049 | Data Integrity       | High       | Medium     |
 | A-050 | Build Pipeline       | High       | Low        |
+| A-051 | Hosting / Runtime    | High       | Medium ²   |
+| A-052 | Geocoding            | High       | Low        |
+| A-053 | Data Model           | High       | Medium     |
 
 ¹ A-006 risk mitigated by computed-aggregation approach (C-4 fix) and alias detection (H-1, H-2 fixes) per TRI Data Audit 2026-07-23. Coordinate column mappings (`LATITUDE`, `LONGITUDE`) remain single-name and are the highest residual exposure.
+
+² A-051 (OpenFreeMap runtime dependency) is medium risk because the basemap is visual-only; its unavailability degrades UX but does not prevent data access or facility search functionality.
 
 
 

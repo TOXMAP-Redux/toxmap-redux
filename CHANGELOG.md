@@ -14,6 +14,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **CI Workflow Onboarding Guide** — New [docs/onboarding/CI_WORKFLOW_GUIDE.md](docs/onboarding/CI_WORKFLOW_GUIDE.md) documenting all 6 CI jobs, 5 quality gates, artifacts, and troubleshooting. [agent]
+- **ADR-009: Cloudflare Workers Geocoding Proxy** — Documents production scaling path for geocoding with global cache and aggregate rate limiting (~$0-5/month). See [docs/adr/ADR-009](docs/adr/ADR-009-cloudflare-workers-geocoding-proxy.md). [agent]
+- **Deployment guide Workers proxy section** — Complete implementation guide for deploying the geocoding proxy. See [docs/deployment/DEPLOYMENT_GUIDE.md](docs/deployment/DEPLOYMENT_GUIDE.md) §"Cloudflare Workers Proxy". [agent]
+
+### Changed
+
+- **Superfund panel EPA ID now clickable** — EPA ID in `SuperfundDrawer.tsx` is now an `<a>` link to the EPA Site Progress Profile when `epa_progress_url` is available (`data-testid="superfund-epa-id-link"`). [agent]
+- **Superfund contaminants display decluttered** — Removed inline CAS numbers from contaminant rows for cleaner UI; chemical name + PubChem/ToxFAQs links remain. [agent]
+- Updated ACCEPTED_RISKS.md RISK-009 and RISK-010 to reference Workers proxy as recommended mitigation [agent]
+- Updated ADR-006 (Photon geocoding) with reference to ADR-009 for production scaling [agent]
+- Updated ADR-004 free services table to include Workers, Photon, and OpenFreeMap [agent]
+- Updated CONTEXT_SUMMARY.md geocoding line with ADR-009 reference [agent]
+
+### Fixed
+
+- **Superfund ingestion now populates `epa_progress_url`** — `superfund_ingest.py` now builds EPA Site Progress Profile URL from SEMS `site_id` (different from `epa_id`). Re-ran ingestion to update 2,021 existing sites. [agent]
+- **ci.yml YAML syntax error** — Fixed line 369 unquoted colon in benchmark step name (`gate: +20%` → `"gate: +20%"`) that caused GitHub Actions parse failure. [agent]
+- **mypy strict mode errors** — Configured targeted overrides in `pyproject.toml` for FastAPI decorators (`disallow_untyped_decorators = false`), GeoAlchemy2 geometry columns, and SQLAlchemy forward refs. Reduced errors from 97 → 0. [agent]
+- **Unit test ATSDR toxid values** — Fixed incorrect toxid assertions in `test_atsdr_family_inheritance.py` (e.g., NICKEL was 18 but should be 44 per actual ATSDR data). [agent]
+- **Missing ATSDR known gaps** — Added SULFURIC ACID, HYDROCHLORIC ACID, NITRIC ACID to `KNOWN_GAPS` set in unit tests (not in ATSDR ToxFAQs). [agent]
+- **Duplicate dict keys** — Removed duplicate dictionary key entries in `superfund_cas_lookup.py` flagged by ruff F601. [agent]
+
+### Tests
+
+- **6.UX regression tests** — Added API tests (`superfund.feature`) verifying `epa_progress_url` populated with SEMS URL pattern; E2E tests (`ux_invariants.feature`) verifying EPA ID link visible and no CAS patterns in contaminant rows. [agent]
+
+### Security
+
+- **Replaced gitleaks-action with CLI** — `gitleaks/gitleaks-action` now requires paid license for organizations. Replaced with direct CLI invocation (`gitleaks detect`) which is Apache 2.0 licensed and free. Updated `PINNED_ACTIONS.md` to document change. [agent]
+- **Major dependency upgrades** — Updated all frontend and backend dependencies to latest versions to address Dependabot security flags [agent]:
+  - **Frontend**: React 18→19, Vite 5→6, maplibre-gl 4→6, TypeScript 5.5→5.7, ESLint 8→9
+  - **Backend**: FastAPI 0.111→0.141, Pydantic 2.8→2.13, SQLAlchemy 2.0.31→2.0.51, pytest 8.2→8.4, Playwright 1.44→1.52
+  - ⚠️ React 19 is a major upgrade requiring `npm install` and potential code changes for new ref handling/context patterns
+
+---
+
 ### ⚠️ Phase Rollback (2026-08-03) [agent]
 
 **Phase 7 (Production Deploy) rolled back to Phase 6 (Full QA Pass).**
@@ -155,6 +193,22 @@ Bug fixes shipped (7.BUG.9–7.BUG.19):
   filtering in `superfund_service.py` to exclude "NOT PROVIDED", "UNKNOWN", "N/A" values.
   F.E. Warren AFB now shows 39 contaminants instead of 40. 8 regression tests in
   `TestDioxinPubChemUrls`. (2026-08-03) [agent]
+- **7.BUG.24:** Fixed popup cutoff at screen edges — TRI/Superfund popups were clipped when
+  clicking markers near right or top viewport boundaries. Extended `MapContainer.tsx` auto-pan
+  logic to check all edges (right edge: `panBy(+offset, 0)`; top edge: `panBy(0, -offset)`).
+  Combined offsets applied for corner cases. (2026-08-04) [agent]
+- **7.BUG.25 (ADR-008):** Implemented geocoding confidence scoring — Photon geocoder now scores
+  multiple candidates using 6 weighted signals: house number (+0.35), street name similarity
+  (+0.25), city/state/postal (+0.30), proximity to viewport (+0.10). Added confidence levels
+  (exact ≥0.85, high ≥0.65, approximate ≥0.40, low <0.40) with UI feedback badge (green/yellow/
+  orange/red). Fixes "100 Mill Rd, Port Townsend, WA" returning Mexico instead of Washington.
+  5 regression tests in `ux_invariants.feature`. See [ADR-008](docs/adr/ADR-008-geocoding-confidence-scoring.md). (2026-08-04) [agent]
+- **7.BUG.26:** Fixed Hanford nuclear site radionuclides missing contaminant links —
+  CARBON-14, CESIUM (elemental), COBALT-60, EUROPIUM (and -152/-154/-155), NICKEL-63,
+  STRONTIUM, TECHNETIUM-99, TRITIUM, IODINE-129, NEPTUNIUM, PLUTONIUM-240, PLUTONIUM-239/240,
+  THORIUM-228, URANIUM-233 had no PubChem/ToxFAQs links. Added 25+ radionuclides to
+  `superfund_cas_lookup.py` with verified CAS numbers. Also added Hanford-specific TPH
+  variants ("TOTAL PETROLEUM HYDROCARBON -DIESEL/-GASOLINE"). (2026-08-04) [agent]
 
 ### Fixed
 

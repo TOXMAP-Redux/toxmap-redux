@@ -28,7 +28,9 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 # Create sync engine from async URL (replace asyncpg with psycopg2)
-sync_url = str(settings.database_url).replace("+asyncpg", "").replace("postgresql://", "postgresql://")
+sync_url = (
+    str(settings.database_url).replace("+asyncpg", "").replace("postgresql://", "postgresql://")
+)
 sync_engine = create_engine(sync_url)
 
 # Mapping of TRI category codes to correct PubChem URLs
@@ -36,41 +38,41 @@ sync_engine = create_engine(sync_url)
 # For chemical classes, use search URLs or None
 TRI_CATEGORY_PUBCHEM = {
     # Metal compounds → link to element page
-    "N010": "https://pubchem.ncbi.nlm.nih.gov/element/Antimony",   # ANTIMONY COMPOUNDS
-    "N020": "https://pubchem.ncbi.nlm.nih.gov/element/Arsenic",    # ARSENIC COMPOUNDS
-    "N040": "https://pubchem.ncbi.nlm.nih.gov/element/Barium",     # BARIUM COMPOUNDS
+    "N010": "https://pubchem.ncbi.nlm.nih.gov/element/Antimony",  # ANTIMONY COMPOUNDS
+    "N020": "https://pubchem.ncbi.nlm.nih.gov/element/Arsenic",  # ARSENIC COMPOUNDS
+    "N040": "https://pubchem.ncbi.nlm.nih.gov/element/Barium",  # BARIUM COMPOUNDS
     "N050": "https://pubchem.ncbi.nlm.nih.gov/element/Beryllium",  # BERYLLIUM COMPOUNDS
-    "N078": "https://pubchem.ncbi.nlm.nih.gov/element/Cadmium",    # CADMIUM COMPOUNDS
-    "N090": "https://pubchem.ncbi.nlm.nih.gov/element/Chromium",   # CHROMIUM COMPOUNDS
-    "N096": "https://pubchem.ncbi.nlm.nih.gov/element/Cobalt",     # COBALT AND COBALT COMPOUNDS
-    "N100": "https://pubchem.ncbi.nlm.nih.gov/element/Copper",     # COPPER COMPOUNDS
-    "N420": "https://pubchem.ncbi.nlm.nih.gov/element/Lead",       # LEAD AND LEAD COMPOUNDS
+    "N078": "https://pubchem.ncbi.nlm.nih.gov/element/Cadmium",  # CADMIUM COMPOUNDS
+    "N090": "https://pubchem.ncbi.nlm.nih.gov/element/Chromium",  # CHROMIUM COMPOUNDS
+    "N096": "https://pubchem.ncbi.nlm.nih.gov/element/Cobalt",  # COBALT AND COBALT COMPOUNDS
+    "N100": "https://pubchem.ncbi.nlm.nih.gov/element/Copper",  # COPPER COMPOUNDS
+    "N420": "https://pubchem.ncbi.nlm.nih.gov/element/Lead",  # LEAD AND LEAD COMPOUNDS
     "N450": "https://pubchem.ncbi.nlm.nih.gov/element/Manganese",  # MANGANESE AND MANGANESE COMPOUNDS
-    "N458": "https://pubchem.ncbi.nlm.nih.gov/element/Mercury",    # MERCURY AND MERCURY COMPOUNDS
-    "N495": "https://pubchem.ncbi.nlm.nih.gov/element/Nickel",     # NICKEL COMPOUNDS
-    "N725": "https://pubchem.ncbi.nlm.nih.gov/element/Selenium",   # SELENIUM COMPOUNDS
-    "N740": "https://pubchem.ncbi.nlm.nih.gov/element/Silver",     # SILVER AND SILVER COMPOUNDS
-    "N760": "https://pubchem.ncbi.nlm.nih.gov/element/Thallium",   # THALLIUM AND THALLIUM COMPOUNDS
+    "N458": "https://pubchem.ncbi.nlm.nih.gov/element/Mercury",  # MERCURY AND MERCURY COMPOUNDS
+    "N495": "https://pubchem.ncbi.nlm.nih.gov/element/Nickel",  # NICKEL COMPOUNDS
+    "N725": "https://pubchem.ncbi.nlm.nih.gov/element/Selenium",  # SELENIUM COMPOUNDS
+    "N740": "https://pubchem.ncbi.nlm.nih.gov/element/Silver",  # SILVER AND SILVER COMPOUNDS
+    "N760": "https://pubchem.ncbi.nlm.nih.gov/element/Thallium",  # THALLIUM AND THALLIUM COMPOUNDS
     "N770": "https://pubchem.ncbi.nlm.nih.gov/compound/Vanadium",  # VANADIUM COMPOUNDS
-    "N982": "https://pubchem.ncbi.nlm.nih.gov/element/Zinc",       # ZINC COMPOUNDS
+    "N982": "https://pubchem.ncbi.nlm.nih.gov/element/Zinc",  # ZINC COMPOUNDS
     # Other categories → specific compound or search URL
-    "N084": "https://pubchem.ncbi.nlm.nih.gov/#query=chlorophenols",        # CHLOROPHENOLS
-    "N106": "https://pubchem.ncbi.nlm.nih.gov/compound/Cyanide",            # CYANIDE COMPOUNDS
-    "N120": "https://pubchem.ncbi.nlm.nih.gov/#query=diisocyanates",        # DIISOCYANATES
-    "N125": "https://pubchem.ncbi.nlm.nih.gov/compound/590836",             # DINP
-    "N150": "https://pubchem.ncbi.nlm.nih.gov/#query=dioxin",               # DIOXIN COMPOUNDS
+    "N084": "https://pubchem.ncbi.nlm.nih.gov/#query=chlorophenols",  # CHLOROPHENOLS
+    "N106": "https://pubchem.ncbi.nlm.nih.gov/compound/Cyanide",  # CYANIDE COMPOUNDS
+    "N120": "https://pubchem.ncbi.nlm.nih.gov/#query=diisocyanates",  # DIISOCYANATES
+    "N125": "https://pubchem.ncbi.nlm.nih.gov/compound/590836",  # DINP
+    "N150": "https://pubchem.ncbi.nlm.nih.gov/#query=dioxin",  # DIOXIN COMPOUNDS
     "N171": "https://pubchem.ncbi.nlm.nih.gov/#query=ethylenebisdithiocarbamic",  # EBDC
-    "N230": "https://pubchem.ncbi.nlm.nih.gov/#query=glycol+ethers",        # GLYCOL ETHERS
-    "N270": "https://pubchem.ncbi.nlm.nih.gov/compound/18529",              # HBCD
-    "N503": "https://pubchem.ncbi.nlm.nih.gov/compound/89594",              # NICOTINE
+    "N230": "https://pubchem.ncbi.nlm.nih.gov/#query=glycol+ethers",  # GLYCOL ETHERS
+    "N270": "https://pubchem.ncbi.nlm.nih.gov/compound/18529",  # HBCD
+    "N503": "https://pubchem.ncbi.nlm.nih.gov/compound/89594",  # NICOTINE
     "N511": None,  # NITRATE COMPOUNDS - too broad
-    "N530": "https://pubchem.ncbi.nlm.nih.gov/compound/1752",               # NONYLPHENOL
+    "N530": "https://pubchem.ncbi.nlm.nih.gov/compound/1752",  # NONYLPHENOL
     "N535": "https://pubchem.ncbi.nlm.nih.gov/#query=nonylphenol+ethoxylates",  # NPEs
     "N575": "https://pubchem.ncbi.nlm.nih.gov/#query=polybrominated+biphenyls",  # PBBs
-    "N583": "https://pubchem.ncbi.nlm.nih.gov/#query=polychlorinated+alkanes",   # PCAs
-    "N590": "https://pubchem.ncbi.nlm.nih.gov/#query=polycyclic+aromatic",       # PACs
-    "N746": "https://pubchem.ncbi.nlm.nih.gov/compound/441071",             # STRYCHNINE
-    "N874": "https://pubchem.ncbi.nlm.nih.gov/compound/54678486",           # WARFARIN
+    "N583": "https://pubchem.ncbi.nlm.nih.gov/#query=polychlorinated+alkanes",  # PCAs
+    "N590": "https://pubchem.ncbi.nlm.nih.gov/#query=polycyclic+aromatic",  # PACs
+    "N746": "https://pubchem.ncbi.nlm.nih.gov/compound/441071",  # STRYCHNINE
+    "N874": "https://pubchem.ncbi.nlm.nih.gov/compound/54678486",  # WARFARIN
 }
 
 

@@ -568,6 +568,8 @@ def ingest_tri_year(csv_path: str, year: int, engine) -> None:
 
 ## Geocoding Specification (H-3)
 
+> **⚠️ SUPERSEDED:** This section describes the original Nominatim-based geocoding plan. **ADR-006 (2026-07-27) replaced Nominatim with Photon (photon.komoot.io).** The current implementation uses browser-direct calls to Photon with a 1-second throttle and 200-entry LRU cache. See [ADR-006](ADR-006-photon-geocoding.md) for the authoritative geocoding specification.
+
 Address-to-coordinate conversion is required for the location search field (e.g. "Sparrows Point, MD" → lat/lon).
 
 **Dev/server mode (FastAPI running):** Use `GET /api/v1/geocode?q=` — a server-side Nominatim proxy defined in `TOXMAP_API_CONTRACT.md` §15. This keeps the Nominatim rate-limit logic and User-Agent header server-side.
@@ -741,7 +743,7 @@ VITE_API_BASE_URL=http://localhost:8000
 VITE_DATA_SOURCE=api                        # "api" | "duckdb"
 VITE_R2_BASE_URL=https://pub-XXXXX.r2.dev  # Cloudflare R2 public URL
 VITE_MAPLIBRE_STYLE=http://localhost:8080/styles/basic.json
-VITE_NOMINATIM_UA=toxmap-clone/0.1 (github.com/TOXMAP-Redux/toxmap-redux)
+# VITE_NOMINATIM_UA is obsolete — geocoding uses Photon per ADR-006
 ```
 
 ---

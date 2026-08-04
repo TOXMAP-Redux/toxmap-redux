@@ -80,3 +80,25 @@ Feature: Superfund Site Search
     When I GET "/api/v1/superfund/WY5571924179"
     Then the response status is 200
     And contaminant "BENZO[A]PYRENE" has cas_number "50-32-8"
+
+  # ── epa_progress_url ingestion (6.UX.1 regression tests) ───────────────────
+
+  @regression @6UX1
+  Scenario: Superfund detail has epa_progress_url populated from SEMS site_id
+    When I GET "/api/v1/superfund/VAD070358684"
+    Then the response status is 200
+    And the response field "epa_progress_url" is not null
+    And the response field "epa_progress_url" contains "cumulis.epa.gov/supercpad"
+
+  @regression @6UX1
+  Scenario: epa_progress_url uses correct SEMS site_id format
+    When I GET "/api/v1/superfund/VAD070358684"
+    Then the response status is 200
+    And the response field "epa_progress_url" matches pattern "id=\d{7}"
+
+  @regression @6UX1
+  Scenario: Browse endpoint includes epa_progress_url in GeoJSON properties
+    When I GET "/api/v1/superfund/browse?state=VA"
+    Then the response status is 200
+    And the response is a GeoJSON FeatureCollection
+    And every feature has property "epa_progress_url" that is not null

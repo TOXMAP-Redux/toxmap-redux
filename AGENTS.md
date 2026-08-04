@@ -426,6 +426,7 @@ Open a GitHub issue tagged `[agent-escalation]` and stop work when:
 | **Which agent runs next?** | `agents/phase-manager/prompt.md` |
 | Stack decisions | [ADR-001](docs/adr/ADR-001-fastapi-postgis-react.md) |
 | Production hosting | [ADR-004](docs/adr/ADR-004-zero-budget-hosting.md) |
+| Production geocoding/scaling | [ADR-009](docs/adr/ADR-009-cloudflare-workers-geocoding-proxy.md) |
 | Endpoint shapes + example JSON | [TOXMAP_API_CONTRACT.md](docs/api/TOXMAP_API_CONTRACT.md) |
 | Seed data + exact assertion values | [TOXMAP_TEST_SEED_DATA.md](docs/testing/TOXMAP_TEST_SEED_DATA.md) §9 |
 | Which Gherkin scenario covers this endpoint | [TOXMAP_ACCEPTANCE_TESTS.md](docs/testing/TOXMAP_ACCEPTANCE_TESTS.md) |
@@ -438,6 +439,7 @@ Open a GitHub issue tagged `[agent-escalation]` and stop work when:
 | Security tooling + guardrails | [GOVERNANCE.md §8](docs/GOVERNANCE.md) |
 | Suppressed findings | [docs/security/FINDINGS_REGISTER.md](docs/security/FINDINGS_REGISTER.md) |
 | Accepted risks | [docs/security/ACCEPTED_RISKS.md](docs/security/ACCEPTED_RISKS.md) |
+| Self-hosting + scaling | [docs/deployment/SELF_HOSTING_GUIDE.md](docs/deployment/SELF_HOSTING_GUIDE.md), [DEPLOYMENT_GUIDE.md](docs/deployment/DEPLOYMENT_GUIDE.md) |
 | `data-testid` values for Playwright | [docs/testing/TEST_ID_REGISTRY.md](docs/testing/TEST_ID_REGISTRY.md) |
 | **Open escalations (human review needed)** | [`docs/escalations/`](docs/escalations/) — one file per blocked story |
 

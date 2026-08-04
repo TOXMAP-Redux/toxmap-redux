@@ -61,6 +61,7 @@ These are locked before development starts. Any deviation requires a new ADR.
 | Database (prod) | Parquet files on Cloudflare R2 | ADR-004 Option A |
 | Tile source | Protomaps PMTiles (self-hosted) | ADR-001 |
 | Hosting | Cloudflare Pages + R2 | ADR-004 |
+| Production geocoding | Cloudflare Workers proxy (recommended) | ADR-009 |
 | Budget | $0 | ADR-004 |
 | Test framework | pytest-bdd + Playwright | TOXMAP_ACCEPTANCE_TESTS.md |
 

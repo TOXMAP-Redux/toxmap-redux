@@ -20,9 +20,7 @@ logger = logging.getLogger(__name__)
 async def get_meta(session: AsyncSession) -> MetaResponse | None:
     """Return API metadata. Returns None (→ 503) if release_events is empty."""
     years_result = await session.execute(
-        select(distinct(ReleaseEvent.reporting_year)).order_by(
-            ReleaseEvent.reporting_year
-        )
+        select(distinct(ReleaseEvent.reporting_year)).order_by(ReleaseEvent.reporting_year)
     )
     available_years: list[int] = [row[0] for row in years_result.all()]
 
@@ -47,9 +45,7 @@ async def get_meta(session: AsyncSession) -> MetaResponse | None:
     # None / 503 guard). Here we construct a factual label from what we know:
     # the max reporting year in the database and the fact it is seed/dev data.
     vintage_label_stub = (
-        f"Seed data · {min(available_years)}–{latest_year}"
-        if latest_year
-        else "unknown"
+        f"Seed data · {min(available_years)}–{latest_year}" if latest_year else "unknown"
     )
 
     return MetaResponse(

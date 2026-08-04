@@ -168,6 +168,7 @@ This risk will be recorded in `ACCEPTED_RISKS.md` as RISK-008.
 - [OpenFreeMap](https://openfreemap.org) — service homepage, pricing, and usage policy
 - [OpenFreeMap GitHub](https://github.com/hyperknot/openfreemap) — open-source infrastructure
 - [Protomaps Daily Builds](https://maps.protomaps.com/builds/) — world build source; retained for self-hosting fallback
-- [docs/deployment/PMTILES_R2_UPLOAD.md](../deployment/PMTILES_R2_UPLOAD.md) — self-hosting fallback procedure
+- [docs/deployment/SELF_HOSTING_GUIDE.md](../deployment/SELF_HOSTING_GUIDE.md) — **comprehensive self-hosting guide for both Photon and PMTiles** (VPS costs, step-by-step setup, operational procedures)
+- [docs/deployment/PMTILES_R2_UPLOAD.md](../deployment/PMTILES_R2_UPLOAD.md) — R2 upload procedure
 - [scripts/upload_r2.py](../../scripts/upload_r2.py) — boto3 S3 multipart upload script (fallback)
 - [ADR-004](ADR-004-zero-budget-hosting.md) — parent ADR; this record amends the tile-hosting assumption only

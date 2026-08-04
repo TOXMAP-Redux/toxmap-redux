@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from typing import NamedTuple
 
 from sqlalchemy import select
@@ -22,14 +23,13 @@ from app.database import AsyncSessionLocal
 from app.models.chemical import Chemical
 from app.models.chemical_family import ChemicalFamily, ChemicalFamilyMember
 
-import re
-
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
 class FamilyDef(NamedTuple):
     """Definition of a chemical family."""
+
     family_name: str
     description: str
     nlm_url: str | None
@@ -234,39 +234,44 @@ CHEMICAL_FAMILIES: list[FamilyDef] = [
 
 def _normalize_chemical_name(name: str) -> str:
     """Normalize chemical name: uppercase, collapse whitespace."""
-    return re.sub(r'\s+', ' ', name.upper().strip())
+    return re.sub(r"\s+", " ", name.upper().strip())
 
 
 async def seed_chemical_families(session: AsyncSession) -> None:
     """Populate chemical_families and chemical_family_members tables."""
-    
+
     # Build a lookup of chemical names to IDs (normalized)
     result = await session.execute(select(Chemical.id, Chemical.name))
     chemical_lookup = {_normalize_chemical_name(row.name): row.id for row in result.all()}
-    
+
     families_inserted = 0
     members_inserted = 0
-    
+
     for family_def in CHEMICAL_FAMILIES:
         # Upsert family
-        family_stmt = insert(ChemicalFamily).values(
-            family_name=family_def.family_name,
-            description=family_def.description,
-            nlm_url=family_def.nlm_url,
-            epa_url=family_def.epa_url,
-        ).on_conflict_do_update(
-            index_elements=["family_name"],
-            set_={
-                "description": family_def.description,
-                "nlm_url": family_def.nlm_url,
-                "epa_url": family_def.epa_url,
-            },
-        ).returning(ChemicalFamily.id)
-        
+        family_stmt = (
+            insert(ChemicalFamily)
+            .values(
+                family_name=family_def.family_name,
+                description=family_def.description,
+                nlm_url=family_def.nlm_url,
+                epa_url=family_def.epa_url,
+            )
+            .on_conflict_do_update(
+                index_elements=["family_name"],
+                set_={
+                    "description": family_def.description,
+                    "nlm_url": family_def.nlm_url,
+                    "epa_url": family_def.epa_url,
+                },
+            )
+            .returning(ChemicalFamily.id)
+        )
+
         result = await session.execute(family_stmt)
         family_id = result.scalar_one()
         families_inserted += 1
-        
+
         # Insert members
         for chem_name, is_parent in family_def.members:
             normalized_name = _normalize_chemical_name(chem_name)
@@ -278,18 +283,22 @@ async def seed_chemical_families(session: AsyncSession) -> None:
                     family_def.family_name,
                 )
                 continue
-            
-            member_stmt = insert(ChemicalFamilyMember).values(
-                chemical_id=chem_id,
-                family_id=family_id,
-                is_parent=is_parent,
-            ).on_conflict_do_update(
-                index_elements=["chemical_id", "family_id"],
-                set_={"is_parent": is_parent},
+
+            member_stmt = (
+                insert(ChemicalFamilyMember)
+                .values(
+                    chemical_id=chem_id,
+                    family_id=family_id,
+                    is_parent=is_parent,
+                )
+                .on_conflict_do_update(
+                    index_elements=["chemical_id", "family_id"],
+                    set_={"is_parent": is_parent},
+                )
             )
             await session.execute(member_stmt)
             members_inserted += 1
-    
+
     await session.commit()
     logger.info(
         "Seeded %d chemical families with %d member mappings",

@@ -60,7 +60,7 @@ async def get_county_demographics(
     fields: str | None,
 ) -> DemographicsCollection:
     """Return county GeoJSON for a given state and census year.
-    
+
     If state is None, returns all counties for the census year.
     """
     if state:

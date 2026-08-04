@@ -78,7 +78,7 @@ Work items come from **`docs/product/TOXMAP_DEVELOPMENT_ROADMAP.md`** in the col
 |-------|--------------|
 | 0.5.1 | `SECURITY.md` at the repo root: responsible disclosure policy (do not open public issues for vulnerabilities), reporting channel (maintainer email in GitHub profile), in-scope components, out-of-scope exclusions, CVE response SLAs (Critical CVSS ≥ 9.0: 48 h; High 7.0–8.9: 7 days; Medium/Low: next scheduled release), acknowledgement timeline (72 h), and coordinated disclosure process. Link from `README.md`. |
 | 0.5.2 | `.github/dependabot.yml`: enable automated dependency PRs for `pip` (directory: `/backend`), `npm` (directory: `/frontend`), and `github-actions` (directory: `/`). Set `schedule.interval: "weekly"`. Add `labels: ["dependencies", "security"]` to each entry. Target `main`. |
-| 0.5.3 | `.github/workflows/security.yml`: triggered on every PR (`pull_request`) and push to `main`. Four jobs: (1) `secrets-scan` — `gitleaks/gitleaks-action@<SHA>`, fails on any detected secret pattern; (2) `python-audit` — `pip-audit -r backend/requirements.txt` (or from `pyproject.toml`), fails on any Critical or High CVE; (3) `npm-audit` — `npm audit --audit-level=high` in `frontend/`, fails on High/Critical; (4) `bandit` — `bandit -r backend/app/ -c bandit.yaml --severity-level medium`, fails on any Medium+ finding not in the allow-list. |
+| 0.5.3 | `.github/workflows/security.yml`: triggered on every PR (`pull_request`) and push to `main`. Four jobs: (1) `secrets-scan` — `gitleaks` CLI (v8.21.2+, Apache 2.0 license) installed via curl/tar and run with `gitleaks detect --source . --verbose --redact --exit-code 1`, fails on any detected secret pattern; (2) `python-audit` — `pip-audit -r backend/requirements.txt` (or from `pyproject.toml`), fails on any Critical or High CVE; (3) `npm-audit` — `npm audit --audit-level=high` in `frontend/`, fails on High/Critical; (4) `bandit` — `bandit -r backend/app/ -c bandit.yaml --severity-level medium`, fails on any Medium+ finding not in the allow-list. **Note:** `gitleaks/gitleaks-action` requires a paid license for organization repositories as of 2026; we use the CLI directly instead. |
 | 0.5.4 | Pin all third-party GitHub Actions in `ci.yml` and `build-data.yml` to full 40-character commit SHAs. Replace `cloudflare/wrangler-action@v3` with `cloudflare/wrangler-action@<SHA>`, `codecov/codecov-action@v4` with its SHA, etc. Add a trailing comment `# <tag-name>` after each SHA for human readability. The SHA must match the tag at the time of pinning — document the resolved SHAs in `docs/security/PINNED_ACTIONS.md`. |
 
 ### Phase 1 (Data Pipeline) — SEC Parallel Track
@@ -242,7 +242,7 @@ Internet
     │       └─ Parquet queries → Cloudflare R2 (HTTPS GET + HEAD only)
     │
     ├─ Cloudflare R2  ← public bucket; GET/HEAD only; no write without API token
-    │   └─ tri_YEAR.parquet, tri_YEAR.meta.json, manifest.json, us.pmtiles
+    │   └─ tri_YEAR.parquet, tri_YEAR.meta.json, manifest.json
     │
     └─ FastAPI + PostGIS  ← dev/test only; not exposed to public internet in production
         ├─ slowapi (rate limiting: 60 req/min per IP)

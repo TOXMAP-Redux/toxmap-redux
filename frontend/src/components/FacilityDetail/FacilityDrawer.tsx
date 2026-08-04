@@ -172,7 +172,7 @@ export function FacilityDrawer({ facilityId, onClose }: FacilityDrawerProps): JS
                   >
                     <XAxis type="number" tick={{ fontSize: 10 }} />
                     <YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 10 }} />
-                    <Tooltip formatter={(v: number) => [formatNumber(v) + ' lbs', 'Released']} />
+                    <Tooltip formatter={(v) => [formatNumber(Number(v ?? 0)) + ' lbs', 'Released']} />
                     <Bar dataKey="lbs" fill="#3b82f6" />
                   </BarChart>
                 </ResponsiveContainer>
@@ -241,7 +241,7 @@ export function FacilityDrawer({ facilityId, onClose }: FacilityDrawerProps): JS
                 <BarChart data={mediumData}>
                   <XAxis dataKey="medium" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(v: number) => [formatNumber(v) + ' lbs', 'Released']} />
+                  <Tooltip formatter={(v) => [formatNumber(Number(v ?? 0)) + ' lbs', 'Released']} />
                   <Bar dataKey="lbs" fill="#f97316" />
                 </BarChart>
               </ResponsiveContainer>
@@ -263,7 +263,7 @@ export function FacilityDrawer({ facilityId, onClose }: FacilityDrawerProps): JS
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="year" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(v: number) => [formatNumber(v) + ' lbs', 'Total release']} />
+                  <Tooltip formatter={(v) => [formatNumber(Number(v ?? 0)) + ' lbs', 'Total release']} />
                   <Legend />
                   <Line type="monotone" dataKey="lbs" stroke="#3b82f6" dot={true} name="Total release (lbs)" />
                 </LineChart>

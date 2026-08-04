@@ -20,7 +20,7 @@
  * Sidebar count: filterByBbox filters map data client-side by current viewport.
  *   → "X in view" updates without refetching.
  */
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, useRef, useEffect } from 'react'
 import type { ViewState } from 'react-map-gl/maplibre'
 import { MapContainer } from './components/Map/MapContainer'
 import { Sidebar, type ActivePanel } from './components/Sidebar/Sidebar'
@@ -35,7 +35,7 @@ import { useSuperfundViewport } from './hooks/useSuperfundViewport'
 import { useSuperfundSearch } from './hooks/useSuperfundSearch'
 import { useDemographics } from './hooks/useDemographics'
 import { useMeta } from './hooks/useMeta'
-import { geocodeLocation } from './api/geocode'
+import { geocodeLocation, type GeocodeResult } from './api/geocode'
 import type { FacilityFeature, SubmittedSearch, SuperfundFeature, SuperfundCollection, DemographicLayer } from './api/types'
 import type { SuperfundSearchParams } from './api/superfund'
 import type { SearchFormValues } from './components/Sidebar/SearchPanel'
@@ -58,6 +58,8 @@ const INITIAL_VIEW: ViewState = {
 export default function App(): JSX.Element {
   // ── Map viewport ──────────────────────────────────────────────────────────
   const [viewState, setViewState] = useState<ViewState>(INITIAL_VIEW)
+  const viewStateRef = useRef(viewState)
+  useEffect(() => { viewStateRef.current = viewState }, [viewState])
   const [mapBbox, setMapBbox] = useState<[number, number, number, number] | null>(null)
 
   // ── Sidebar + search state ────────────────────────────────────────────────
@@ -66,6 +68,7 @@ export default function App(): JSX.Element {
   const [sidebarWidthPx, setSidebarWidthPx] = useState(320)
   const [submittedSearch, setSubmittedSearch] = useState<SubmittedSearch | null>(null)
   const [geocodeError, setGeocodeError] = useState<string | null>(null)
+  const [resolvedGeocode, setResolvedGeocode] = useState<GeocodeResult | null>(null)
 
   // ── Facility selection (TRI) ──────────────────────────────────────────────
   const [selectedFacility, setSelectedFacility] = useState<FacilityFeature | null>(null)
@@ -319,6 +322,7 @@ export default function App(): JSX.Element {
 
   const handleSearchSubmit = useCallback(async (values: SearchFormValues) => {
     setGeocodeError(null)
+    setResolvedGeocode(null)
     
     const locationTrimmed = values.location.trim()
     
@@ -361,12 +365,18 @@ export default function App(): JSX.Element {
       return
     }
     
-    // Location-based search: geocode and search within radius
-    const geocoded = await geocodeLocation(values.location)
+    // Location-based search: geocode with viewport bias for better local results
+    const geocoded = await geocodeLocation(values.location, {
+      biasLat: viewStateRef.current.latitude,
+      biasLon: viewStateRef.current.longitude,
+    })
     if (!geocoded) {
       setGeocodeError(`Could not geocode "${values.location}". Try a different location.`)
       return
     }
+
+    // Store resolved geocode for display with confidence info
+    setResolvedGeocode(geocoded)
 
     // Reset bbox before setting new search so the first request has no stale viewport constraint.
     // The map will zoom to the new location, fire onMoveEnd, and update bbox for subsequent requests.
@@ -493,6 +503,7 @@ export default function App(): JSX.Element {
         highlightedFacilityId={highlightedFacilityId}
         onHighlight={setHighlightedFacilityId}
         onFacilitySelect={handleOpenDetail}
+        resolvedGeocode={resolvedGeocode}
         latestYear={meta?.latest_year ?? null}
         showTRILayer={showTRILayer}
         onToggleTRILayer={() => setShowTRILayer((v) => !v)}

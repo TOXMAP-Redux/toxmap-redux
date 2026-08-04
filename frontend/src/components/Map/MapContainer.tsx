@@ -405,10 +405,9 @@ export function MapContainer({
     map.setPaintProperty('facility-circles', 'circle-stroke-color', '#ffffff')
   }, [selectedFacilityId, highlightedFacilityId, triLayersReady])
 
-  // When a popup is about to open, pan right if the marker falls within the
-  // sidebar+gutter zone so the popup card is fully readable.
+  // When a popup is about to open, pan the map so the popup is fully visible.
   // MapLibre does not auto-pan for declarative react-map-gl Popups, so we
-  // handle it explicitly here.
+  // handle it explicitly here. Checks all edges: left (sidebar), right, top.
   useEffect(() => {
     if (!selectedFacilityId || !facilities || !mapLoaded) return
     const map = mapRef.current?.getMap()
@@ -421,13 +420,41 @@ export function MapContainer({
 
     const [lon, lat] = feature.geometry.coordinates
     const screenPt = map.project([lon, lat])
-    const gutter = 12
-    // Popup maxWidth is 300px; anchor is bottom-center, so left edge ≈ markerX - 150
-    const popupLeftEdge = screenPt.x - 150
-    const minLeft = sidebarWidth + gutter
+    const gutter = 16
+    // Popup maxWidth is 300px; anchor is bottom-center
+    const popupHalfWidth = 150
+    const popupHeight = 160 // Approximate height including content + tip
+    const popupTipOffset = 15
 
+    const popupLeftEdge = screenPt.x - popupHalfWidth
+    const popupRightEdge = screenPt.x + popupHalfWidth
+    const popupTopEdge = screenPt.y - popupHeight - popupTipOffset
+
+    const canvas = map.getCanvas()
+    const viewportWidth = canvas.clientWidth
+
+    const minLeft = sidebarWidth + gutter
+    const maxRight = viewportWidth - gutter
+    const minTop = gutter
+
+    let panX = 0
+    let panY = 0
+
+    // Left edge check (popup overlaps sidebar)
     if (popupLeftEdge < minLeft) {
-      map.panBy([minLeft - popupLeftEdge, 0], { animate: true, duration: 250 })
+      panX = minLeft - popupLeftEdge
+    }
+    // Right edge check (popup extends past right edge)
+    if (popupRightEdge > maxRight) {
+      panX = maxRight - popupRightEdge // Negative value to pan left
+    }
+    // Top edge check (popup extends above viewport)
+    if (popupTopEdge < minTop) {
+      panY = minTop - popupTopEdge // Negative value to pan down
+    }
+
+    if (panX !== 0 || panY !== 0) {
+      map.panBy([-panX, -panY], { animate: true, duration: 250 })
     }
   }, [selectedFacilityId, facilities, sidebarWidth, mapLoaded])
 

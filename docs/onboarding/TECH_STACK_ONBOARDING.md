@@ -482,19 +482,15 @@ docker compose up db backend
 
 ---
 
-### Nominatim (OpenStreetMap Geocoding)
+### Photon (OpenStreetMap Geocoding via Komoot)
 
-**What it is:** A free, open-source geocoding API provided by OpenStreetMap. Geocoding converts a human-readable address 
-("Sparrows Point, MD") into coordinates (lat/lon).
+**What it is:** A free geocoding API operated by [Komoot GmbH](https://www.komoot.de/), backed by OpenStreetMap data. Geocoding converts a human-readable address ("Sparrows Point, MD") into coordinates (lat/lon).
 
-**Why we use it:** The location search field needs to convert what the user types into map coordinates. Nominatim is 
-free and doesn't require an API key, but it has a strict rate limit of 1 request/second — we debounce user input by 
-500ms to comply.
+**Why we use it:** The location search field needs to convert what the user types into map coordinates. Photon is free, requires no API key, and has full CORS support — allowing browser-direct calls without a backend proxy. The frontend implements a 1-second throttle between requests and an in-memory LRU cache (200 entries) to comply with Photon's fair-use policy.
 
-In local/dev mode, geocoding goes through a server-side proxy endpoint (`GET /api/v1/geocode?q=`). In production 
-(DuckDB WASM mode, no backend), the frontend calls Nominatim directly.
+**ADR:** [ADR-006](../adr/ADR-006-photon-geocoding.md) documents the switch from Nominatim (blocked server IPs, SSL inspection issues in Docker) to Photon.
 
-**Learn more:** [Nominatim usage policy](https://operations.osmfoundation.org/policies/nominatim/)
+**Learn more:** [Photon API](https://photon.komoot.io/) — [OpenStreetMap copyright](https://www.openstreetmap.org/copyright)
 
 ---
 
@@ -544,7 +540,7 @@ Here's what happens when a user searches for "lead compounds near Sparrows Point
    → Returns suggestions; user selects "LEAD COMPOUNDS"
 
 2. User types "Sparrows Point, MD" in location field
-   → useGeocode hook debounces 500ms, calls Nominatim
+   → useGeocode hook throttles 1s, calls Photon (browser-direct)
    → Returns { lat: 39.22, lon: -76.48 }
 
 3. Map pans to that location; user adjusts radius slider to 25 miles

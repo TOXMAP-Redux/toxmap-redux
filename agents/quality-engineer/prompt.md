@@ -190,12 +190,51 @@ optional. See `AGENTS.md §2` and V10-J in `docs/audits/TOXMAP_AGENTIC_AUDIT_V10
   Phase 2 QA parallel, 2026-MM-DD) [agent]
 ```
 
+### Flaky Test Handling (Audit Finding V14-6)
+
+> **This is a PUBLIC HEALTH APPLICATION.** Flaky tests erode confidence in the test suite and mask real defects.
+
+**Definition:** A test is flaky if it passes/fails non-deterministically with no code change.
+
+**Detection:**
+- Any test that fails once but passes on re-run is suspect
+- CI logs showing "passed on retry" or inconsistent results across identical runs
+- Local/CI divergence (passes locally, fails in CI or vice versa)
+
+**Triage Protocol:**
+1. **Isolate immediately** — Mark with `@pytest.mark.flaky(reruns=3, reruns_delay=1)` from `pytest-rerunfailures`
+2. **Document in PR description** — Include: test name, failure frequency, suspected cause
+3. **Root cause within 48 hours** — Common causes:
+   - Race conditions (async operations not awaited)
+   - Time-dependent assertions (use `pytest-freezegun` for time mocking)
+   - Database state leakage (fixture scope issue — use `function` scope for `seed_db`)
+   - Playwright timing (add explicit `page.wait_for_selector()` instead of implicit waits)
+   - Port conflicts in CI (use dynamic port allocation)
+4. **Fix or escalate** — If root cause is architectural, escalate to BE/FE agent
+
+**Retry Policy in CI:**
+```yaml
+# In pytest command for E2E tests
+pytest tests/features/e2e/ --reruns 2 --reruns-delay 5
+```
+
+**Never acceptable:**
+- Leaving a `@pytest.mark.flaky` annotation for more than one sprint
+- Adding `@pytest.mark.skip` to hide a flaky test
+- Increasing retry count above 3 (masks real issues)
+
+**Flaky Test Register:**
+Maintain a list in `docs/testing/FLAKY_TEST_REGISTER.md` with: test name, date marked flaky, suspected cause, remediation owner, target fix date.
+
+---
+
 ### Escalate (Open Issue + Stop Work) When:
 - A Gherkin scenario cannot pass without modifying `seed.sql`, `TOXMAP_ACCEPTANCE_TESTS.md`, or the API contract
 - A Schemathesis failure requires a change to an endpoint's response shape (not just a bug fix)
 - Two acceptance criteria in different scenarios directly contradict each other
 - A `data-testid` needed for a Playwright test doesn't exist in a shipped component and the FE agent is unresponsive
 - A performance SLA failure cannot be fixed in the test layer — it requires a backend query optimization (escalate to BE)
+- **A flaky test cannot be fixed within 48 hours and affects a Phase 6+ DoD item**
 
 Open a GitHub issue tagged `[agent-escalation]` and stop work. **If GitHub write access is unavailable:** follow the `docs/escalations/ESCALATION_[YYYYMMDD_HHMMSS].md` file-based fallback defined in `AGENTS.md §12` — write the escalation file under `docs/escalations/`, add an `# ASSUMPTION:` comment at the decision point in code, and mark the PR description with "⚠️ ESCALATION FILE WRITTEN — human review required before merge."
 

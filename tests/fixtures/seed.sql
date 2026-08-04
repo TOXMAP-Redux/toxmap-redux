@@ -87,7 +87,13 @@ INSERT INTO chemicals (id, cas_number, name, category, atsdr_url, pubchem_url) V
   (3, '100-42-5',   'STYRENE',         'Volatile Organic Compounds', 'https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=74',  'https://pubchem.ncbi.nlm.nih.gov/compound/7501'),
   (4, '7782-50-5',  'CHLORINE',        'Halogens',                   'https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=36',  'https://pubchem.ncbi.nlm.nih.gov/compound/24526'),
   (5, '71-43-2',    'BENZENE',         'Volatile Organic Compounds', 'https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=14',  'https://pubchem.ncbi.nlm.nih.gov/compound/241'),
-  (6, '7664-41-7',  'AMMONIA',         'Inorganic Compounds',        'https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=2',   'https://pubchem.ncbi.nlm.nih.gov/compound/222');
+  (6, '7664-41-7',  'AMMONIA',         'Inorganic Compounds',        'https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=2',   'https://pubchem.ncbi.nlm.nih.gov/compound/222')
+ON CONFLICT (id) DO UPDATE SET
+  cas_number = EXCLUDED.cas_number,
+  name = EXCLUDED.name,
+  category = EXCLUDED.category,
+  atsdr_url = EXCLUDED.atsdr_url,
+  pubchem_url = EXCLUDED.pubchem_url;
 
 -- 2. Facilities
 INSERT INTO facilities (id, tri_facility_id, name, address, city, state_code, zip_code, county, naics_code, naics_desc, location) VALUES
@@ -99,7 +105,18 @@ INSERT INTO facilities (id, tri_facility_id, name, address, city, state_code, zi
   (6, '77536EXXO00001',  'EXXONMOBIL CHEMICAL PLANT',             '5200 BAYWAY DR',               'BAYTOWN',        'TX', '77536', 'HARRIS',     '324110', 'Petroleum Refineries',                    ST_GeomFromText('POINT(-95.0215 29.7424)', 4326)),
   (7, '77536LYND00001',  'LYONDELLBASELL REFINERY',               '12000 LAWNDALE ST',            'HOUSTON',        'TX', '77536', 'HARRIS',     '324110', 'Petroleum Refineries',                    ST_GeomFromText('POINT(-95.2100 29.7380)', 4326)),
   (8, '99501ANCHO0001',  'ALASKA MINING CO',                      '100 NORTHERN BLVD',            'ANCHORAGE',      'AK', '99501', 'ANCHORAGE',  '212234', 'Copper Ore and Nickel Ore Mining',        ST_GeomFromText('POINT(-149.9003 61.2181)', 4326)),
-  (9, '22630SMRLG0001',  'SMALL RELEASE FACILITY',                '200 GREEN TIER WAY',           'FRONT ROYAL',    'VA', '22630', 'WARREN',     '325199', 'All Other Basic Organic Chemical Mfg',    ST_GeomFromText('POINT(-78.1900 38.9150)', 4326));
+  (9, '22630SMRLG0001',  'SMALL RELEASE FACILITY',                '200 GREEN TIER WAY',           'FRONT ROYAL',    'VA', '22630', 'WARREN',     '325199', 'All Other Basic Organic Chemical Mfg',    ST_GeomFromText('POINT(-78.1900 38.9150)', 4326))
+ON CONFLICT (id) DO UPDATE SET
+  tri_facility_id = EXCLUDED.tri_facility_id,
+  name = EXCLUDED.name,
+  address = EXCLUDED.address,
+  city = EXCLUDED.city,
+  state_code = EXCLUDED.state_code,
+  zip_code = EXCLUDED.zip_code,
+  county = EXCLUDED.county,
+  naics_code = EXCLUDED.naics_code,
+  naics_desc = EXCLUDED.naics_desc,
+  location = EXCLUDED.location;
 
 -- 3. Release events
 INSERT INTO release_events (facility_id, chemical_id, reporting_year, total_release_lbs, air_release_lbs, water_release_lbs, land_release_lbs, underground_release_lbs, unit_of_measure, form_type) VALUES
@@ -126,12 +143,40 @@ INSERT INTO superfund_sites (id, epa_id, name, address, city, state_code, zip_co
   (1, 'VAD070358684', 'AVTEX FIBERS INC',     'BOX 1169 KENDRICK LN', 'FRONT ROYAL', 'VA', '22630', 'WARREN',    'NPL',      50.51, '1983-09-08', 'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=0302388', ARRAY['STYRENE','CARBON DISULFIDE','ZINC'],  ST_GeomFromText('POINT(-78.1942 38.9179)', 4326)),
   (2, 'VAD980554587', 'ARLINGTON SCRAP YARD', '4200 LEE HWY',         'ARLINGTON',   'VA', '22204', 'ARLINGTON', 'NPL',      28.74, '1989-02-21', 'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=0304032', ARRAY['LEAD COMPOUNDS','CADMIUM'],           ST_GeomFromText('POINT(-77.1089 38.8823)', 4326)),
   (3, 'VAD987654321', 'TEST PROPOSED SITE',   '100 PROPOSED WAY',     'RICHMOND',    'VA', '23220', 'RICHMOND',  'Proposed', 32.50, NULL,         NULL,                                                                                            ARRAY['BENZENE','TOLUENE'],                  ST_GeomFromText('POINT(-77.4360 37.5407)', 4326)),
-  (4, 'VAD123456789', 'TEST DELETED SITE',    '200 CLEANUP COMPLETE', 'NORFOLK',     'VA', '23510', 'NORFOLK',   'Deleted',  45.00, '1985-06-10', 'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=0300001', ARRAY['ARSENIC','MERCURY'],                  ST_GeomFromText('POINT(-76.2859 36.8508)', 4326));
+  (4, 'VAD123456789', 'TEST DELETED SITE',    '200 CLEANUP COMPLETE', 'NORFOLK',     'VA', '23510', 'NORFOLK',   'Deleted',  45.00, '1985-06-10', 'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=0300001', ARRAY['ARSENIC','MERCURY'],                  ST_GeomFromText('POINT(-76.2859 36.8508)', 4326))
+ON CONFLICT (id) DO UPDATE SET
+  epa_id = EXCLUDED.epa_id,
+  name = EXCLUDED.name,
+  address = EXCLUDED.address,
+  city = EXCLUDED.city,
+  state_code = EXCLUDED.state_code,
+  zip_code = EXCLUDED.zip_code,
+  county = EXCLUDED.county,
+  status = EXCLUDED.status,
+  hrs_score = EXCLUDED.hrs_score,
+  npl_date = EXCLUDED.npl_date,
+  epa_progress_url = EXCLUDED.epa_progress_url,
+  contaminants = EXCLUDED.contaminants,
+  location = EXCLUDED.location;
 
 -- 5. Census county demographics
 INSERT INTO census_county (id, fips_code, name, state_code, census_year, total_pop, median_income, pct_under_18, pct_over_65, pct_nonwhite, cancer_mortality_female_per_100k, cancer_mortality_male_per_100k, heart_disease_mortality_per_100k, boundary) VALUES
   (1, '51187', 'Warren County', 'VA', 2000,   31584,  41246.00, 24.7, 11.2,  8.4, 148.7, 175.2, 189.4, ST_GeomFromText('POLYGON((-78.40 38.76, -78.40 38.99, -78.00 38.99, -78.00 38.76, -78.40 38.76))', 4326)),
   (2, '48201', 'Harris County', 'TX', 2000, 3400578,  42890.00, 28.3,  7.9, 55.4, 162.4, 194.8, 215.6, ST_GeomFromText('POLYGON((-95.79 29.52, -95.79 30.11, -94.91 30.11, -94.91 29.52, -95.79 29.52))', 4326)),
-  (3, '45003', 'Aiken County',  'SC', 2000,  142552,  38100.00, 25.1, 13.6, 34.2, 155.3, 186.1, 228.7, ST_GeomFromText('POLYGON((-81.97 33.35, -81.97 33.84, -81.42 33.84, -81.42 33.35, -81.97 33.35))', 4326));
+  (3, '45003', 'Aiken County',  'SC', 2000,  142552,  38100.00, 25.1, 13.6, 34.2, 155.3, 186.1, 228.7, ST_GeomFromText('POLYGON((-81.97 33.35, -81.97 33.84, -81.42 33.84, -81.42 33.35, -81.97 33.35))', 4326))
+ON CONFLICT (id) DO UPDATE SET
+  fips_code = EXCLUDED.fips_code,
+  name = EXCLUDED.name,
+  state_code = EXCLUDED.state_code,
+  census_year = EXCLUDED.census_year,
+  total_pop = EXCLUDED.total_pop,
+  median_income = EXCLUDED.median_income,
+  pct_under_18 = EXCLUDED.pct_under_18,
+  pct_over_65 = EXCLUDED.pct_over_65,
+  pct_nonwhite = EXCLUDED.pct_nonwhite,
+  cancer_mortality_female_per_100k = EXCLUDED.cancer_mortality_female_per_100k,
+  cancer_mortality_male_per_100k = EXCLUDED.cancer_mortality_male_per_100k,
+  heart_disease_mortality_per_100k = EXCLUDED.heart_disease_mortality_per_100k,
+  boundary = EXCLUDED.boundary;
 
 COMMIT;

@@ -42,9 +42,7 @@ CENSUS_BASE_URL = "https://www2.census.gov/"
 TIGER_BASE_URL = "https://www2.census.gov/geo/tiger/"
 
 # ACS 5-year county-level data (Census API is used if API key is set; falls back to download)
-CENSUS_ACS_URL = (
-    "https://www2.census.gov/programs-surveys/acs/data/pums/"
-)
+CENSUS_ACS_URL = "https://www2.census.gov/programs-surveys/acs/data/pums/"
 
 # TIGER county shapefile (national, most recent available)
 TIGER_COUNTY_URL = "https://www2.census.gov/geo/tiger/TIGER2022/COUNTY/tl_2022_us_county.zip"
@@ -53,9 +51,7 @@ TIGER_COUNTY_URL = "https://www2.census.gov/geo/tiger/TIGER2022/COUNTY/tl_2022_u
 def _validate_url(url: str) -> str:
     """Raise ValueError if url is not under the allow-listed Census base URL."""
     if not (url.startswith(CENSUS_BASE_URL) or url.startswith(TIGER_BASE_URL)):
-        raise ValueError(
-            f"SSRF guard: URL {url!r} is not under census.gov allow-listed prefix"
-        )
+        raise ValueError(f"SSRF guard: URL {url!r} is not under census.gov allow-listed prefix")
     return url
 
 
@@ -80,8 +76,9 @@ def _download_tiger_counties() -> pd.DataFrame:
 
     with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
         # Write to a temp location for geopandas (requires actual files)
-        import tempfile
         import pathlib
+        import tempfile
+
         with tempfile.TemporaryDirectory() as tmpdir:
             zf.extractall(tmpdir)
             shp_files = list(pathlib.Path(tmpdir).glob("*.shp"))
@@ -134,8 +131,7 @@ def _upsert_census_county(gdf: object, acs_df: pd.DataFrame, conn: object) -> in
     """
     rows = 0
     try:
-        from geopandas import GeoDataFrame
-        import geopandas as gpd
+        import geopandas  # noqa: F401
     except ImportError:
         return 0
 
@@ -152,6 +148,7 @@ def _upsert_census_county(gdf: object, acs_df: pd.DataFrame, conn: object) -> in
         wkt_geom: str | None = None
         if geom is not None and not geom.is_empty:
             from shapely import to_wkt
+
             wkt_geom = to_wkt(geom)
 
         conn.execute(  # type: ignore[union-attr]

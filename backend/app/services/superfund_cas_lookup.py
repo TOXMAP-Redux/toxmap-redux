@@ -11,6 +11,7 @@ CAS numbers verified against PubChem (https://pubchem.ncbi.nlm.nih.gov/).
 ATSDR ToxFAQs URLs from CDC/ATSDR Toxic Substances Portal (scraped 2024).
 Note: ATSDR only covers ~200 substances; many chemicals will have None for ATSDR.
 """
+
 from __future__ import annotations
 
 # ATSDR ToxFAQs URLs (verified from scripts/atsdr_toxid_map.csv)
@@ -164,9 +165,10 @@ def _get_atsdr(name: str) -> str | None:
     return _ATSDR.get(name)
 
 
-# Lookup table: {CHEMICAL_NAME_UPPER: (CAS_NUMBER, ATSDR_URL or None)}
+# Lookup table: {CHEMICAL_NAME_UPPER: (CAS_NUMBER, ATSDR_URL or None, PUBCHEM_URL or None)}
 # CAS numbers from PubChem; ATSDR URLs from CDC/ATSDR scraped data
-SUPERFUND_CAS_LOOKUP: dict[str, tuple[str, str | None]] = {
+# Format: 2-tuple (cas, atsdr) or 3-tuple (cas, atsdr, pubchem)
+SUPERFUND_CAS_LOOKUP: dict[str, tuple[str, str | None] | tuple[str, str | None, str]] = {
     # ─────────────────────────────────────────────────────────────────────────
     # Polycyclic Aromatic Hydrocarbons (PAHs)
     # ATSDR groups all PAHs under toxid=25
@@ -269,7 +271,11 @@ SUPERFUND_CAS_LOOKUP: dict[str, tuple[str, str | None]] = {
     "CIS-1,3-DICHLOROPROPENE": ("10061-01-5", _ATSDR["DICHLOROPROPENES"]),
     "TRANS-1,3-DICHLOROPROPENE": ("10061-02-6", _ATSDR["DICHLOROPROPENES"]),
     "1,2,3-TRICHLOROPROPANE": ("96-18-4", None),  # No ATSDR ToxFAQs
-    "TRICHLOROETHANE (MIXED ISOMERS)": ("N/A", _ATSDR["1,1,1-TRICHLOROETHANE"], "https://pubchem.ncbi.nlm.nih.gov/compound/1,1,1-Trichloroethane"),
+    "TRICHLOROETHANE (MIXED ISOMERS)": (
+        "N/A",
+        _ATSDR["1,1,1-TRICHLOROETHANE"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/1,1,1-Trichloroethane",
+    ),
     # ─────────────────────────────────────────────────────────────────────────
     # Trihalomethanes (THMs)
     # ─────────────────────────────────────────────────────────────────────────
@@ -341,15 +347,47 @@ SUPERFUND_CAS_LOOKUP: dict[str, tuple[str, str | None]] = {
     # Dioxins and Furans
     # Note: For compound classes without specific CAS, use PubChem search URLs
     # ─────────────────────────────────────────────────────────────────────────
-    "2,3,7,8-TETRACHLORODIBENZO-P-DIOXIN": ("1746-01-6", _ATSDR["CDDS"], "https://pubchem.ncbi.nlm.nih.gov/compound/15625"),
-    "2,3,7,8-TETRACHLORODIBENZO-P-DIOXIN (TCDD)": ("1746-01-6", _ATSDR["CDDS"], "https://pubchem.ncbi.nlm.nih.gov/compound/15625"),
-    "2,3,7,8-TETRACHLORODIBENZO-p-DIOXIN (TCDD) TOXICITY EQUIVALENTS (TEq)": ("N/A", _ATSDR["CDDS"], "https://pubchem.ncbi.nlm.nih.gov/compound/15625"),
-    "2,3,7,8-TCDD": ("1746-01-6", _ATSDR["CDDS"], "https://pubchem.ncbi.nlm.nih.gov/compound/15625"),
+    "2,3,7,8-TETRACHLORODIBENZO-P-DIOXIN": (
+        "1746-01-6",
+        _ATSDR["CDDS"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/15625",
+    ),
+    "2,3,7,8-TETRACHLORODIBENZO-P-DIOXIN (TCDD)": (
+        "1746-01-6",
+        _ATSDR["CDDS"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/15625",
+    ),
+    "2,3,7,8-TETRACHLORODIBENZO-p-DIOXIN (TCDD) TOXICITY EQUIVALENTS (TEq)": (
+        "N/A",
+        _ATSDR["CDDS"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/15625",
+    ),
+    "2,3,7,8-TCDD": (
+        "1746-01-6",
+        _ATSDR["CDDS"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/15625",
+    ),
     "TCDD": ("1746-01-6", _ATSDR["CDDS"], "https://pubchem.ncbi.nlm.nih.gov/compound/15625"),
-    "2,3,7,8-TETRACHLORODIBENZOFURAN": ("51207-31-9", _ATSDR["CDFS"], "https://pubchem.ncbi.nlm.nih.gov/compound/39227"),
-    "CHLORINATED DIOXINS AND FURANS": ("N/A", _ATSDR["CDDS"], "https://pubchem.ncbi.nlm.nih.gov/#query=chlorinated+dioxins"),
-    "DIOXINS (CHLORINATED DIBENZODIOXINS)": ("N/A", _ATSDR["CDDS"], "https://pubchem.ncbi.nlm.nih.gov/#query=chlorinated+dibenzodioxins"),
-    "DIOXINS AND DIBENZOFURANS": ("N/A", _ATSDR["CDDS"], "https://pubchem.ncbi.nlm.nih.gov/#query=dioxins+dibenzofurans"),
+    "2,3,7,8-TETRACHLORODIBENZOFURAN": (
+        "51207-31-9",
+        _ATSDR["CDFS"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/39227",
+    ),
+    "CHLORINATED DIOXINS AND FURANS": (
+        "N/A",
+        _ATSDR["CDDS"],
+        "https://pubchem.ncbi.nlm.nih.gov/#query=chlorinated+dioxins",
+    ),
+    "DIOXINS (CHLORINATED DIBENZODIOXINS)": (
+        "N/A",
+        _ATSDR["CDDS"],
+        "https://pubchem.ncbi.nlm.nih.gov/#query=chlorinated+dibenzodioxins",
+    ),
+    "DIOXINS AND DIBENZOFURANS": (
+        "N/A",
+        _ATSDR["CDDS"],
+        "https://pubchem.ncbi.nlm.nih.gov/#query=dioxins+dibenzofurans",
+    ),
     # ─────────────────────────────────────────────────────────────────────────
     # Pesticides
     # ─────────────────────────────────────────────────────────────────────────
@@ -451,14 +489,48 @@ SUPERFUND_CAS_LOOKUP: dict[str, tuple[str, str | None]] = {
     "THORIUM": ("7440-29-1", _ATSDR["THORIUM"]),
     "THORIUM-230": ("14269-63-7", _ATSDR["THORIUM"]),
     "THORIUM-232": ("7440-29-1", _ATSDR["THORIUM"]),
+    "THORIUM-228": ("14274-82-9", _ATSDR["THORIUM"]),
     "RADON": ("10043-92-2", _ATSDR["RADON"]),
     "RADON-222": ("14859-67-7", _ATSDR["RADON"]),
     "CESIUM-137": ("10045-97-3", _ATSDR["CESIUM"]),
+    "CESIUM": ("7440-46-2", _ATSDR["CESIUM"]),  # Elemental cesium
+    "STRONTIUM": ("7440-24-6", _ATSDR["STRONTIUM"]),  # Elemental strontium
     "STRONTIUM-90": ("10098-97-2", _ATSDR["STRONTIUM"]),
     "PLUTONIUM": ("7440-07-5", _ATSDR["PLUTONIUM"]),
     "PLUTONIUM-238": ("13981-16-3", _ATSDR["PLUTONIUM"]),
     "PLUTONIUM-239": ("15117-48-3", _ATSDR["PLUTONIUM"]),
+    "PLUTONIUM-240": ("14119-33-6", _ATSDR["PLUTONIUM"]),
+    "PLUTONIUM-239/240": ("N/A", _ATSDR["PLUTONIUM"]),  # Combined isotope notation
     "AMERICIUM-241": ("14596-10-2", _ATSDR["AMERICIUM"]),
+    # Cobalt isotopes (nuclear reactors, medical)
+    "COBALT-60": ("10198-40-0", _ATSDR["COBALT"]),
+    # Carbon-14 (nuclear facilities, dating)
+    "CARBON-14": ("14762-75-5", None),  # No dedicated ATSDR ToxFAQs
+    # Europium isotopes (nuclear reactors — no ATSDR ToxFAQs for rare earths)
+    "EUROPIUM": ("7440-53-1", None),
+    "EUROPIUM-152": ("14683-23-9", None),
+    "EUROPIUM-154": ("15585-10-1", None),
+    "EUROPIUM-155": ("14391-16-3", None),
+    # Nickel-63 (nuclear reactors)
+    "NICKEL-63": ("13981-37-8", _ATSDR["NICKEL"]),
+    # Technetium-99 (nuclear reactors, fission product)
+    "TECHNETIUM-99": ("14133-76-7", None),  # No ATSDR ToxFAQs
+    # Tritium (hydrogen-3, fusion/fission byproduct)
+    "TRITIUM": ("10028-17-8", None),  # No ATSDR ToxFAQs
+    # Iodine isotopes (nuclear fallout)
+    "IODINE-129": ("15046-84-1", None),  # No dedicated ToxFAQs
+    "IODINE-131": ("10043-66-0", None),
+    # Additional uranium isotopes
+    "URANIUM-233": ("13968-55-3", _ATSDR["URANIUM"]),
+    "URANIUM-234/235/238": ("N/A", _ATSDR["URANIUM"]),  # Combined notation
+    # Neptunium (transuranic)
+    "NEPTUNIUM": ("7439-99-8", None),  # No ATSDR ToxFAQs
+    "NEPTUNIUM-237": ("13994-20-2", None),
+    # Additional elements often found at nuclear sites
+    "MAGNESIUM": ("7439-95-4", None),  # Essential element, no ToxFAQs
+    "SULFATE": ("14808-79-8", None),  # Common anion
+    # Generic radionuclide category
+    "RADIONUCLIDES": ("N/A", None),
     # ─────────────────────────────────────────────────────────────────────────
     # Explosives
     # ─────────────────────────────────────────────────────────────────────────
@@ -556,38 +628,145 @@ SUPERFUND_CAS_LOOKUP: dict[str, tuple[str, str | None]] = {
     # TPH and fuels - many are mixtures without discrete CAS; use PubChem name URLs
     # Note: Some use /compound/ (refchem entries), others use /substance/ (SID)
     # ─────────────────────────────────────────────────────────────────────────
-    "TOTAL PETROLEUM HYDROCARBONS": ("N/A", _ATSDR["TPH"], "https://pubchem.ncbi.nlm.nih.gov/substance/135312467"),
-    "TOTAL PETROLEUM HYDROCARBONS (TPH)": ("N/A", _ATSDR["TPH"], "https://pubchem.ncbi.nlm.nih.gov/substance/135312467"),
-    "TOTAL RECOVERABLE PETROLEUM HYDROCARBONS": ("N/A", _ATSDR["TPH"], "https://pubchem.ncbi.nlm.nih.gov/substance/135312467"),
-    "TOTAL RECOVERABLE PETROLEUM HYDROCARBONS (TRPH)": ("N/A", _ATSDR["TPH"], "https://pubchem.ncbi.nlm.nih.gov/substance/135312467"),
+    "TOTAL PETROLEUM HYDROCARBONS": (
+        "N/A",
+        _ATSDR["TPH"],
+        "https://pubchem.ncbi.nlm.nih.gov/substance/135312467",
+    ),
+    "TOTAL PETROLEUM HYDROCARBONS (TPH)": (
+        "N/A",
+        _ATSDR["TPH"],
+        "https://pubchem.ncbi.nlm.nih.gov/substance/135312467",
+    ),
+    "TOTAL RECOVERABLE PETROLEUM HYDROCARBONS": (
+        "N/A",
+        _ATSDR["TPH"],
+        "https://pubchem.ncbi.nlm.nih.gov/substance/135312467",
+    ),
+    "TOTAL RECOVERABLE PETROLEUM HYDROCARBONS (TRPH)": (
+        "N/A",
+        _ATSDR["TPH"],
+        "https://pubchem.ncbi.nlm.nih.gov/substance/135312467",
+    ),
     "TPH": ("N/A", _ATSDR["TPH"], "https://pubchem.ncbi.nlm.nih.gov/substance/135312467"),
     "TRPH": ("N/A", _ATSDR["TPH"], "https://pubchem.ncbi.nlm.nih.gov/substance/135312467"),
-    "GASOLINE": ("8006-61-9", _ATSDR["GASOLINE"], "https://pubchem.ncbi.nlm.nih.gov/compound/Gasoline"),
-    "AUTOMOTIVE GASOLINE": ("8006-61-9", _ATSDR["GASOLINE"], "https://pubchem.ncbi.nlm.nih.gov/compound/Gasoline"),
-    "DIESEL FUEL": ("68476-34-6", _ATSDR["FUEL OILS"], "https://pubchem.ncbi.nlm.nih.gov/compound/Diesel-Fuel"),
-    "DIESEL": ("68476-34-6", _ATSDR["FUEL OILS"], "https://pubchem.ncbi.nlm.nih.gov/compound/Diesel-Fuel"),
-    "DIESEL FUEL NO. 2": ("68476-34-6", _ATSDR["FUEL OILS"], "https://pubchem.ncbi.nlm.nih.gov/compound/Diesel-Fuel"),
-    "DIESEL RANGE ORGANICS": ("N/A", _ATSDR["FUEL OILS"], "https://pubchem.ncbi.nlm.nih.gov/compound/Diesel-Fuel"),
-    "DIESEL RANGE ORGANICS (DRO)": ("N/A", _ATSDR["FUEL OILS"], "https://pubchem.ncbi.nlm.nih.gov/compound/Diesel-Fuel"),
+    # Hanford TPH variants (with hyphen-space notation)
+    "TOTAL PETROLEUM HYDROCARBON -DIESEL": (
+        "68476-34-6",
+        _ATSDR["FUEL OILS"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/Diesel-Fuel",
+    ),
+    "TOTAL PETROLEUM HYDROCARBON -GASOLINE": (
+        "8006-61-9",
+        _ATSDR["GASOLINE"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/Gasoline",
+    ),
+    "GASOLINE": (
+        "8006-61-9",
+        _ATSDR["GASOLINE"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/Gasoline",
+    ),
+    "AUTOMOTIVE GASOLINE": (
+        "8006-61-9",
+        _ATSDR["GASOLINE"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/Gasoline",
+    ),
+    "DIESEL FUEL": (
+        "68476-34-6",
+        _ATSDR["FUEL OILS"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/Diesel-Fuel",
+    ),
+    "DIESEL": (
+        "68476-34-6",
+        _ATSDR["FUEL OILS"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/Diesel-Fuel",
+    ),
+    "DIESEL FUEL NO. 2": (
+        "68476-34-6",
+        _ATSDR["FUEL OILS"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/Diesel-Fuel",
+    ),
+    "DIESEL RANGE ORGANICS": (
+        "N/A",
+        _ATSDR["FUEL OILS"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/Diesel-Fuel",
+    ),
+    "DIESEL RANGE ORGANICS (DRO)": (
+        "N/A",
+        _ATSDR["FUEL OILS"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/Diesel-Fuel",
+    ),
     "DRO": ("N/A", _ATSDR["FUEL OILS"], "https://pubchem.ncbi.nlm.nih.gov/compound/Diesel-Fuel"),
-    "KEROSENE": ("8008-20-6", _ATSDR["JET FUELS"], "https://pubchem.ncbi.nlm.nih.gov/compound/Kerosene"),
-    "KEROSENE (FUEL OIL NO. 1)": ("8008-20-6", _ATSDR["JET FUELS"], "https://pubchem.ncbi.nlm.nih.gov/compound/Kerosene"),
+    "KEROSENE": (
+        "8008-20-6",
+        _ATSDR["JET FUELS"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/Kerosene",
+    ),
+    "KEROSENE (FUEL OIL NO. 1)": (
+        "8008-20-6",
+        _ATSDR["JET FUELS"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/Kerosene",
+    ),
     "FUEL OIL": ("N/A", _ATSDR["FUEL OILS"], "https://pubchem.ncbi.nlm.nih.gov/compound/Fuel-Oils"),
-    "FUEL OIL NO. 2": ("68476-30-2", _ATSDR["FUEL OILS"], "https://pubchem.ncbi.nlm.nih.gov/compound/Fuel-Oils"),
-    "FUEL OIL NO. 4": ("68476-31-3", _ATSDR["FUEL OILS"], "https://pubchem.ncbi.nlm.nih.gov/compound/Fuel-Oils"),
-    "FUEL OIL NO. 6": ("68553-00-4", _ATSDR["FUEL OILS"], "https://pubchem.ncbi.nlm.nih.gov/compound/Fuel-Oils"),
-    "HEATING OIL": ("68476-30-2", _ATSDR["FUEL OILS"], "https://pubchem.ncbi.nlm.nih.gov/compound/Fuel-Oils"),
+    "FUEL OIL NO. 2": (
+        "68476-30-2",
+        _ATSDR["FUEL OILS"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/Fuel-Oils",
+    ),
+    "FUEL OIL NO. 4": (
+        "68476-31-3",
+        _ATSDR["FUEL OILS"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/Fuel-Oils",
+    ),
+    "FUEL OIL NO. 6": (
+        "68553-00-4",
+        _ATSDR["FUEL OILS"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/Fuel-Oils",
+    ),
+    "HEATING OIL": (
+        "68476-30-2",
+        _ATSDR["FUEL OILS"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/Fuel-Oils",
+    ),
     "JET FUEL": ("N/A", _ATSDR["JET FUELS"], "https://pubchem.ncbi.nlm.nih.gov/compound/Kerosene"),
-    "JP-4": ("50815-00-4", _ATSDR["JET FUELS"], "https://pubchem.ncbi.nlm.nih.gov/compound/Kerosene"),
-    "JP-5": ("N/A", _ATSDR["JET FUELS"], "https://pubchem.ncbi.nlm.nih.gov/substance/135356845"),  # Jet fuels JP-5
-    "JP-8": ("N/A", _ATSDR["JET FUELS"], "https://pubchem.ncbi.nlm.nih.gov/substance/505788256"),  # Jet fuels JP-8
+    "JP-4": (
+        "50815-00-4",
+        _ATSDR["JET FUELS"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/Kerosene",
+    ),
+    "JP-5": (
+        "N/A",
+        _ATSDR["JET FUELS"],
+        "https://pubchem.ncbi.nlm.nih.gov/substance/135356845",
+    ),  # Jet fuels JP-5
+    "JP-8": (
+        "N/A",
+        _ATSDR["JET FUELS"],
+        "https://pubchem.ncbi.nlm.nih.gov/substance/505788256",
+    ),  # Jet fuels JP-8
     "MINERAL OILS": ("8042-47-5", None, "https://pubchem.ncbi.nlm.nih.gov/compound/Mineral-oil"),
     "MINERAL OIL": ("8042-47-5", None, "https://pubchem.ncbi.nlm.nih.gov/compound/Mineral-oil"),
-    "RESIDUAL RANGE ORGANICS": ("N/A", _ATSDR["TPH"], "https://pubchem.ncbi.nlm.nih.gov/substance/135312467"),
-    "RESIDUAL RANGE ORGANICS (RRO)": ("N/A", _ATSDR["TPH"], "https://pubchem.ncbi.nlm.nih.gov/substance/135312467"),
+    "RESIDUAL RANGE ORGANICS": (
+        "N/A",
+        _ATSDR["TPH"],
+        "https://pubchem.ncbi.nlm.nih.gov/substance/135312467",
+    ),
+    "RESIDUAL RANGE ORGANICS (RRO)": (
+        "N/A",
+        _ATSDR["TPH"],
+        "https://pubchem.ncbi.nlm.nih.gov/substance/135312467",
+    ),
     "RRO": ("N/A", _ATSDR["TPH"], "https://pubchem.ncbi.nlm.nih.gov/substance/135312467"),
-    "GASOLINE RANGE ORGANICS": ("N/A", _ATSDR["GASOLINE"], "https://pubchem.ncbi.nlm.nih.gov/compound/Gasoline"),
-    "GASOLINE RANGE ORGANICS (GRO)": ("N/A", _ATSDR["GASOLINE"], "https://pubchem.ncbi.nlm.nih.gov/compound/Gasoline"),
+    "GASOLINE RANGE ORGANICS": (
+        "N/A",
+        _ATSDR["GASOLINE"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/Gasoline",
+    ),
+    "GASOLINE RANGE ORGANICS (GRO)": (
+        "N/A",
+        _ATSDR["GASOLINE"],
+        "https://pubchem.ncbi.nlm.nih.gov/compound/Gasoline",
+    ),
     "GRO": ("N/A", _ATSDR["GASOLINE"], "https://pubchem.ncbi.nlm.nih.gov/compound/Gasoline"),
     # ─────────────────────────────────────────────────────────────────────────
     # CFCs / Refrigerants / Freons (no ATSDR ToxFAQs available)
@@ -601,7 +780,6 @@ SUPERFUND_CAS_LOOKUP: dict[str, tuple[str, str | None]] = {
     # ─────────────────────────────────────────────────────────────────────────
     "ALUMINUM OXIDE": ("1344-28-1", None),  # Alumina
     "BERYLLIUM COMPOUNDS": ("N/A", _ATSDR["BERYLLIUM"]),  # Category; link to Be ToxFAQs
-    "CHROMIUM COMPOUNDS": ("N/A", _ATSDR["CHROMIUM"]),  # Category
     "COPPER COMPOUNDS": ("N/A", _ATSDR["COPPER"]),  # Category
     "LEAD COMPOUNDS": ("N/A", _ATSDR["LEAD"]),  # Category
     "MERCURY COMPOUNDS": ("N/A", _ATSDR["MERCURY"]),  # Category
@@ -657,25 +835,6 @@ SUPERFUND_CAS_LOOKUP: dict[str, tuple[str, str | None]] = {
     # ─────────────────────────────────────────────────────────────────────────
     # Generic categories (no specific CAS)
     # ─────────────────────────────────────────────────────────────────────────
-    "INORGANICS": ("N/A", None),
-    "METALS": ("N/A", None),
-    "VOC": ("N/A", None),
-    "VOCS": ("N/A", None),
-    "VOLATILE ORGANIC COMPOUNDS": ("N/A", None),
-    "SEMIVOLATILE ORGANIC COMPOUNDS": ("N/A", None),
-    "SVOCS": ("N/A", None),
-    "PESTICIDES": ("N/A", None),
-    "ORGANICS": ("N/A", None),
-    "NOT PROVIDED": ("N/A", None),
-    "UNEXPLODED ORDNANCE (UXO)": ("N/A", None),
-    "UNEXPLODED ORDNANCE": ("N/A", None),
-    "UXO": ("N/A", None),
-    "RADIONUCLIDES": ("N/A", None),
-    "BASE NEUTRAL ACIDS": ("N/A", None),
-    "PHENAZOPYRIDINE": ("94-78-0", None),
-    # ─────────────────────────────────────────────────────────────────────────
-    # Generic category terms (no specific CAS; general information links)
-    # ─────────────────────────────────────────────────────────────────────────
     "INORGANICS": ("N/A", None),  # Generic category; no single ATSDR
     "METALS": ("N/A", None),  # Generic category; individual metals have ATSDR
     "VOC": ("N/A", None),  # Volatile organic compounds category
@@ -684,9 +843,15 @@ SUPERFUND_CAS_LOOKUP: dict[str, tuple[str, str | None]] = {
     "SVOC": ("N/A", None),  # Semi-volatile organic compounds category
     "SVOCS": ("N/A", None),
     "SEMIVOLATILE ORGANIC COMPOUNDS": ("N/A", None),
-    "PAH": ("N/A", _ATSDR["PAHS"]),  # Polycyclic aromatic hydrocarbons
-    "PAHS": ("N/A", _ATSDR["PAHS"]),
+    "PAH": ("N/A", _ATSDR["PAHS"]),  # Polycyclic aromatic hydrocarbons (alias for PAHS)
     "ORGANICS": ("N/A", None),  # Generic category
     "PESTICIDES": ("N/A", None),  # Generic category
     "HERBICIDES": ("N/A", None),  # Generic category
+    "NOT PROVIDED": ("N/A", None),
+    "UNEXPLODED ORDNANCE (UXO)": ("N/A", None),
+    "UNEXPLODED ORDNANCE": ("N/A", None),
+    "UXO": ("N/A", None),
+    "RADIONUCLIDES": ("N/A", None),
+    "BASE NEUTRAL ACIDS": ("N/A", None),
+    "PHENAZOPYRIDINE": ("94-78-0", None),
 }

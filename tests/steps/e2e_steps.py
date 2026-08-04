@@ -2001,3 +2001,52 @@ def no_facilities_in_alaska(page: Page) -> None:
             'Found Alaska (AK) facility in results when CONUS filter is active. '
             'The map should not show non-continental US facilities.'
         )
+
+
+# ── 6.UX.1: Superfund Panel UI Improvements ──────────────────────────────────
+# Regression tests for EPA ID link and CAS number removal.
+
+
+@then('the EPA ID link is visible')
+def epa_id_link_visible(page: Page) -> None:
+    """Verify the EPA ID is rendered as a clickable link in the Superfund detail panel."""
+    epa_id_link = page.locator('[data-testid="superfund-epa-id-link"]')
+    expect(epa_id_link).to_be_visible()
+
+
+@then(parsers.parse('the EPA ID links to "{url_substring}"'))
+def epa_id_links_to(page: Page, url_substring: str) -> None:
+    """Verify the EPA ID link href contains the expected URL substring."""
+    epa_id_link = page.locator('[data-testid="superfund-epa-id-link"]')
+    expect(epa_id_link).to_be_visible()
+    href = epa_id_link.get_attribute('href')
+    assert href is not None, 'EPA ID link has no href attribute'
+    assert url_substring in href, (
+        f'Expected EPA ID link to contain {url_substring!r}, got {href!r}'
+    )
+
+
+@then('no contaminant row shows a CAS number pattern')
+def no_cas_numbers_in_contaminants(page: Page) -> None:
+    """
+    Regression test for 6.UX.1: CAS numbers should NOT appear in contaminants list.
+    
+    CAS numbers follow the pattern: digits-digits-digit (e.g., 71-43-2, 7439-96-5).
+    The cleaner UI removed these inline CAS displays.
+    """
+    contaminants_list = page.locator('[data-testid="superfund-contaminants-list"]')
+    expect(contaminants_list).to_be_visible()
+    
+    # Get all list item text
+    list_items = contaminants_list.locator('li')
+    
+    # CAS number pattern: 2-7 digits, dash, 2 digits, dash, 1 digit
+    cas_pattern = re.compile(r'\b\d{2,7}-\d{2}-\d\b')
+    
+    for i in range(list_items.count()):
+        item_text = list_items.nth(i).inner_text()
+        match = cas_pattern.search(item_text)
+        assert match is None, (
+            f'REGRESSION 6.UX.1: Found CAS number pattern "{match.group()}" in contaminant row. '
+            f'CAS numbers should be hidden for cleaner UI. Row text: "{item_text}"'
+        )

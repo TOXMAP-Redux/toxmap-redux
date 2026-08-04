@@ -90,7 +90,7 @@ You maintain the CI pipeline as the application grows:
 | When | What to Do |
 |------|-----------|
 | Phase 2 lands | Uncomment / activate the Schemathesis `contract` job in `ci.yml` |
-| **Before Phase 3 FE dispatched** | **One-time manual PMTiles upload:** download the Protomaps pre-built US extract (~1.5–2 GB) from `https://github.com/protomaps/protomaps-basemaps/releases` and upload to R2 as `basemap_us.pmtiles` via `wrangler r2 object put toxmap-data/basemap_us.pmtiles --file=<downloaded-extract>`. FE story 3.1.2 (MapLibre basemap) requires this object to exist. Do not build from raw OSM. Full pipeline automation deferred to Phase 7 (`scripts/build_pmtiles.py`). |
+| **Before Phase 3 FE dispatched** | **⚠️ SUPERSEDED by ADR-005:** Basemap tiles are now served from [OpenFreeMap](https://openfreemap.org). No PMTiles upload is needed. FE story 3.1.2 uses `VITE_MAPLIBRE_STYLE` pointing to `https://tiles.openfreemap.org/styles/liberty`. See [ADR-005](../docs/adr/ADR-005-openfreemap-basemap-tiles.md). |
 | Phase 3 lands | Add Playwright E2E job to `ci.yml`: `pytest tests/features/e2e/ --browser chromium` |
 | Phase 6 bug bash | Add `pytest-benchmark` job to CI with SLA assertion flags |
 | Any PR fails CI due to infrastructure | You are the owner — fix it |
@@ -102,8 +102,8 @@ You maintain the CI pipeline as the application grows:
 | Story | What to Build |
 |-------|--------------|
 | 7.2.1 | Cloudflare Pages project. Build command: `npm run build` in `frontend/`. Output directory: `frontend/dist`. Set environment variable `VITE_DATA_SOURCE=duckdb` and `VITE_R2_BASE_URL` in Pages settings. Push to `main` → auto-deploy. |
-| 7.2.2 | Cloudflare R2 bucket CORS configuration. Must allow `GET` and `HEAD` for `*.parquet`, `*.meta.json`, `manifest.json`, and `*.pmtiles` from `https://toxmap.pages.dev` and `http://localhost:3000`. Use `wrangler` CLI (exact config in ADR-004 §Cloudflare R2 CORS Configuration). |
-| 7.2.3 | GitHub Actions: upgrade `build-data.yml` to also upload built Parquet + PMTiles to R2 on `git tag v*`. Add a `deploy` job that triggers on tag push. |
+| 7.2.2 | Cloudflare R2 bucket CORS configuration. Must allow `GET` and `HEAD` for `*.parquet`, `*.meta.json`, and `manifest.json` from `https://toxmap.pages.dev` and `http://localhost:3000`. Use `wrangler` CLI (exact config in ADR-004 §Cloudflare R2 CORS Configuration). Note: basemap tiles are served from OpenFreeMap (ADR-005), not R2. |
+| 7.2.3 | GitHub Actions: upgrade `build-data.yml` to upload built Parquet files to R2 on `git tag v*`. Add a `deploy` job that triggers on tag push. (PMTiles no longer needed per ADR-005.) |
 | 7.2.4 | Service worker for offline caching. `vite-plugin-pwa` in `frontend/package.json`. Configure to precache: the WASM binary (`@duckdb/duckdb-wasm`), `manifest.json`, and the first Parquet chunks. Must not cache user-specific query results. |
 
 ---

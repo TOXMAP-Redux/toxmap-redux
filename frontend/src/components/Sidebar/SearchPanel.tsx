@@ -10,6 +10,7 @@ import { useState, type FormEvent } from 'react'
 import { useChemicalAutocomplete } from '../../hooks/useChemicalAutocomplete'
 import { ResultsTable } from '../ResultsTable/ResultsTable'
 import type { Chemical, FacilityCollection, SuperfundCollection } from '../../api/types'
+import type { GeocodeResult, GeocodeConfidence } from '../../api/geocode'
 
 /** US states for the state dropdown. */
 const US_STATES = [
@@ -48,6 +49,16 @@ function buildYears(): number[] {
 }
 const YEARS = buildYears()
 
+/** Color and label mapping for geocode confidence levels */
+function getConfidenceBadgeStyle(confidence: GeocodeConfidence): { bg: string; text: string; label: string } {
+  switch (confidence) {
+    case 'exact': return { bg: '#dcfce7', text: '#166534', label: 'Exact' }
+    case 'high': return { bg: '#dbeafe', text: '#1e40af', label: 'High' }
+    case 'approximate': return { bg: '#fef3c7', text: '#92400e', label: 'Approximate' }
+    case 'low': return { bg: '#fee2e2', text: '#991b1b', label: 'Low confidence' }
+  }
+}
+
 export interface SearchFormValues {
   location: string
   chemical: string
@@ -71,6 +82,8 @@ interface SearchPanelProps {
   onHighlight: (id: string | null) => void
   onSelect: (id: string, type: 'tri' | 'superfund') => void
   onSearch: (values: SearchFormValues) => void
+  /** Resolved geocode result with confidence info — shown after geocode */
+  resolvedGeocode: GeocodeResult | null
 }
 
 /**
@@ -86,6 +99,7 @@ export function SearchPanel({
   onHighlight,
   onSelect,
   onSearch,
+  resolvedGeocode,
 }: SearchPanelProps): JSX.Element {
   const [location, setLocation] = useState('')
   const [chemicalInput, setChemicalInput] = useState('')
@@ -316,6 +330,49 @@ export function SearchPanel({
           </p>
         )}
       </form>
+
+      {/* Resolved geocode display — shows canonical address and confidence badge */}
+      {resolvedGeocode && (
+        <div
+          data-testid="resolved-geocode"
+          style={{
+            padding: '10px 12px',
+            fontSize: '12px',
+            borderTop: '1px solid #e5e7eb',
+            background: '#fafafa',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <span style={{ fontWeight: 600, color: '#374151' }}>📍 Resolved location</span>
+            {(() => {
+              const badge = getConfidenceBadgeStyle(resolvedGeocode.confidenceLevel)
+              return (
+                <span
+                  data-testid="geocode-confidence-badge"
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 600,
+                    padding: '2px 6px',
+                    borderRadius: '3px',
+                    background: badge.bg,
+                    color: badge.text,
+                  }}
+                >
+                  {badge.label}
+                </span>
+              )
+            })()}
+          </div>
+          <div style={{ color: '#4b5563', lineHeight: 1.4 }}>
+            {resolvedGeocode.displayName}
+          </div>
+          {resolvedGeocode.confidenceLevel === 'approximate' || resolvedGeocode.confidenceLevel === 'low' ? (
+            <div style={{ marginTop: '6px', fontSize: '11px', color: '#92400e', fontStyle: 'italic' }}>
+              ⚠️ Location may be offset. Try adding city/state for better accuracy.
+            </div>
+          ) : null}
+        </div>
+      )}
 
       {/* Results table — shown after search */}
       {(facilities !== null || superfundResults !== null || loading) && (

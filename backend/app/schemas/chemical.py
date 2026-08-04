@@ -20,6 +20,7 @@ class ChemicalSummary(BaseModel):
 
 class ChemicalFamilyInfo(BaseModel):
     """Info about a chemical family for search expansion."""
+
     family_name: str
     description: str | None = None
     nlm_url: str | None = None

@@ -38,28 +38,28 @@ logger = logging.getLogger(__name__)
 
 TRI_COLUMN_MAP: dict[str, str] = {
     # Facility identification
-    "YEAR": "reporting_year",          # Field 1
-    "TRIFD": "tri_facility_id",        # Field 2 (2006+); pre-2006 = TRIFID (alias)
-    "FRS ID": "frs_id",                # Field 3
+    "YEAR": "reporting_year",  # Field 1
+    "TRIFD": "tri_facility_id",  # Field 2 (2006+); pre-2006 = TRIFID (alias)
+    "FRS ID": "frs_id",  # Field 3
     "FACILITY NAME": "facility_name",  # Field 4
-    "STREET ADDRESS": "address",       # Field 5
-    "CITY": "city",                    # Field 6
-    "COUNTY": "county",                # Field 7
-    "ST": "state_code",                # Field 8
-    "ZIP": "zip_code",                 # Field 9
+    "STREET ADDRESS": "address",  # Field 5
+    "CITY": "city",  # Field 6
+    "COUNTY": "county",  # Field 7
+    "ST": "state_code",  # Field 8
+    "ZIP": "zip_code",  # Field 9
     # Geographic coordinates (WGS84 decimal degrees)
-    "LATITUDE": "latitude",            # Field 12
-    "LONGITUDE": "longitude",          # Field 13
+    "LATITUDE": "latitude",  # Field 12
+    "LONGITUDE": "longitude",  # Field 13
     # Industry codes
-    "PRIMARY SIC": "primary_sic",      # Field 24
-    "PRIMARY NAICS": "naics_code",     # Field 30
-    "INDUSTRY SECTOR": "naics_desc",   # Field 23
+    "PRIMARY SIC": "primary_sic",  # Field 24
+    "PRIMARY NAICS": "naics_code",  # Field 30
+    "INDUSTRY SECTOR": "naics_desc",  # Field 23
     # Chemical identification
-    "CHEMICAL": "chemical_name",       # Field 37
-    "CAS#": "cas_number",              # Field 40 (no space before #)
-    "CLASSIFICATION": "classification", # Field 43
-    "FORM TYPE": "form_type",          # Field 49: 'R' or 'A'
-    "UNIT OF MEASURE": "unit_of_measure", # Field 50: 'Pounds' or 'Grams'
+    "CHEMICAL": "chemical_name",  # Field 37
+    "CAS#": "cas_number",  # Field 40 (no space before #)
+    "CLASSIFICATION": "classification",  # Field 43
+    "FORM TYPE": "form_type",  # Field 49: 'R' or 'A'
+    "UNIT OF MEASURE": "unit_of_measure",  # Field 50: 'Pounds' or 'Grams'
     # On-site release total (Field 65) — NOT Field 107 (total all transfers)
     "ON-SITE RELEASE TOTAL": "total_release_lbs",
     # Off-site release total (Field 88)
@@ -88,7 +88,7 @@ TRI_COLUMN_MAP: dict[str, str] = {
 
 # Alternate header names seen in older or alternative EPA CSV layouts
 TRI_COLUMN_ALIASES: dict[str, str] = {
-    "TRIFID": "tri_facility_id",         # pre-2006 name for Field 2
+    "TRIFID": "tri_facility_id",  # pre-2006 name for Field 2
     "FACILITY.NAME": "facility_name",
     "FACILITY_NAME": "facility_name",
     "STREET ADDRESS": "address",
@@ -134,14 +134,66 @@ UNDERGROUND_RELEASE_FIELDS: list[str] = [
 ]
 
 # Valid US state codes for filtering (excludes territories not in TRI scope)
-US_STATE_CODES: frozenset[str] = frozenset({
-    "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
-    "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
-    "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
-    "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
-    "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
-    "DC", "PR", "VI", "GU", "AS", "MP",  # territories included in TRI
-})
+US_STATE_CODES: frozenset[str] = frozenset(
+    {
+        "AL",
+        "AK",
+        "AZ",
+        "AR",
+        "CA",
+        "CO",
+        "CT",
+        "DE",
+        "FL",
+        "GA",
+        "HI",
+        "ID",
+        "IL",
+        "IN",
+        "IA",
+        "KS",
+        "KY",
+        "LA",
+        "ME",
+        "MD",
+        "MA",
+        "MI",
+        "MN",
+        "MS",
+        "MO",
+        "MT",
+        "NE",
+        "NV",
+        "NH",
+        "NJ",
+        "NM",
+        "NY",
+        "NC",
+        "ND",
+        "OH",
+        "OK",
+        "OR",
+        "PA",
+        "RI",
+        "SC",
+        "SD",
+        "TN",
+        "TX",
+        "UT",
+        "VT",
+        "VA",
+        "WA",
+        "WV",
+        "WI",
+        "WY",
+        "DC",
+        "PR",
+        "VI",
+        "GU",
+        "AS",
+        "MP",  # territories included in TRI
+    }
+)
 
 
 def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -154,13 +206,14 @@ def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     Falls back to TRI_COLUMN_ALIASES for legacy or alternative column names.
     """
     import re
-    NUMBER_PREFIX = re.compile(r'^\d+\.\s+')
+
+    number_prefix = re.compile(r"^\d+\.\s+")
 
     # Strip whitespace + numbered prefix from column headers
     stripped: list[str] = []
     for col in df.columns:
         s = col.strip()
-        s = NUMBER_PREFIX.sub('', s)  # remove "N. " prefix if present
+        s = number_prefix.sub("", s)  # remove "N. " prefix if present
         stripped.append(s)
     df.columns = pd.Index(stripped)
 
@@ -198,6 +251,7 @@ def compute_aggregated_release_columns(df: pd.DataFrame) -> pd.DataFrame:
         Same DataFrame with `air_release_lbs`, `land_release_lbs`,
         `underground_release_lbs`, and `water_release_lbs` columns populated.
     """
+
     def _sum_fields(row_df: pd.DataFrame, fields: list[str]) -> pd.Series:
         present = [f for f in fields if f in row_df.columns]
         if not present:
@@ -210,9 +264,7 @@ def compute_aggregated_release_columns(df: pd.DataFrame) -> pd.DataFrame:
 
     # water_release_lbs: Field 53 — single column, mapped directly
     if "5.3_water" in df.columns:
-        df["water_release_lbs"] = (
-            pd.to_numeric(df["5.3_water"], errors="coerce").fillna(0)
-        )
+        df["water_release_lbs"] = pd.to_numeric(df["5.3_water"], errors="coerce").fillna(0)
     else:
         df["water_release_lbs"] = 0.0
 

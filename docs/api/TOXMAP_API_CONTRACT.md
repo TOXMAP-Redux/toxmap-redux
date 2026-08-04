@@ -59,7 +59,7 @@ API responses return raw `float` values. **The frontend** is responsible for com
 | GET    | `/api/v1/releases/largest`                      | Largest release by chemical ± state             | TRI Core        |
 | GET    | `/api/v1/chemicals`                             | Full chemical list                              | Chemicals       |
 | GET    | `/api/v1/chemicals/search`                      | Auto-complete                                   | Chemicals       |
-| GET    | `/api/v1/geocode`                               | Address → lat/lon (Nominatim proxy) ⚠️ dev only | Geocoding       |
+| GET    | `/api/v1/geocode`                               | Address → lat/lon (Photon proxy) ⚠️ dev only   | Geocoding       |
 | GET    | `/api/v1/superfund/browse`                      | Browse mode — all Superfund sites (no radius)   | Superfund       |
 | GET    | `/api/v1/superfund`                             | Superfund radius search                         | Superfund       |
 | GET    | `/api/v1/superfund/{epa_id}`                    | Superfund site detail                           | Superfund       |
@@ -73,7 +73,7 @@ API responses return raw `float` values. **The frontend** is responsible for com
 | GET    | `/api/v1/export/map-metadata`                   | Current filter state for map snapshot           | Export          |
 | GET    | `/api/v1/meta`                                  | TRI data vintage + available years ⚠️ dev only  | Metadata        |
 
-> **⚠️ Dev-only endpoints** (`/api/v1/geocode`, `/api/v1/meta`) exist only when FastAPI is running. In production (DuckDB WASM mode), geocoding calls Nominatim directly from the browser, and data vintage metadata is read from `manifest.json` on Cloudflare R2. See [ADR-004](../adr/ADR-004-zero-budget-hosting.md) and [TWO_MODES_DEEP_DIVE.md](../TWO_MODES_DEEP_DIVE.md).
+> **⚠️ Dev-only endpoints** (`/api/v1/geocode`, `/api/v1/meta`) exist only when FastAPI is running. In production (DuckDB WASM mode), geocoding calls Photon (photon.komoot.io) directly from the browser per ADR-006, and data vintage metadata is read from `manifest.json` on Cloudflare R2. See [ADR-004](../adr/ADR-004-zero-budget-hosting.md), [ADR-006](../adr/ADR-006-photon-geocoding.md), and [TWO_MODES_DEEP_DIVE.md](../TWO_MODES_DEEP_DIVE.md).
 >
 > **📋 Phase 8 endpoints** (`/api/v1/tribes`) and the `tribal_only` parameter on facility endpoints are planned for Phase 8 (Tribal Lands Data) — a post-MVP enhancement. See the [Development Roadmap](../product/TOXMAP_DEVELOPMENT_ROADMAP.md) for details.
 
@@ -862,9 +862,9 @@ Same as `GET /api/v1/facilities`.
 
 ## 16. `GET /api/v1/geocode`
 
-**Description:** Server-side proxy to Nominatim (OpenStreetMap geocoder). Converts a free-text address or place name to lat/lon coordinates. Proxying through the backend keeps Nominatim rate-limiting logic (1 req/sec) server-side and hides the calling origin from external logs.
+**Description:** Server-side proxy to Photon (photon.komoot.io, OpenStreetMap geocoder). Converts a free-text address or place name to lat/lon coordinates. Proxying through the backend provides an alternative to browser-direct calls and may be used by CLI tools or scripts.
 
-> **Note for DuckDB WASM (ADR-004 Option A production path):** When the backend is not deployed, this endpoint does not exist. The frontend must call Nominatim directly from the browser, respecting the rate limit via a client-side 500 ms debounce. See the SEED_CITY_COORDS fallback in ADR-001 for offline/test use.
+> **Note for DuckDB WASM (ADR-004 Option A production path):** When the backend is not deployed, this endpoint does not exist. The frontend calls Photon directly from the browser using `frontend/src/api/geocode.ts`, which implements a 1-second throttle and 200-entry LRU cache per ADR-006. See the SEED_CITY_COORDS fallback in ADR-001 for offline/test use.
 
 ### Query Parameters
 
@@ -891,15 +891,15 @@ Same as `GET /api/v1/facilities`.
 **Contract invariants:**
 - Always returns a JSON array (may be empty `[]` if no match found)
 - `lat` and `lon` are floats in WGS84
-- The proxy forwards Nominatim's `User-Agent` header identifying the application per [OSM usage policy](https://operations.osmfoundation.org/policies/nominatim/)
-- Response time target: < 500ms (Nominatim p95 in North America)
+- The proxy uses Photon's CORS-enabled API (ADR-006); no API key required
+- Response time target: < 500ms (Photon p95 in North America)
 
 ### Error Responses
 
-| Status | Condition                      |
-|--------|--------------------------------|
+| Status | Condition                    |
+|--------|------------------------------|
 | 422    | `q` parameter missing or empty |
-| 503    | Nominatim upstream unreachable |
+| 503    | Photon upstream unreachable  |
 
 ---
 
@@ -1246,6 +1246,6 @@ schemathesis run http://localhost:8000/openapi.json \
 | `GET /api/v1/superfund` (radius ≤ 50mi)             | < 300ms    | `pytest-benchmark`                          |
 | `GET /api/v1/export/csv` (first byte)               | < 1,000ms  | `pytest-benchmark`                          |
 | `GET /api/v1/demographics/county`                   | < 400ms    | `pytest-benchmark`                          |
-| `GET /api/v1/geocode`                               | < 500ms    | `pytest-benchmark` (Nominatim p95)          |
+| `GET /api/v1/geocode`                               | < 500ms    | `pytest-benchmark` (Photon p95)             |
 | `GET /api/v1/meta`                                  | < 50ms     | `pytest-benchmark` (simple aggregate query) |
 

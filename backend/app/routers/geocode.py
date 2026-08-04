@@ -49,26 +49,18 @@ async def geocode(
 
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT_SECONDS) as client:
-            response = await client.get(
-                _PHOTON_URL, params=params, headers=headers
-            )
+            response = await client.get(_PHOTON_URL, params=params, headers=headers)
             response.raise_for_status()
             data: dict[str, Any] = response.json()
     except httpx.ConnectError as exc:
         logger.warning("Photon connection error: %s", exc)
-        raise HTTPException(
-            status_code=503, detail="Geocode service is unreachable"
-        ) from exc
+        raise HTTPException(status_code=503, detail="Geocode service is unreachable") from exc
     except httpx.TimeoutException as exc:
         logger.warning("Photon timeout: %s", exc)
-        raise HTTPException(
-            status_code=503, detail="Geocode service timed out"
-        ) from exc
+        raise HTTPException(status_code=503, detail="Geocode service timed out") from exc
     except httpx.HTTPStatusError as exc:
         logger.warning("Photon HTTP error: %s", exc)
-        raise HTTPException(
-            status_code=503, detail="Geocode service returned an error"
-        ) from exc
+        raise HTTPException(status_code=503, detail="Geocode service returned an error") from exc
 
     features: list[dict[str, Any]] = data.get("features", [])
     results = []
@@ -100,4 +92,3 @@ async def geocode(
         )
 
     return results
-

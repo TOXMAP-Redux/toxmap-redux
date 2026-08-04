@@ -1,6 +1,6 @@
 # ADR Status Index
 
-**Last updated:** 2026-07-27  
+**Last updated:** 2026-08-04  
 **Purpose:** Single source of truth for the current status of every Architecture Decision Record. Agents and contributors MUST consult this file before treating any ADR as authoritative.
 
 ---
@@ -26,6 +26,9 @@
 | [ADR-004](ADR-004-zero-budget-hosting.md)       | Zero-Budget Hosting (Cloudflare Pages + DuckDB WASM) | **✅ Accepted** | —          | —             | 2026-07-16 |
 | [ADR-005](ADR-005-openfreemap-basemap-tiles.md) | OpenFreeMap Hosted Tiles for MapLibre Basemap        | **✅ Accepted** | —          | —             | 2026-07-27 |
 | [ADR-006](ADR-006-photon-geocoding.md)          | Photon (Komoot) for Browser-Direct Geocoding         | **✅ Accepted** | —          | —             | 2026-07-27 |
+| [ADR-007](ADR-007-chemical-families.md)         | Chemical Families for Transparent Right-to-Know Search | **✅ Accepted** | —          | —             | 2026-07-31 |
+| [ADR-008](ADR-008-geocoding-confidence-scoring.md) | Geocoding Confidence Scoring and Viewport Bias    | **✅ Accepted** | —          | —             | 2026-08-04 |
+| [ADR-009](ADR-009-cloudflare-workers-geocoding-proxy.md) | Cloudflare Workers Geocoding Proxy         | **✅ Accepted** | —          | —             | 2026-08-04 |
 
 ---
 

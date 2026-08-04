@@ -25,9 +25,11 @@ from app.routers import (
     facilities,
     geocode,
     layers,
-    meta as meta_router,
     releases,
     superfund,
+)
+from app.routers import (
+    meta as meta_router,
 )
 
 logger = logging.getLogger(__name__)
@@ -85,7 +87,7 @@ def create_app() -> FastAPI:
 
     # --- Rate limiter setup (must precede middleware registration) ---
     app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
     # --- Global 500 error sanitizer: no tracebacks, no sqlalchemy detail ---
     @app.exception_handler(Exception)

@@ -324,7 +324,7 @@ The feature files in `tests/features/api/` represent the fixture variants for BD
 | Authentication / authorization                                                            | Not implemented in TOXMAP (open API)                                        |
 | Production DuckDB WASM endpoints                                                          | No server-side endpoints in production; covered by Layer 5 production smoke |
 | `/api/v1/layers/nuclear`, `/api/v1/layers/npri`, `/api/v1/layers/congressional-districts` | Optional layers — deferred until data pipeline implemented                  |
-| `GET /api/v1/geocode` (endpoint 16)                                                       | Dev-only Nominatim proxy; SLA (< 500ms) tested implicitly in Layer 5 E2E via location-field input steps; isolated contract test is out of scope for Phase 2 |
+| `GET /api/v1/geocode` (endpoint 16)                                                       | Dev-only Photon proxy (ADR-006); SLA (< 500ms) tested implicitly in Layer 5 E2E via location-field input steps; isolated contract test is out of scope for Phase 2 |
 | `GET /api/v1/export/map-metadata` (endpoint 15)                                          | Returns serialized filter state for map snapshot; no seed-state-independent assertions possible; delivered in Phase 3 alongside the search UI; verify in Phase 3 integration test |
 
 ---

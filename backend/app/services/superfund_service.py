@@ -39,7 +39,7 @@ async def get_all_superfund_browse(
     limit: int = 5000,
 ) -> SuperfundCollection:
     """Browse mode: fetch ALL Superfund sites without radius constraint.
-    
+
     Used for the always-on diamond layer on the map.
     ~1,700 NPL sites total — fetched once, MapLibre handles viewport subsetting.
     """
@@ -58,9 +58,7 @@ async def get_all_superfund_browse(
     for site in sites:
         shape = to_shape(site.location)
         geom = {"type": "Point", "coordinates": [shape.x, shape.y]}
-        npl_str: str | None = (
-            str(site.npl_date) if site.npl_date is not None else None
-        )
+        npl_str: str | None = str(site.npl_date) if site.npl_date is not None else None
         props = SuperfundFeatureProperties(
             id=site.id,
             epa_id=site.epa_id,
@@ -68,9 +66,7 @@ async def get_all_superfund_browse(
             city=site.city,
             state_code=site.state_code,
             status=site.status,
-            hrs_score=(
-                float(site.hrs_score) if site.hrs_score is not None else None
-            ),
+            hrs_score=(float(site.hrs_score) if site.hrs_score is not None else None),
             npl_date=npl_str,
             contaminants=list(site.contaminants) if site.contaminants else [],
             marker_shape="diamond",
@@ -95,14 +91,10 @@ async def get_superfund_near(
 ) -> SuperfundCollection:
     """Spatial Superfund search → GeoJSON FeatureCollection."""
     radius_meters = radius_miles * _MILES_TO_METERS
-    point_geo = cast(
-        func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326), Geography
-    )
+    point_geo = cast(func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326), Geography)
     site_geo = cast(SuperfundSite.location, Geography)
 
-    stmt = select(SuperfundSite).where(
-        func.ST_DWithin(site_geo, point_geo, radius_meters)
-    )
+    stmt = select(SuperfundSite).where(func.ST_DWithin(site_geo, point_geo, radius_meters))
 
     if state:
         stmt = stmt.where(SuperfundSite.state_code == state.upper()[:2])
@@ -113,9 +105,7 @@ async def get_superfund_near(
     if chemical:
         # Partial case-insensitive search across the contaminants text array
         stmt = stmt.where(
-            func.array_to_string(SuperfundSite.contaminants, "|").ilike(
-                f"%{chemical}%"
-            )
+            func.array_to_string(SuperfundSite.contaminants, "|").ilike(f"%{chemical}%")
         )
 
     sites = (await session.execute(stmt)).scalars().all()
@@ -124,9 +114,7 @@ async def get_superfund_near(
     for site in sites:
         shape = to_shape(site.location)
         geom = {"type": "Point", "coordinates": [shape.x, shape.y]}
-        npl_str: str | None = (
-            str(site.npl_date) if site.npl_date is not None else None
-        )
+        npl_str: str | None = str(site.npl_date) if site.npl_date is not None else None
         props = SuperfundFeatureProperties(
             id=site.id,
             epa_id=site.epa_id,
@@ -134,9 +122,7 @@ async def get_superfund_near(
             city=site.city,
             state_code=site.state_code,
             status=site.status,
-            hrs_score=(
-                float(site.hrs_score) if site.hrs_score is not None else None
-            ),
+            hrs_score=(float(site.hrs_score) if site.hrs_score is not None else None),
             npl_date=npl_str,
             contaminants=list(site.contaminants) if site.contaminants else [],
             marker_shape="diamond",
@@ -154,22 +140,18 @@ async def get_superfund_detail(
     epa_id: str,
 ) -> SuperfundDetail | None:
     """Return full detail for a single Superfund site."""
-    result = await session.execute(
-        select(SuperfundSite).where(SuperfundSite.epa_id == epa_id)
-    )
+    result = await session.execute(select(SuperfundSite).where(SuperfundSite.epa_id == epa_id))
     site = result.scalar_one_or_none()
     if site is None:
         return None
 
     shape = to_shape(site.location)
-    npl_str: str | None = (
-        str(site.npl_date) if site.npl_date is not None else None
-    )
+    npl_str: str | None = str(site.npl_date) if site.npl_date is not None else None
     # Enrich contaminant names with CAS numbers, ATSDR URLs, and PubChem URLs
     # from the chemicals table via a single batch name-match query.
     # For contaminants not in TRI, use the supplementary CAS lookup.
     # 7.BUG.23: Filter out placeholder contaminant names that have no informational value
-    _PLACEHOLDER_CONTAMINANTS = {
+    placeholder_contaminants = {
         "NOT PROVIDED",
         "UNKNOWN",
         "UNKNOWN LIQ WASTE",
@@ -179,8 +161,7 @@ async def get_superfund_detail(
         "",
     }
     contaminant_names: list[str] = [
-        c for c in (site.contaminants or [])
-        if c.upper().strip() not in _PLACEHOLDER_CONTAMINANTS
+        c for c in (site.contaminants or []) if c.upper().strip() not in placeholder_contaminants
     ]
     if contaminant_names:
         chem_rows = (
@@ -190,16 +171,11 @@ async def get_superfund_detail(
                     Chemical.cas_number,
                     Chemical.atsdr_url,
                     Chemical.pubchem_url,
-                ).where(
-                    func.upper(Chemical.name).in_(
-                        [c.upper() for c in contaminant_names]
-                    )
-                )
+                ).where(func.upper(Chemical.name).in_([c.upper() for c in contaminant_names]))
             )
         ).all()
         chem_map: dict[str, tuple[str | None, str | None, str | None]] = {
-            row.name.upper(): (row.cas_number, row.atsdr_url, row.pubchem_url)
-            for row in chem_rows
+            row.name.upper(): (row.cas_number, row.atsdr_url, row.pubchem_url) for row in chem_rows
         }
     else:
         chem_map = {}
@@ -207,16 +183,15 @@ async def get_superfund_detail(
     def _enrich_contaminant(name: str) -> SuperfundContaminant:
         """Build enriched contaminant with CAS/URLs from TRI or supplementary lookup."""
         name_upper = name.upper()
-        
+
         # Check supplementary lookup for ATSDR URL (fallback for TRI entries missing ATSDR)
         lookup_result = SUPERFUND_CAS_LOOKUP.get(name_upper)
         supplementary_atsdr = None
-        supplementary_pubchem = None
         if lookup_result:
             # Handle both 2-tuple (cas, atsdr) and 3-tuple (cas, atsdr, pubchem)
             supplementary_atsdr = lookup_result[1] if len(lookup_result) > 1 else None
-            supplementary_pubchem = lookup_result[2] if len(lookup_result) > 2 else None
-        
+            # Note: lookup_result[2] contains PubChem URL when available, but not currently used
+
         if name_upper in chem_map:
             # Found in TRI chemicals table
             cas, atsdr, pubchem = chem_map[name_upper]
@@ -265,9 +240,7 @@ async def get_superfund_detail(
         zip_code=site.zip_code,
         county=site.county,
         status=site.status,
-        hrs_score=(
-            float(site.hrs_score) if site.hrs_score is not None else None
-        ),
+        hrs_score=(float(site.hrs_score) if site.hrs_score is not None else None),
         npl_date=npl_str,
         contaminants=contaminants,
         epa_progress_url=site.epa_progress_url,

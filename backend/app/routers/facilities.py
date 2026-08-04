@@ -25,9 +25,9 @@ from app.schemas.facility import (
     ReleaseEventSchema,
 )
 from app.services.facility_service import (
+    get_all_facilities_browse,
     get_facilities_near,
     get_facility_detail,
-    get_all_facilities_browse,
 )
 from app.services.release_service import get_facility_releases
 
@@ -56,6 +56,10 @@ async def browse_all_facilities(
         str | None,
         Query(max_length=2, description="2-letter state code"),
     ] = None,
+    bbox: Annotated[
+        str | None,
+        Query(description="Bounding box: min_lon,min_lat,max_lon,max_lat"),
+    ] = None,
     exact_match: Annotated[
         bool,
         Query(description="Skip chemical family expansion (search exact term only)"),
@@ -64,9 +68,9 @@ async def browse_all_facilities(
     db: AsyncSession = Depends(get_db),
 ) -> FacilityCollection:
     """Browse mode: fetch ALL TRI facilities without radius constraint.
-    
+
     Used for the initial map view showing all facilities nationwide.
-    No spatial parameters required. MapLibre handles viewport subsetting client-side.
+    Optional bbox parameter filters to viewport bounds.
     """
     return await get_all_facilities_browse(
         session=db,
@@ -74,6 +78,7 @@ async def browse_all_facilities(
         chemical=chemical,
         medium=medium,
         state=state,
+        bbox=bbox,
         exact_match=exact_match,
         limit=limit,
     )
@@ -126,14 +131,16 @@ async def list_facilities(
     db: AsyncSession = Depends(get_db),
 ) -> FacilityCollection:
     if restrict_to_state and (not state or len(state) != 2):
-        raise RequestValidationError([
-            {
-                "type": "value_error",
-                "loc": ("query", "state"),
-                "msg": "restrict_to_state=true requires a 2-character state code",
-                "input": state,
-            }
-        ])
+        raise RequestValidationError(
+            [
+                {
+                    "type": "value_error",
+                    "loc": ("query", "state"),
+                    "msg": "restrict_to_state=true requires a 2-character state code",
+                    "input": state,
+                }
+            ]
+        )
 
     raw_query: dict[str, Any] = {
         "lat": lat,

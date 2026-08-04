@@ -31,7 +31,11 @@ router = APIRouter(tags=["demographics"])
 async def county_demographics(
     state: Annotated[
         str | None,
-        Query(min_length=2, max_length=2, description="2-letter state code (optional; omit to return all counties)"),
+        Query(
+            min_length=2,
+            max_length=2,
+            description="2-letter state code (optional; omit to return all counties)",
+        ),
     ] = None,
     census_year: Annotated[
         int,

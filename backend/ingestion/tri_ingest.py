@@ -56,7 +56,7 @@ TRI_CSV_URL_PATTERN = (
 )
 
 # WGS84 coordinate bounds (AGENTS.md §11 — validate lat/lon before PostGIS insert)
-LAT_MIN, LAT_MAX = 17.0, 72.0   # US+territories bounding box
+LAT_MIN, LAT_MAX = 17.0, 72.0  # US+territories bounding box
 LON_MIN, LON_MAX = -180.0, -65.0
 
 
@@ -134,41 +134,41 @@ _TRI_CATEGORY_PATTERN = re.compile(r"^N\d{3}$")
 # For chemical classes, use search URLs or NULL
 _TRI_CATEGORY_PUBCHEM = {
     # Metal compounds → link to element page
-    "N010": "https://pubchem.ncbi.nlm.nih.gov/element/Antimony",   # ANTIMONY COMPOUNDS
-    "N020": "https://pubchem.ncbi.nlm.nih.gov/element/Arsenic",    # ARSENIC COMPOUNDS
-    "N040": "https://pubchem.ncbi.nlm.nih.gov/element/Barium",     # BARIUM COMPOUNDS
+    "N010": "https://pubchem.ncbi.nlm.nih.gov/element/Antimony",  # ANTIMONY COMPOUNDS
+    "N020": "https://pubchem.ncbi.nlm.nih.gov/element/Arsenic",  # ARSENIC COMPOUNDS
+    "N040": "https://pubchem.ncbi.nlm.nih.gov/element/Barium",  # BARIUM COMPOUNDS
     "N050": "https://pubchem.ncbi.nlm.nih.gov/element/Beryllium",  # BERYLLIUM COMPOUNDS
-    "N078": "https://pubchem.ncbi.nlm.nih.gov/element/Cadmium",    # CADMIUM COMPOUNDS
-    "N090": "https://pubchem.ncbi.nlm.nih.gov/element/Chromium",   # CHROMIUM COMPOUNDS
-    "N096": "https://pubchem.ncbi.nlm.nih.gov/element/Cobalt",     # COBALT AND COBALT COMPOUNDS
-    "N100": "https://pubchem.ncbi.nlm.nih.gov/element/Copper",     # COPPER COMPOUNDS
-    "N420": "https://pubchem.ncbi.nlm.nih.gov/element/Lead",       # LEAD AND LEAD COMPOUNDS
+    "N078": "https://pubchem.ncbi.nlm.nih.gov/element/Cadmium",  # CADMIUM COMPOUNDS
+    "N090": "https://pubchem.ncbi.nlm.nih.gov/element/Chromium",  # CHROMIUM COMPOUNDS
+    "N096": "https://pubchem.ncbi.nlm.nih.gov/element/Cobalt",  # COBALT AND COBALT COMPOUNDS
+    "N100": "https://pubchem.ncbi.nlm.nih.gov/element/Copper",  # COPPER COMPOUNDS
+    "N420": "https://pubchem.ncbi.nlm.nih.gov/element/Lead",  # LEAD AND LEAD COMPOUNDS
     "N450": "https://pubchem.ncbi.nlm.nih.gov/element/Manganese",  # MANGANESE AND MANGANESE COMPOUNDS
-    "N458": "https://pubchem.ncbi.nlm.nih.gov/element/Mercury",    # MERCURY AND MERCURY COMPOUNDS
-    "N495": "https://pubchem.ncbi.nlm.nih.gov/element/Nickel",     # NICKEL COMPOUNDS
-    "N725": "https://pubchem.ncbi.nlm.nih.gov/element/Selenium",   # SELENIUM COMPOUNDS
-    "N740": "https://pubchem.ncbi.nlm.nih.gov/element/Silver",     # SILVER AND SILVER COMPOUNDS
-    "N760": "https://pubchem.ncbi.nlm.nih.gov/element/Thallium",   # THALLIUM AND THALLIUM COMPOUNDS
+    "N458": "https://pubchem.ncbi.nlm.nih.gov/element/Mercury",  # MERCURY AND MERCURY COMPOUNDS
+    "N495": "https://pubchem.ncbi.nlm.nih.gov/element/Nickel",  # NICKEL COMPOUNDS
+    "N725": "https://pubchem.ncbi.nlm.nih.gov/element/Selenium",  # SELENIUM COMPOUNDS
+    "N740": "https://pubchem.ncbi.nlm.nih.gov/element/Silver",  # SILVER AND SILVER COMPOUNDS
+    "N760": "https://pubchem.ncbi.nlm.nih.gov/element/Thallium",  # THALLIUM AND THALLIUM COMPOUNDS
     "N770": "https://pubchem.ncbi.nlm.nih.gov/compound/Vanadium",  # VANADIUM COMPOUNDS (no element page)
-    "N982": "https://pubchem.ncbi.nlm.nih.gov/element/Zinc",       # ZINC COMPOUNDS
+    "N982": "https://pubchem.ncbi.nlm.nih.gov/element/Zinc",  # ZINC COMPOUNDS
     # Other categories → specific compound or search URL
-    "N084": "https://pubchem.ncbi.nlm.nih.gov/#query=chlorophenols",        # CHLOROPHENOLS
-    "N106": "https://pubchem.ncbi.nlm.nih.gov/compound/Cyanide",            # CYANIDE COMPOUNDS (CID 768)
-    "N120": "https://pubchem.ncbi.nlm.nih.gov/#query=diisocyanates",        # DIISOCYANATES
-    "N125": "https://pubchem.ncbi.nlm.nih.gov/compound/590836",             # DINP (CID 590836)
-    "N150": "https://pubchem.ncbi.nlm.nih.gov/#query=dioxin",               # DIOXIN AND DIOXIN-LIKE COMPOUNDS
+    "N084": "https://pubchem.ncbi.nlm.nih.gov/#query=chlorophenols",  # CHLOROPHENOLS
+    "N106": "https://pubchem.ncbi.nlm.nih.gov/compound/Cyanide",  # CYANIDE COMPOUNDS (CID 768)
+    "N120": "https://pubchem.ncbi.nlm.nih.gov/#query=diisocyanates",  # DIISOCYANATES
+    "N125": "https://pubchem.ncbi.nlm.nih.gov/compound/590836",  # DINP (CID 590836)
+    "N150": "https://pubchem.ncbi.nlm.nih.gov/#query=dioxin",  # DIOXIN AND DIOXIN-LIKE COMPOUNDS
     "N171": "https://pubchem.ncbi.nlm.nih.gov/#query=ethylenebisdithiocarbamic",  # EBDC salts/esters
-    "N230": "https://pubchem.ncbi.nlm.nih.gov/#query=glycol+ethers",        # CERTAIN GLYCOL ETHERS
-    "N270": "https://pubchem.ncbi.nlm.nih.gov/compound/18529",              # HBCD (CID 18529)
-    "N503": "https://pubchem.ncbi.nlm.nih.gov/compound/89594",              # NICOTINE (CID 89594)
+    "N230": "https://pubchem.ncbi.nlm.nih.gov/#query=glycol+ethers",  # CERTAIN GLYCOL ETHERS
+    "N270": "https://pubchem.ncbi.nlm.nih.gov/compound/18529",  # HBCD (CID 18529)
+    "N503": "https://pubchem.ncbi.nlm.nih.gov/compound/89594",  # NICOTINE (CID 89594)
     "N511": None,  # NITRATE COMPOUNDS - too broad, no single compound
-    "N530": "https://pubchem.ncbi.nlm.nih.gov/compound/1752",               # NONYLPHENOL (CID 1752)
+    "N530": "https://pubchem.ncbi.nlm.nih.gov/compound/1752",  # NONYLPHENOL (CID 1752)
     "N535": "https://pubchem.ncbi.nlm.nih.gov/#query=nonylphenol+ethoxylates",  # NPEs
     "N575": "https://pubchem.ncbi.nlm.nih.gov/#query=polybrominated+biphenyls",  # PBBs
-    "N583": "https://pubchem.ncbi.nlm.nih.gov/#query=polychlorinated+alkanes",   # PCAs
-    "N590": "https://pubchem.ncbi.nlm.nih.gov/#query=polycyclic+aromatic",       # PACs
-    "N746": "https://pubchem.ncbi.nlm.nih.gov/compound/441071",             # STRYCHNINE (CID 441071)
-    "N874": "https://pubchem.ncbi.nlm.nih.gov/compound/54678486",           # WARFARIN (CID 54678486)
+    "N583": "https://pubchem.ncbi.nlm.nih.gov/#query=polychlorinated+alkanes",  # PCAs
+    "N590": "https://pubchem.ncbi.nlm.nih.gov/#query=polycyclic+aromatic",  # PACs
+    "N746": "https://pubchem.ncbi.nlm.nih.gov/compound/441071",  # STRYCHNINE (CID 441071)
+    "N874": "https://pubchem.ncbi.nlm.nih.gov/compound/54678486",  # WARFARIN (CID 54678486)
 }
 
 
@@ -425,14 +425,18 @@ def ingest_year(year: int, db_url: str) -> None:
         # advance the PostgreSQL SERIAL sequence automatically).
         # Use GREATEST(MAX(id), 1) to avoid setval(seq, 0) error on empty tables
         # (sequences are 1-based; 0 is out of bounds).
-        conn.execute(text(
-            "SELECT setval(pg_get_serial_sequence('facilities', 'id'), "
-            "       GREATEST(COALESCE((SELECT MAX(id) FROM facilities), 0), 1))"
-        ))
-        conn.execute(text(
-            "SELECT setval(pg_get_serial_sequence('chemicals', 'id'), "
-            "       GREATEST(COALESCE((SELECT MAX(id) FROM chemicals), 0), 1))"
-        ))
+        conn.execute(
+            text(
+                "SELECT setval(pg_get_serial_sequence('facilities', 'id'), "
+                "       GREATEST(COALESCE((SELECT MAX(id) FROM facilities), 0), 1))"
+            )
+        )
+        conn.execute(
+            text(
+                "SELECT setval(pg_get_serial_sequence('chemicals', 'id'), "
+                "       GREATEST(COALESCE((SELECT MAX(id) FROM chemicals), 0), 1))"
+            )
+        )
         chem_map = _upsert_chemicals(df, conn)
         fac_map = _upsert_facilities(df, conn)
         rows = _insert_releases(df, fac_map, chem_map, conn)

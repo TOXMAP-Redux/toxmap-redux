@@ -85,12 +85,14 @@ jobs:
         # discovered (asyncio_mode=auto, -p no:xdist, bdd_features_base_dir). Path is relative
         # to backend/ — ../tests/unit/ resolves to the repo-root tests/unit/ directory.
         # V10-G: --cov=app --cov-report=xml feeds the Codecov upload step below.
+        # V14-8: --cov-fail-under=80 enforces minimum 80% coverage threshold (audit finding).
         env:
           PYTHONPATH: ${{ github.workspace }}/backend
         run: |
           mkdir -p ../reports
           pytest ../tests/unit/ -v --tb=short \
             --cov=app --cov-report=xml:../reports/coverage.xml \
+            --cov-fail-under=80 \
             --junitxml=../reports/unit-results.xml
         working-directory: backend
 
@@ -366,9 +368,10 @@ jobs:
       - name: Load seed data
         run: psql -f tests/fixtures/seed.sql
 
-      - name: Run benchmarks (p95 regression gate: +20% max)
-        run: pytest tests/benchmarks/ --benchmark-only --benchmark-compare \
-               --benchmark-fail-max-time=1.2
+      - name: "Run benchmarks (p95 regression gate: +20% max)"
+        run: |
+          pytest tests/benchmarks/ --benchmark-only --benchmark-compare \
+            --benchmark-fail-max-time=1.2
 
       - name: Upload benchmark results
         if: always()

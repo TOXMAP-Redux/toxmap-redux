@@ -18,13 +18,9 @@ class Settings(BaseSettings):
     )
 
     # Async URL used by FastAPI / SQLAlchemy (asyncpg driver)
-    database_url: str = (
-        "postgresql+asyncpg://postgres:postgres@postgres:5432/toxmap"
-    )
+    database_url: str = "postgresql+asyncpg://postgres:postgres@postgres:5432/toxmap"
     # Sync URL used by Alembic and psycopg2-based tools
-    database_url_sync: str = (
-        "postgresql+psycopg2://postgres:postgres@postgres:5432/toxmap"
-    )
+    database_url_sync: str = "postgresql+psycopg2://postgres:postgres@postgres:5432/toxmap"
     # CORS — comma-separated list of allowed origins
     allowed_origins: str = "http://localhost:3000"
 

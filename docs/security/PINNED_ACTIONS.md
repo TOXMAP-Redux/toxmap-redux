@@ -34,7 +34,8 @@ Update this table every time an Action version is changed in any workflow file.
 | `actions/upload-artifact` | `330a01c490aca151604b8cf639adc76d48f6c5d4` | v5.0.0 | `ci.yml`, `security.yml` | 2026-07-25 |
 | `codecov/codecov-action` | `b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238` | v4.6.0 | `ci.yml` | 2026-07-25 |
 | `cloudflare/wrangler-action` | *(pin before first use — see story 0.5.4)* | v3.x | `build-data.yml` *(future)* | — |
-| `gitleaks/gitleaks-action` | `ff98106e4c7b2bc287b24eaf42907196329070c7` | v2.3.9 | `security.yml` | 2026-07-25 |
+
+> **Note:** `gitleaks/gitleaks-action` was removed in 2026-08 because it now requires a paid license for organization repositories. We now run the gitleaks CLI directly (Apache 2.0 license, free) via `curl` + `tar` in `security.yml`. The CLI version is pinned to `v8.21.2`.
 
 > **Instructions for the Security Engineer agent (story 0.5.4):**  
 > 1. For each Action listed above, run: `gh api repos/<owner>/<repo>/git/ref/tags/<tag>` to resolve the tag to a commit SHA.  

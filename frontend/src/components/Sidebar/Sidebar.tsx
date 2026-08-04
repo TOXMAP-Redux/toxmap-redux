@@ -7,6 +7,7 @@ import { MapContentsPanel } from './MapContentsPanel'
 import { useState, useRef, useCallback } from 'react'
 import { SearchPanel, type SearchFormValues } from './SearchPanel'
 import type { FacilityCollection, SuperfundCollection, DemographicLayer } from '../../api/types'
+import type { GeocodeResult } from '../../api/geocode'
 
 export type ActivePanel = 'map-contents' | 'search'
 
@@ -31,6 +32,8 @@ interface SidebarProps {
   highlightedFacilityId: string | null
   onHighlight: (id: string | null) => void
   onFacilitySelect: (id: string, type: 'tri' | 'superfund') => void
+  /** Resolved geocode result with confidence info */
+  resolvedGeocode: GeocodeResult | null
 
   /** Passed to MapContentsPanel */
   latestYear: number | null
@@ -70,6 +73,7 @@ export function Sidebar({
   highlightedFacilityId,
   onHighlight,
   onFacilitySelect,
+  resolvedGeocode,
   latestYear,
   showTRILayer,
   onToggleTRILayer,
@@ -238,6 +242,7 @@ export function Sidebar({
               onHighlight={onHighlight}
               onSelect={onFacilitySelect}
               onSearch={onSearch}
+              resolvedGeocode={resolvedGeocode}
             />
           )}
         </div>

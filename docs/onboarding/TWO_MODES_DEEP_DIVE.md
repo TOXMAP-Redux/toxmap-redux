@@ -590,7 +590,7 @@ This is the part that should feel reassuring. A very large portion of the codeba
 | UX invariants from the 2011 UCD study         | Viewport-scoped results, single sidebar, labeled icons — all UI constraints |
 | Playwright E2E tests                          | Tests interact with the UI; most don't care about data source               |
 | Gherkin scenarios (user-visible behavior)     | Describe user-facing outcomes, not implementation                           |
-| Nominatim geocoding                           | Address → lat/lon is always client-side                                     |
+| Photon geocoding (ADR-006)                    | Address → lat/lon is always client-side (browser-direct to Photon)         |
 
 ### Different Between Modes
 

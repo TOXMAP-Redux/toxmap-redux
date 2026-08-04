@@ -13,6 +13,10 @@ RUN npm install
 # Copy source files (volume mount in docker-compose.yml overlays src/ for hot-reload)
 COPY . .
 
+# Use non-root user (node:22-alpine includes 'node' user)
+RUN chown -R node:node /app
+USER node
+
 # Vite dev server on all interfaces so it's accessible from the host
 EXPOSE 3000
 

@@ -12,13 +12,12 @@ from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
 
+# Import all models to register them with Base.metadata
+import app.models  # noqa: F401
 from alembic import context
 
 # Import Base so autogenerate can inspect metadata
 from app.database import Base
-
-# Import all models to register them with Base.metadata
-import app.models  # noqa: F401
 
 config = context.config
 

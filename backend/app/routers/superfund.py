@@ -48,7 +48,7 @@ async def browse_all_superfund(
     db: AsyncSession = Depends(get_db),
 ) -> SuperfundCollection:
     """Browse mode: fetch ALL Superfund sites without radius constraint.
-    
+
     Used for the always-on diamond layer on the map.
     No spatial parameters required. MapLibre handles viewport subsetting client-side.
     """
@@ -90,14 +90,16 @@ async def list_superfund(
     db: AsyncSession = Depends(get_db),
 ) -> SuperfundCollection:
     if restrict_to_state and (not state or len(state) != 2):
-        raise RequestValidationError([
-            {
-                "type": "value_error",
-                "loc": ("query", "state"),
-                "msg": "restrict_to_state=true requires a 2-character state code",
-                "input": state,
-            }
-        ])
+        raise RequestValidationError(
+            [
+                {
+                    "type": "value_error",
+                    "loc": ("query", "state"),
+                    "msg": "restrict_to_state=true requires a 2-character state code",
+                    "input": state,
+                }
+            ]
+        )
     return await get_superfund_near(
         session=db,
         lat=lat,

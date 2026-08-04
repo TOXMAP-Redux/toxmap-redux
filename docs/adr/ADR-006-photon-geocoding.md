@@ -8,6 +8,7 @@
 | **Status**    | **Accepted** |
 | **Deciders**  | FE Engineering (Phase 3 implementation) |
 | **Parent ADR**| [ADR-001](ADR-001-fastapi-postgis-react.md) (this ADR specifies the geocoding implementation referenced in ADR-001 §API Endpoints) |
+| **Related**   | [ADR-009](ADR-009-cloudflare-workers-geocoding-proxy.md) (production scaling via Workers proxy) |
 
 ---
 
@@ -109,9 +110,23 @@ within reasonable fair-use bounds.
 
 ### Production Scaling
 
-If TOXMAP ever receives significant public traffic, self-hosting Photon (MIT-licensed,
-Docker-deployable in ~10 minutes) is the preferred upgrade path. The `geocodeLocation()` function
-signature is unchanged — only the `_PHOTON_URL` constant needs updating.
+Two scaling paths are available if TOXMAP receives significant traffic:
+
+**1. Cloudflare Workers Proxy (Recommended first step) — ADR-009**
+
+A thin Workers proxy provides global caching (not per-browser) and aggregate rate limiting for ~$0-5/month. This solves the aggregate overload problem without self-hosting:
+
+- Free tier: 100K requests/day (~3M/month)
+- Global cache: 60-80% hit rate vs. 10-20% per-browser
+- Analytics: visibility into actual request volumes
+
+See **[ADR-009](ADR-009-cloudflare-workers-geocoding-proxy.md)** for implementation details.
+
+**2. Self-hosted Photon (For high traffic or offline use)**
+
+Photon is Apache 2.0-licensed and can be deployed on a VPS for ~$16/month (US-only) to ~$105/month (planet-wide). See **[SELF_HOSTING_GUIDE.md](../deployment/SELF_HOSTING_GUIDE.md)** for complete step-by-step instructions.
+
+The `geocodeLocation()` function signature is unchanged — only the `_PHOTON_URL` constant (or `VITE_GEOCODE_PROXY_URL`) needs updating.
 
 Alternatively, a commercial hosted geocoder (e.g. MapTiler, Geoapify) with a free tier can be
 swapped in the same module. The rest of the codebase is entirely unaffected.
@@ -145,3 +160,11 @@ swapped in the same module. The rest of the codebase is entirely unaffected.
 | OpenCage / MapTiler geocoder | Require API keys; adds secret management overhead |
 | HERE / Google Geocoding API | Paid; violates $0 budget constraint (ADR-004) |
 | Self-hosted Photon immediately | Operationally complex for Phase 3 development; deferred to production if needed |
+
+---
+
+## Related ADRs
+
+- [ADR-008](ADR-008-geocoding-confidence-scoring.md) — Extends this ADR with multi-candidate scoring and confidence feedback
+- [ADR-004](ADR-004-zero-budget-hosting.md) — Constrains to $0 budget (no paid geocoding APIs)
+- [ADR-001](ADR-001-fastapi-postgis-react.md) — Defines React frontend architecture

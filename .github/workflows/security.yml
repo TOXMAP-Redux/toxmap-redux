@@ -35,6 +35,8 @@ permissions:
 # Job: gitleaks — Secret Scanning
 # Detects committed secrets / credentials throughout the entire git history.
 # Failure condition: any detected secret pattern.
+# Note: Using gitleaks CLI directly (Apache 2.0 license, free) instead of
+# gitleaks-action which requires a paid license for organizations.
 # ═══════════════════════════════════════════════════════════════════════════════
 jobs:
   gitleaks:
@@ -46,11 +48,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz | tar -xz
+          sudo mv gitleaks /usr/local/bin/
+
       - name: Run gitleaks
-        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # GITLEAKS_LICENSE is only required for org-level scans; not needed here.
+        run: gitleaks detect --source . --verbose --redact --exit-code 1
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Job: pip-audit — Python Dependency CVE Audit

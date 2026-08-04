@@ -252,7 +252,17 @@ def step_meta_field_true(field, step_context):
     body = step_context["response"].json()
     meta = body.get("meta", {})
     query = meta.get("query", {})
-    actual = query.get(field) or meta.get(field)
+    # Support nested paths like 'search_expansion.expanded'
+    if "." in field:
+        parts = field.split(".")
+        obj = query.get(parts[0]) or meta.get(parts[0])
+        for part in parts[1:]:
+            if obj is None:
+                break
+            obj = obj.get(part) if isinstance(obj, dict) else None
+        actual = obj
+    else:
+        actual = query.get(field) or meta.get(field)
     assert actual is True, f"Expected meta.{field}=true, got {actual!r}"
 
 
@@ -473,3 +483,42 @@ def step_contaminant_cas_number(name, expected_cas, step_context):
     assert actual_cas == expected_cas, (
         f"Expected {name!r} cas_number={expected_cas!r}, got {actual_cas!r}"
     )
+
+
+# ─── Regression: 6.UX.1 — Superfund epa_progress_url ingestion ────────────────
+
+
+@then(parsers.parse('the response field "{field}" contains "{substring}"'))
+def step_field_contains_str(field, substring, step_context):
+    """Verify a response field contains an expected substring."""
+    body = step_context["response"].json()
+    actual = body.get(field)
+    assert actual is not None, f"Field {field!r} is null"
+    assert substring in str(actual), (
+        f"Expected {field}={actual!r} to contain {substring!r}"
+    )
+
+
+@then(parsers.parse('the response field "{field}" matches pattern "{pattern}"'))
+def step_field_matches_pattern(field, pattern, step_context):
+    """Verify a response field matches a regex pattern."""
+    import re
+    body = step_context["response"].json()
+    actual = body.get(field)
+    assert actual is not None, f"Field {field!r} is null"
+    assert re.search(pattern, str(actual)), (
+        f"Expected {field}={actual!r} to match pattern {pattern!r}"
+    )
+
+
+@then(parsers.parse('every feature has property "{prop}" that is not null'))
+def step_every_feature_prop_not_null(prop, step_context):
+    """Verify every GeoJSON feature has a non-null property value."""
+    body = step_context["response"].json()
+    features = body.get("features", [])
+    assert len(features) > 0, "No features in response"
+    for i, f in enumerate(features):
+        val = f.get("properties", {}).get(prop)
+        assert val is not None, (
+            f"Feature[{i}] has null {prop}. Expected all features to have non-null {prop}."
+        )

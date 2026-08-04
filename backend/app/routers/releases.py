@@ -25,9 +25,7 @@ router = APIRouter(tags=["releases"])
 
 @router.get("/releases/largest", response_model=LargestReleaseResponse)
 async def largest_release(
-    chemical: Annotated[
-        str, Query(min_length=1, description="Chemical name (partial match)")
-    ],
+    chemical: Annotated[str, Query(min_length=1, description="Chemical name (partial match)")],
     year: Annotated[
         int | None,
         Query(description="Reporting year (omit for latest available)"),
@@ -38,9 +36,7 @@ async def largest_release(
     ] = None,
     db: AsyncSession = Depends(get_db),
 ) -> LargestReleaseResponse:
-    result = await get_largest_release(
-        session=db, chemical=chemical, year=year, state=state
-    )
+    result = await get_largest_release(session=db, chemical=chemical, year=year, state=state)
     if result is None:
         raise HTTPException(
             status_code=404,

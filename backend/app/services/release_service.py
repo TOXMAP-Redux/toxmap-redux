@@ -92,9 +92,7 @@ async def get_largest_release(
 ) -> LargestReleaseResponse | None:
     """Return the single facility with the largest total release for a chemical."""
     if year is None:
-        yr_result = await session.execute(
-            select(func.max(ReleaseEvent.reporting_year))
-        )
+        yr_result = await session.execute(select(func.max(ReleaseEvent.reporting_year)))
         year = yr_result.scalar()
 
     # Subquery: aggregate total release per (facility, chemical, year)
