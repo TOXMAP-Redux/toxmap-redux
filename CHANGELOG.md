@@ -209,6 +209,26 @@ Bug fixes shipped (7.BUG.9–7.BUG.19):
   THORIUM-228, URANIUM-233 had no PubChem/ToxFAQs links. Added 25+ radionuclides to
   `superfund_cas_lookup.py` with verified CAS numbers. Also added Hanford-specific TPH
   variants ("TOTAL PETROLEUM HYDROCARBON -DIESEL/-GASOLINE"). (2026-08-04) [agent]
+- **7.BUG.27 (CRITICAL):** Fixed 15-year trend chart data loss — per-chemical releases were
+  overwritten instead of aggregated. For 2017, Arlington Plating has 6 chemicals totaling
+  12,916 lbs, but chart showed only 12,636 lbs (the last chemical processed). Also fixed:
+  x-axis gaps for missing years, 15-year range now relative to selected year filter (or
+  current year if default), heading shows year range, tooltip shows "Reporting Year: YYYY".
+  Added 4 E2E regression tests in `ux_invariants.feature` to catch this data loss.
+  (2026-08-05) [agent]
+- **7.BUG.28:** Fixed Top Chemicals table missing time range disclosure per original Fig 11
+  design. Table now shows: (1) "Release Amount (lbs./all years)" header clarifying time
+  range; (2) "%" column showing each chemical's percentage of total; (3) "TOTAL" footer row
+  with aggregate sum; (4) numbered ranks (1), 2), etc.) per original. Example: Lyondell
+  Chemical Co in Fig 11 shows 83,353,728 lbs total across 5 chemicals + "Other chemicals".
+  (2026-08-05) [agent]
+- **7.BUG.29 (CRITICAL):** Fixed "All years" search returning single-year data instead of
+  all-years aggregate. LYONDELL CHEMICAL CO showed 2,976,441 lbs (just 2024) but should
+  show 94,575,561 lbs (all years 1987-2024). Root cause: `_resolve_year()` converted
+  `year=None` to latest year instead of keeping it as "aggregate all". Also fixed:
+  `get_facility_detail()` top_chemicals now aggregates all years; added `total_release_lbs`
+  field for correct TOTAL row; added "Other chemicals" row for difference between facility
+  total and top 5 sum. Backend + frontend + schema changes. (2026-08-05) [agent]
 
 ### Fixed
 

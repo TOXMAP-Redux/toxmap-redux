@@ -20,9 +20,9 @@ from sqlalchemy.engine import create_engine
 
 # Import ATSDR lookup
 try:
-    from app.services.superfund_cas_lookup import _ATSDR as ATSDR_LOOKUP
+    from app.services.atsdr_urls import ATSDR_URLS as ATSDR_LOOKUP
 except ImportError:
-    from backend.app.services.superfund_cas_lookup import _ATSDR as ATSDR_LOOKUP
+    from backend.app.services.atsdr_urls import ATSDR_URLS as ATSDR_LOOKUP
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

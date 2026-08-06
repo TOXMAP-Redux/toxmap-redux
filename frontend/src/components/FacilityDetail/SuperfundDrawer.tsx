@@ -5,6 +5,7 @@
  * Opened when the user clicks a Superfund diamond on the map or a row in
  * the Superfund results table.
  */
+import { useState, useRef, useCallback } from 'react'
 import { useSuperfundDetail } from '../../hooks/useSuperfundDetail'
 import type { SuperfundDetail } from '../../api/types'
 
@@ -23,20 +24,86 @@ function hrsBadgeStyle(score: number | null): React.CSSProperties {
 interface SuperfundDrawerProps {
   epaId: string
   onClose: () => void
+  /** Current drawer width in pixels (controlled by parent) */
+  width?: number
+  /** Callback when user drags to resize drawer */
+  onWidthChange?: (width: number) => void
 }
 
 /** Full Superfund site detail drawer. */
-export function SuperfundDrawer({ epaId, onClose }: SuperfundDrawerProps): JSX.Element {
+export function SuperfundDrawer({ epaId, onClose, width = 340, onWidthChange }: SuperfundDrawerProps): JSX.Element {
   const { data, loading, error } = useSuperfundDetail(epaId)
+
+  // Ref for direct DOM manipulation during resize (avoids React re-render lag)
+  const drawerRef = useRef<HTMLDivElement>(null)
+  const [isResizing, setIsResizing] = useState(false)
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsResizing(true)
+
+    const startX = e.clientX
+    const startWidth = width
+    const drawer = drawerRef.current
+
+    // Disable text selection and transitions during drag
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor = 'col-resize'
+    if (drawer) {
+      drawer.style.transition = 'none'
+    }
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      moveEvent.preventDefault()
+      moveEvent.stopPropagation()
+      // Dragging left (negative delta) should increase width for right-side drawer
+      const delta = startX - moveEvent.clientX
+      const newWidth = Math.min(800, Math.max(300, startWidth + delta))
+      // Direct DOM update for smooth dragging (no React state during drag)
+      if (drawer) {
+        drawer.style.width = `${newWidth}px`
+      }
+    }
+
+    const handleMouseUp = (upEvent: MouseEvent) => {
+      upEvent.preventDefault()
+      upEvent.stopPropagation()
+
+      // Restore normal behavior
+      document.body.style.userSelect = ''
+      document.body.style.cursor = ''
+      if (drawer) {
+        drawer.style.transition = ''
+      }
+
+      // Commit final width to React state
+      if (drawer && onWidthChange) {
+        const finalWidth = parseInt(drawer.style.width, 10)
+        if (!isNaN(finalWidth)) {
+          onWidthChange(finalWidth)
+        }
+      }
+
+      setIsResizing(false)
+      document.removeEventListener('mousemove', handleMouseMove, true)
+      document.removeEventListener('mouseup', handleMouseUp, true)
+    }
+
+    // Use capture phase to intercept events before map receives them
+    document.addEventListener('mousemove', handleMouseMove, true)
+    document.addEventListener('mouseup', handleMouseUp, true)
+  }, [width, onWidthChange])
 
   return (
     <div
+      ref={drawerRef}
       data-testid="superfund-detail-panel"
       style={{
         position: 'fixed',
         top: 0,
         right: 0,
-        width: '340px',
+        width: `${width}px`,
         height: '100vh',
         background: '#fff',
         borderLeft: '1px solid #e5e7eb',
@@ -69,6 +136,24 @@ export function SuperfundDrawer({ epaId, onClose }: SuperfundDrawerProps): JSX.E
           ← Close
         </button>
       </div>
+
+      {/* Resize handle — drag to adjust drawer width (6.UX.4) */}
+      <div
+        data-testid="superfund-drawer-resize-handle"
+        onMouseDown={handleMouseDown}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: -3, // Extend slightly outside for easier grabbing (left side for right drawer)
+          width: '8px',
+          height: '100%',
+          cursor: 'col-resize',
+          background: isResizing ? '#3b82f6' : 'transparent',
+          zIndex: 50, // Above everything
+        }}
+        onMouseEnter={(e) => { if (!isResizing) (e.currentTarget as HTMLElement).style.background = 'rgba(59, 130, 246, 0.3)' }}
+        onMouseLeave={(e) => { if (!isResizing) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+      />
     </div>
   )
 }

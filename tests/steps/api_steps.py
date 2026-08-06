@@ -65,6 +65,30 @@ def step_search_facilities_filtered(lat, lon, radius, year, chemical, medium, ap
     return response
 
 
+# ── Regression 7.BUG.29: All-years search (no year param) ─────────────────────
+
+
+@when(
+    parsers.parse(
+        "I search for facilities near lat {lat:f} lon {lon:f} within {radius:g} miles without year filter"
+    ),
+    target_fixture="http_response",
+)
+def step_search_facilities_no_year(lat, lon, radius, api_client, step_context):
+    """Search facilities without year param — should aggregate across ALL years.
+
+    Regression test for 7.BUG.29: Previously, omitting the year param caused
+    _resolve_year() to return the latest year instead of None, resulting in
+    single-year data instead of aggregated all-years totals.
+    """
+    response = api_client.get(
+        "/api/v1/facilities",
+        params={"lat": lat, "lon": lon, "radius_miles": radius},
+    )
+    step_context["response"] = response
+    return response
+
+
 # ─── Then: generic assertions ──────────────────────────────────────────────────
 
 
@@ -522,3 +546,75 @@ def step_every_feature_prop_not_null(prop, step_context):
         assert val is not None, (
             f"Feature[{i}] has null {prop}. Expected all features to have non-null {prop}."
         )
+
+
+# ─── Regression: 7.BUG.29 — All-years aggregation ─────────────────────────────
+
+
+@then("the sum of top_chemicals total_lbs equals facility total_release_lbs")
+def step_top_chemicals_sum_equals_total(step_context):
+    """Verify that top_chemicals total_release_lbs sums to facility's total_release_lbs.
+
+    Regression test for 7.BUG.29: Previously, top_chemicals only included
+    the latest year's data, causing the sum to be less than the facility total
+    when the user searched without a year filter.
+    """
+    body = step_context["response"].json()
+    top_chemicals = body.get("top_chemicals", [])
+    total_release_lbs = body.get("total_release_lbs")
+
+    assert total_release_lbs is not None, "total_release_lbs is null"
+    assert len(top_chemicals) > 0, "top_chemicals is empty"
+
+    # Sum all top_chemicals total_release_lbs (field name matches schema)
+    chemicals_sum = sum(c.get("total_release_lbs", 0) for c in top_chemicals)
+
+    # Allow small floating point tolerance
+    assert abs(chemicals_sum - total_release_lbs) < 0.01, (
+        f"REGRESSION 7.BUG.29: top_chemicals sum ({chemicals_sum:.2f}) != "
+        f"total_release_lbs ({total_release_lbs:.2f}). "
+        f"This suggests top_chemicals may only include one year's data."
+    )
+
+
+# ─── Regression: 7.BUG.32 — Superfund contaminant PubChem URLs ────────────────
+
+
+@then(parsers.parse('contaminant "{name}" has pubchem_url containing "{substring}"'))
+def step_contaminant_pubchem_contains(name, substring, step_context):
+    """Verify a contaminant's PubChem URL contains the expected substring.
+
+    Regression test for 7.BUG.32: FENSULFOTHION, GUTHION, PESTICIDES, PAHS
+    were missing PubChem links at Whidbey Island site.
+    """
+    body = step_context["response"].json()
+    contaminant = _find_contaminant(body, name)
+    assert contaminant is not None, (
+        f"Contaminant {name!r} not found. "
+        f"Available: {[c['name'] for c in body.get('contaminants', [])]}"
+    )
+    pubchem_url = contaminant.get("pubchem_url")
+    assert pubchem_url is not None, (
+        f"REGRESSION 7.BUG.32: Contaminant {name!r} has no pubchem_url"
+    )
+    assert substring in pubchem_url, (
+        f"Expected {name!r} pubchem_url to contain {substring!r}, got {pubchem_url!r}"
+    )
+
+
+@then("no contaminant has null pubchem_url")
+def step_no_contaminant_null_pubchem(step_context):
+    """Verify ALL contaminants have non-null PubChem URLs.
+
+    Regression test for 7.BUG.32: Ensures the Superfund CAS lookup table
+    is comprehensive enough to provide PubChem links for every contaminant.
+    """
+    body = step_context["response"].json()
+    contaminants = body.get("contaminants", [])
+    assert len(contaminants) > 0, "No contaminants in response"
+
+    missing = [c["name"] for c in contaminants if c.get("pubchem_url") is None]
+    assert len(missing) == 0, (
+        f"REGRESSION 7.BUG.32: {len(missing)} contaminant(s) have null pubchem_url: "
+        f"{missing[:10]}{'...' if len(missing) > 10 else ''}"
+    )

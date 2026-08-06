@@ -65,7 +65,9 @@ export default function App(): JSX.Element {
   // ── Sidebar + search state ────────────────────────────────────────────────
   const [activePanel, setActivePanel] = useState<ActivePanel>('map-contents')
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
-  const [sidebarWidthPx, setSidebarWidthPx] = useState(320)
+  const [sidebarWidthPx, setSidebarWidthPx] = useState(400)
+  const [facilityDrawerWidthPx, setFacilityDrawerWidthPx] = useState(420)
+  const [superfundDrawerWidthPx, setSuperfundDrawerWidthPx] = useState(340)
   const [submittedSearch, setSubmittedSearch] = useState<SubmittedSearch | null>(null)
   const [geocodeError, setGeocodeError] = useState<string | null>(null)
   const [resolvedGeocode, setResolvedGeocode] = useState<GeocodeResult | null>(null)
@@ -235,12 +237,17 @@ export default function App(): JSX.Element {
       return null
     }
     
-    // Nationwide mode: filter the always-on layer by chemical (and CONUS if applicable)
+    // Nationwide mode: filter the always-on layer by chemical and state (and CONUS if applicable)
     if (submittedSearch.lat === null && submittedSearch.chemical && superfundViewportSites) {
       const chemicalUpper = submittedSearch.chemical.toUpperCase()
       let filtered = superfundViewportSites.features.filter((f) =>
         f.properties.contaminants.some((c) => c.toUpperCase().includes(chemicalUpper))
       )
+      // Apply state filter (non-CONUS)
+      if (submittedSearch.state && submittedSearch.state !== CONUS_FILTER) {
+        const stateUpper = submittedSearch.state.toUpperCase()
+        filtered = filtered.filter((f) => f.properties.state_code === stateUpper)
+      }
       // Apply CONUS filter
       if (isConusFilter) {
         filtered = filtered.filter((f) => isContinentalUS(f.properties.state_code))
@@ -256,7 +263,7 @@ export default function App(): JSX.Element {
             radius_miles: 0,
             chemical: submittedSearch.chemical,
             state: submittedSearch.state || null,
-            restrict_to_state: false,
+            restrict_to_state: Boolean(submittedSearch.state && submittedSearch.state !== CONUS_FILTER),
             status: null,
           },
         },
@@ -522,6 +529,9 @@ export default function App(): JSX.Element {
         <FacilityDrawer
           facilityId={detailFacilityId}
           onClose={handleCloseDrawer}
+          selectedYear={submittedSearch?.year || null}
+          width={facilityDrawerWidthPx}
+          onWidthChange={setFacilityDrawerWidthPx}
         />
       )}
 
@@ -530,6 +540,8 @@ export default function App(): JSX.Element {
         <SuperfundDrawer
           epaId={selectedSuperfundEpaId}
           onClose={handleCloseSuperfundDrawer}
+          width={superfundDrawerWidthPx}
+          onWidthChange={setSuperfundDrawerWidthPx}
         />
       )}
 

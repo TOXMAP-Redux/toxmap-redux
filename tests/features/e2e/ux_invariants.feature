@@ -475,3 +475,170 @@ Feature: UX Design Invariants
     Then the Superfund detail panel opens
     And the contaminants list is visible
     And no contaminant row shows a CAS number pattern
+
+  # ── Regression: 15-Year Trend Chart Data Integrity (7.BUG.27) ────────────
+  # CRITICAL regression tests for: 15-year trend chart data loss.
+  # Root cause: Per-chemical releases were OVERWRITTEN instead of SUMMED.
+  # For Arlington Plating 2017: 6 chemicals totaling 12,916 lbs, but chart
+  # showed only 12,636 lbs (the last chemical processed).
+  # Fix: Changed dataByYear.set(year, lbs) to dataByYear.set(year, currentTotal + lbs)
+
+  @regression @7BUG27 @critical
+  Scenario: Regression — 15-year trend aggregates all chemicals per year
+    Given I am on the map page
+    When I type "Palatine, IL" into the location field
+    And I click "Search"
+    And I click on "ARLINGTON PLATING ACQUISITION CO" in the results
+    Then the TRI facility detail drawer opens
+    When I click the "15-Year Trend" tab
+    Then the 15-year trend chart is visible
+    And the trend chart Y-axis maximum is greater than 12900
+    # If aggregation is broken, max would be ~12,636 (1-BROMOPROPANE only)
+    # Correct aggregation: 12,916 lbs (sum of all 6 chemicals)
+
+  @regression @7BUG27
+  Scenario: Regression — 15-year trend shows full year range without gaps
+    Given I am on the map page
+    When I type "Palatine, IL" into the location field
+    And I click "Search"
+    And I click on "ARLINGTON PLATING ACQUISITION CO" in the results
+    Then the TRI facility detail drawer opens
+    When I click the "15-Year Trend" tab
+    Then the 15-year trend chart is visible
+    And the trend chart X-axis shows 15 consecutive years
+
+  @regression @7BUG27
+  Scenario: Regression — 15-year trend respects selected year filter
+    Given I am on the map page
+    When I select year "2020"
+    And I type "Palatine, IL" into the location field
+    And I click "Search"
+    And I click on "ARLINGTON PLATING ACQUISITION CO" in the results
+    Then the TRI facility detail drawer opens
+    When I click the "15-Year Trend" tab
+    Then the 15-year trend chart is visible
+    And the trend chart heading shows "2006–2020"
+    # 15-year range ending at selected year: 2020 - 14 = 2006
+
+  @regression @7BUG27
+  Scenario: Regression — 15-year trend shows reporting year in tooltip
+    Given I am on the map page
+    When I type "Palatine, IL" into the location field
+    And I click "Search"
+    And I click on "ARLINGTON PLATING ACQUISITION CO" in the results
+    Then the TRI facility detail drawer opens
+    When I click the "15-Year Trend" tab
+    Then the 15-year trend chart is visible
+    When I hover over a data point in the trend chart
+    Then the tooltip shows "Reporting Year:"
+
+  # ── Regression: 7.BUG.28 — Top Chemicals Table Structure ──────────────────────
+  # CRITICAL UI FIX: Top Chemicals table must match Fig 11 in SCREEN_CATALOG.md:
+  # - Numbered ranks: 1), 2), 3), 4), 5)
+  # - Column header: "Release Amount (lbs./all years)"
+  # - "Other chemicals" row when facility has > 5 chemicals
+  # - TOTAL footer row showing facility total
+
+  @regression @7BUG28
+  Scenario: Regression — Top Chemicals table shows numbered ranks
+    Given I am on the map page
+    When I perform a search for "BENZENE" near "Houston, TX"
+    And I click on the first result in the results table
+    Then the facility detail panel opens
+    And the Top Chemicals tab shows numbered chemical ranks
+
+  @regression @7BUG28
+  Scenario: Regression — Top Chemicals table shows all-years header
+    Given I am on the map page
+    When I perform a search for "BENZENE" near "Houston, TX"
+    And I click on the first result in the results table
+    Then the facility detail panel opens
+    And the Top Chemicals table shows "Release Amount (lbs./all years)" header
+
+  @regression @7BUG28
+  Scenario: Regression — Top Chemicals table shows TOTAL row
+    Given I am on the map page
+    When I perform a search for "BENZENE" near "Houston, TX"
+    And I click on the first result in the results table
+    Then the facility detail panel opens
+    And the Top Chemicals table shows a TOTAL footer row
+
+  @regression @7BUG28
+  Scenario: Regression — Top Chemicals table shows Other chemicals row when applicable
+    Given I am on the map page
+    When I perform a search for "BENZENE" near "Houston, TX"
+    And I click on the first result in the results table
+    Then the facility detail panel opens
+    And the Top Chemicals table shows "Other chemicals" row when applicable
+
+  # ── Regression: 7.BUG.29 — All-Years Aggregation ──────────────────────────────
+  # CRITICAL DATA FIX: When searching without a year filter ("All years"),
+  # release amounts must be aggregated across ALL reporting years, not just
+  # the latest year. This was a backend bug where _resolve_year() converted
+  # year=None to the latest year instead of returning None for aggregation.
+  #
+  # Test data: ExxonMobil has releases in 2006, 2007, 2008.
+  # - Single year (2008): ~28,400 lbs
+  # - All years sum: ~95,200 lbs
+
+  @regression @7BUG29
+  Scenario: Regression — All years search shows aggregated totals
+    Given I am on the map page
+    When I perform a search for "BENZENE" near "Baytown, TX"
+    Then the results table shows "EXXONMOBIL" with release amount greater than 50000 lbs
+
+  @regression @7BUG29
+  Scenario: Regression — Facility detail shows all-years total
+    Given I am on the map page
+    When I perform a search for "BENZENE" near "Baytown, TX"
+    And I click on "EXXONMOBIL" in the results
+    Then the facility detail panel opens
+    And the facility detail total matches the aggregated all-years amount
+
+  # ── Regression: 7.BUG.30 — Facility Drawer Resize Handle ───────────────────────
+  # UI FIX: FacilityDrawer now has a resize handle for horizontal adjustment.
+  # Fix: Added resize handle to left edge using same pattern as Sidebar.tsx.
+
+  @regression @7BUG30
+  Scenario: Regression — Facility drawer has resize handle
+    Given I am on the map page
+    When I perform a search for "BENZENE" near "Houston, TX"
+    And I click on the first result in the results table
+    Then the facility detail panel opens
+    And the facility drawer resize handle is present
+
+  @regression @7BUG30
+  Scenario: Regression — Facility drawer can be resized by dragging
+    Given I am on the map page
+    When I perform a search for "BENZENE" near "Houston, TX"
+    And I click on the first result in the results table
+    Then the facility detail panel opens
+    When I drag the facility drawer resize handle 100 pixels to the left
+    Then the facility drawer width has increased
+
+  # ── Regression: 7.BUG.31 — Superfund Drawer Resize Handle Parity ───────────────
+  # UI FIX: SuperfundDrawer now has resize handle parity with FacilityDrawer.
+  # Root cause: After 7.BUG.30 added resize to FacilityDrawer, SuperfundDrawer
+  # was still missing the same functionality — inconsistent UX.
+  # Fix: Applied identical resize pattern from FacilityDrawer to SuperfundDrawer.
+
+  @regression @7BUG31
+  Scenario: Regression — Superfund drawer has resize handle
+    Given I am on the map page
+    When I select the "Superfund" dataset
+    And I type "Front Royal, VA" into the location field
+    And I click "Search"
+    And I click on "AVTEX FIBERS INC" in the Superfund results
+    Then the Superfund detail panel opens
+    And the superfund drawer resize handle is present
+
+  @regression @7BUG31
+  Scenario: Regression — Superfund drawer can be resized by dragging
+    Given I am on the map page
+    When I select the "Superfund" dataset
+    And I type "Front Royal, VA" into the location field
+    And I click "Search"
+    And I click on "AVTEX FIBERS INC" in the Superfund results
+    Then the Superfund detail panel opens
+    When I drag the superfund drawer resize handle 100 pixels to the left
+    Then the superfund drawer width has increased

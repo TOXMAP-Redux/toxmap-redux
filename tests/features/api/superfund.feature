@@ -102,3 +102,85 @@ Feature: Superfund Site Search
     Then the response status is 200
     And the response is a GeoJSON FeatureCollection
     And every feature has property "epa_progress_url" that is not null
+
+  # ── 7.BUG.32: Superfund contaminants missing PubChem links ─────────────────
+  # Regression tests for: FENSULFOTHION, GUTHION, PESTICIDES, PAHS missing links.
+  # Root cause: These chemicals were not in SUPERFUND_CAS_LOOKUP or had missing
+  # 3-tuple format for explicit PubChem URLs.
+  # Test site: WA5170090059 (Naval Air Station, Whidbey Island) — 62 contaminants
+
+  @regression @7BUG32
+  Scenario: FENSULFOTHION has CAS number and PubChem URL
+    When I GET "/api/v1/superfund/WA5170090059"
+    Then the response status is 200
+    And contaminant "FENSULFOTHION" has cas_number "115-90-2"
+    And contaminant "FENSULFOTHION" has pubchem_url containing "pubchem.ncbi.nlm.nih.gov"
+
+  @regression @7BUG32
+  Scenario: GUTHION has CAS number and PubChem URL
+    When I GET "/api/v1/superfund/WA5170090059"
+    Then the response status is 200
+    And contaminant "GUTHION" has cas_number "86-50-0"
+    And contaminant "GUTHION" has pubchem_url containing "pubchem.ncbi.nlm.nih.gov"
+
+  @regression @7BUG32
+  Scenario: PESTICIDES generic category has PubChem search URL
+    When I GET "/api/v1/superfund/WA5170090059"
+    Then the response status is 200
+    And contaminant "PESTICIDES" has pubchem_url containing "pubchem.ncbi.nlm.nih.gov"
+    And contaminant "PESTICIDES" has pubchem_url containing "query=pesticides"
+
+  @regression @7BUG32
+  Scenario: POLYCYCLIC AROMATIC HYDROCARBONS (PAHS) has PubChem URL
+    When I GET "/api/v1/superfund/WA5170090059"
+    Then the response status is 200
+    And contaminant "POLYCYCLIC AROMATIC HYDROCARBONS (PAHS)" has pubchem_url containing "pubchem.ncbi.nlm.nih.gov"
+
+  @regression @7BUG32
+  Scenario: All Whidbey Island contaminants have PubChem URLs
+    When I GET "/api/v1/superfund/WA5170090059"
+    Then the response status is 200
+    And no contaminant has null pubchem_url
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 7.BUG.33: Superfund contaminants missing PubChem links at military sites
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  @regression @7BUG33
+  Scenario: RDX full name has CAS number and PubChem URL (BANGOR)
+    When I GET "/api/v1/superfund/WA5170027291"
+    Then the response status is 200
+    And contaminant "HEXAHYDRO-1,3,5-TRINITRO-1,3,5-TRIAZINE (RDX)" has cas_number "121-82-4"
+    And contaminant "HEXAHYDRO-1,3,5-TRINITRO-1,3,5-TRIAZINE (RDX)" has pubchem_url containing "pubchem.ncbi.nlm.nih.gov"
+
+  @regression @7BUG33
+  Scenario: 1,3,5-TRINITROBENZENE has CAS number and PubChem URL (BANGOR)
+    When I GET "/api/v1/superfund/WA5170027291"
+    Then the response status is 200
+    And contaminant "1,3,5-TRINITROBENZENE" has cas_number "99-35-4"
+    And contaminant "1,3,5-TRINITROBENZENE" has pubchem_url containing "pubchem.ncbi.nlm.nih.gov"
+
+  @regression @7BUG33
+  Scenario: 1,3-DINITROBENZENE has CAS number and PubChem URL (BANGOR)
+    When I GET "/api/v1/superfund/WA5170027291"
+    Then the response status is 200
+    And contaminant "1,3-DINITROBENZENE" has cas_number "99-65-0"
+    And contaminant "1,3-DINITROBENZENE" has pubchem_url containing "pubchem.ncbi.nlm.nih.gov"
+
+  @regression @7BUG33
+  Scenario: NITROAROMATICS has PubChem search URL (BANGOR)
+    When I GET "/api/v1/superfund/WA5170027291"
+    Then the response status is 200
+    And contaminant "NITROAROMATICS" has pubchem_url containing "pubchem.ncbi.nlm.nih.gov"
+
+  @regression @7BUG33
+  Scenario: All BANGOR Naval Submarine Base contaminants have PubChem URLs
+    When I GET "/api/v1/superfund/WA5170027291"
+    Then the response status is 200
+    And no contaminant has null pubchem_url
+
+  @regression @7BUG33
+  Scenario: All AMERICAN LAKE GARDENS/MCCHORD AFB contaminants have PubChem URLs
+    When I GET "/api/v1/superfund/WAD980833065"
+    Then the response status is 200
+    And no contaminant has null pubchem_url

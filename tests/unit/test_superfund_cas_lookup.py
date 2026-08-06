@@ -5,6 +5,7 @@ Regression tests for bug fixes:
 - 7.BUG.18: ATSDR ToxFAQs toxid correctness (MANGANESE→23, not 42)
 - 7.BUG.19: ToxFAQs™ URL format validation
 - 7.BUG.21: PubChem URL validation for petroleum mixtures
+- 7.BUG.36: ADR-007 structural integrity (canonical+aliases, dioxin PubChem CIDs)
 
 These tests run without Docker/database — they test the lookup table directly.
 """
@@ -476,4 +477,135 @@ class TestDioxinPubChemUrls:
 
         assert not missing, (
             f"REGRESSION: Dioxin entries missing PubChem URLs: {missing}"
+        )
+
+
+class TestADR007StructuralIntegrity:
+    """Regression tests for 7.BUG.36: ADR-007 canonical+aliases refactoring.
+
+    The refactoring introduced a canonical entries dict plus an aliases dict
+    that maps EPA name variations to canonical names. These tests ensure:
+    1. All aliases resolve to valid canonical entries
+    2. The combined lookup maintains all expected EPA name variations
+    3. Dioxin/furan congeners have complete PubChem URL coverage
+    """
+
+    def test_lookup_entry_count_minimum(self):
+        """Verify lookup has at least 700 entries (canonical + resolved aliases)."""
+        assert len(SUPERFUND_CAS_LOOKUP) >= 700, (
+            f"REGRESSION: Lookup has {len(SUPERFUND_CAS_LOOKUP)} entries, expected ≥700. "
+            "Check that _ALIASES is being merged into SUPERFUND_CAS_LOOKUP."
+        )
+
+    def test_all_entries_are_tuples(self):
+        """Every entry must be a 2-tuple or 3-tuple, not a string alias."""
+        string_entries = []
+        for name, entry in SUPERFUND_CAS_LOOKUP.items():
+            if isinstance(entry, str):
+                string_entries.append(name)
+
+        assert not string_entries, (
+            f"REGRESSION: Found string entries (unresolved aliases) in SUPERFUND_CAS_LOOKUP: "
+            f"{string_entries[:10]}... (showing first 10). Aliases should be resolved to tuples."
+        )
+
+    def test_all_entries_have_valid_cas_format(self):
+        """CAS field should be valid format or 'N/A' for mixtures."""
+        cas_pattern = re.compile(r"^\d{2,7}-\d{2}-\d$|^N/A$")
+        invalid = []
+        for name, entry in SUPERFUND_CAS_LOOKUP.items():
+            cas, _, _ = _get_entry_fields(entry)
+            if not cas_pattern.match(cas):
+                invalid.append((name, cas))
+
+        assert not invalid, (
+            f"REGRESSION: Invalid CAS numbers found: {invalid[:10]}"
+        )
+
+    @pytest.mark.parametrize(
+        "dioxin_congener,expected_cid",
+        [
+            # Octachloro (8 Cl)
+            ("OCDF", "33318"),
+            ("OCDD", "15771"),
+            # Heptachloro (7 Cl)
+            ("1,2,3,4,6,7,8-HPCDD", "37036"),
+            ("1,2,3,4,7,8,9-HPCDF", "38981"),
+            ("1,2,3,4,6,7,8-HPCDF", "38982"),
+            # Hexachloro (6 Cl)
+            ("1,2,3,4,7,8-HXCDF", "62853"),
+            ("1,2,3,4,7,8-HXCDD", "36831"),
+            ("1,2,3,6,7,8-HXCDF", "62855"),
+            ("1,2,3,6,7,8-HXCDD", "39925"),
+            ("1,2,3,7,8,9-HXCDD", "36830"),
+            ("1,2,3,7,8,9-HXCDF", "62857"),
+            ("2,3,4,6,7,8-HXCDF", "62856"),
+            # Pentachloro (5 Cl)
+            ("1,2,3,7,8-PECDF", "62858"),
+            ("1,2,3,7,8-PECDD", "38990"),
+            ("2,3,4,7,8-PECDF", "62859"),
+        ],
+    )
+    def test_dioxin_congener_pubchem_cids(self, dioxin_congener, expected_cid):
+        """Verify each dioxin/furan congener has correct PubChem CID."""
+        entry = SUPERFUND_CAS_LOOKUP.get(dioxin_congener)
+        assert entry is not None, f"{dioxin_congener} not found in lookup"
+
+        _, _, pubchem_url = _get_entry_fields(entry)
+        assert pubchem_url is not None, (
+            f"REGRESSION 7.BUG.36: {dioxin_congener} has no PubChem URL"
+        )
+        assert f"/compound/{expected_cid}" in pubchem_url, (
+            f"REGRESSION: {dioxin_congener} should link to CID {expected_cid}, "
+            f"got: {pubchem_url}"
+        )
+
+    def test_mixed_congeners_have_search_urls(self):
+        """Mixed congener entries should have PubChem search URLs."""
+        mixed_congeners = [
+            "HPCDD (MIXED)",
+            "HPCDF (MIXED)",
+            "HXCDD (MIXED)",
+            "HXCDF (MIXED)",
+            "PECDD (MIXED)",
+            "PECDF (MIXED)",
+        ]
+        for name in mixed_congeners:
+            entry = SUPERFUND_CAS_LOOKUP.get(name)
+            assert entry is not None, f"{name} not found in lookup"
+
+            _, _, pubchem_url = _get_entry_fields(entry)
+            assert pubchem_url is not None, (
+                f"REGRESSION 7.BUG.36: {name} has no PubChem URL"
+            )
+            # Mixed congeners should have search URLs (#query=...)
+            assert "#query=" in pubchem_url or "/compound/" in pubchem_url, (
+                f"REGRESSION: {name} should have search or compound URL, got: {pubchem_url}"
+            )
+
+    def test_critical_contaminant_coverage(self):
+        """Verify common Superfund contaminants are in lookup."""
+        critical_chemicals = [
+            # Heavy metals
+            "LEAD", "ARSENIC", "MERCURY", "CADMIUM", "CHROMIUM",
+            # Solvents
+            "TRICHLOROETHYLENE", "TCE", "BENZENE", "TOLUENE",
+            # PCBs
+            "AROCLOR 1254", "AROCLOR 1260", "PCBS",
+            # PAHs
+            "BENZO[A]PYRENE", "PAHS",
+            # Pesticides
+            "DDT", "DIELDRIN", "CHLORDANE",
+            # Explosives
+            "RDX", "TNT", "HMX",
+            # PFAS
+            "PFOA", "PFOS",
+            # Radionuclides
+            "URANIUM", "PLUTONIUM", "CESIUM-137", "STRONTIUM-90",
+            # Dioxins
+            "2,3,7,8-TCDD", "TCDD", "DIOXINS AND FURANS",
+        ]
+        missing = [c for c in critical_chemicals if c not in SUPERFUND_CAS_LOOKUP]
+        assert not missing, (
+            f"REGRESSION: Critical chemicals missing from lookup: {missing}"
         )

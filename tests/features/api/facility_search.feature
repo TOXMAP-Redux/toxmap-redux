@@ -158,3 +158,51 @@ Feature: Facility Search by Location
     Then the response meta has "search_expansion.expanded" = true
     When I GET "/api/v1/facilities/browse?chemical=copper"
     Then the response meta has "search_expansion.expanded" = true
+
+  # ── Regression: 7.BUG.29 — All-years aggregation ────────────────────────────
+  # CRITICAL FIX: When year parameter is omitted, total_release_lbs must be the
+  # SUM across all reporting years, not just the latest year's value.
+  #
+  # Root cause: _resolve_year() was converting year=None to max(reporting_year),
+  # causing queries to return single-year data instead of aggregated totals.
+  #
+  # Test data: ExxonMobil (77536EXXO00001) has benzene releases in seed.sql:
+  #   2006: 35,600 lbs | 2007: 31,200 lbs | 2008: 28,400 lbs → Total: 95,200 lbs
+
+  Scenario: Regression 7.BUG.29 — Browse without year aggregates ALL years
+    When I GET "/api/v1/facilities/browse"
+    Then the response status is 200
+    And facility "77536EXXO00001" is in the results
+    And facility "77536EXXO00001" has total_release_lbs 95200.0
+
+  Scenario: Regression 7.BUG.29 — Browse with year=2008 returns ONLY that year
+    When I GET "/api/v1/facilities/browse?year=2008"
+    Then the response status is 200
+    And facility "77536EXXO00001" is in the results
+    And facility "77536EXXO00001" has total_release_lbs 28400.0
+
+  Scenario: Regression 7.BUG.29 — Radius search without year aggregates ALL years
+    When I search for facilities near lat 29.7424 lon -95.0215 within 5 miles without year filter
+    Then the response status is 200
+    And facility "77536EXXO00001" is in the results
+    And facility "77536EXXO00001" has total_release_lbs 95200.0
+
+  Scenario: Regression 7.BUG.29 — Radius search with year returns single year
+    When I search for facilities near lat 29.7424 lon -95.0215 within 5 miles for year 2008
+    Then the response status is 200
+    And facility "77536EXXO00001" is in the results
+    And facility "77536EXXO00001" has total_release_lbs 28400.0
+
+  Scenario: Regression 7.BUG.29 — Multi-year facility: Bethlehem Steel all-years
+    # Bethlehem Steel: 2006=15830 + 2007=14210 + 2008=12485 = 42525 lbs
+    When I GET "/api/v1/facilities/browse?state=MD"
+    Then the response status is 200
+    And facility "21219BTHLS3RD" is in the results
+    And facility "21219BTHLS3RD" has total_release_lbs 42525.0
+
+  Scenario: Regression 7.BUG.29 — Multi-year facility: Robinson Nevada all-years
+    # Robinson Nevada: 2006=9100 + 2007=7890 + 2008=8205 = 25195 lbs
+    When I GET "/api/v1/facilities/browse?state=NV"
+    Then the response status is 200
+    And facility "89319BHPCP7MILE" is in the results
+    And facility "89319BHPCP7MILE" has total_release_lbs 25195.0

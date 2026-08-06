@@ -52,11 +52,17 @@ def _fac_geography(location: Any) -> Any:
 
 
 async def _resolve_year(session: AsyncSession, year: int | None) -> int | None:
-    """Return *year* if provided, else MAX(reporting_year) from release_events."""
+    """Return *year* if provided, else None (meaning all years).
+    
+    BUG FIX 7.BUG.29: Previously returned MAX(reporting_year) when year=None,
+    which caused "All years" searches to show only the latest year. Now returns
+    None to trigger all-years aggregation in the search queries.
+    """
     if year is not None:
         return year
-    result = await session.execute(select(func.max(ReleaseEvent.reporting_year)))
-    return result.scalar()
+    # Return None to indicate "all years" - the search queries will
+    # aggregate across all years instead of filtering to a single year
+    return None
 
 
 async def _expand_chemical_family(
@@ -120,19 +126,32 @@ async def get_facilities_near(
     if not exact_match:
         family_chemicals, search_expansion = await _expand_chemical_family(session, chemical)
 
-    # --- Aggregate releases per (facility, year) in a subquery ---
-    rel_stmt = (
-        select(
-            ReleaseEvent.facility_id,
-            func.sum(ReleaseEvent.total_release_lbs).label("total_lbs"),
-            ReleaseEvent.reporting_year,
-        )
-        .join(Chemical, Chemical.id == ReleaseEvent.chemical_id)
-        .group_by(ReleaseEvent.facility_id, ReleaseEvent.reporting_year)
-    )
-
+    # --- Aggregate releases per facility (or per facility+year if filtering by year) ---
+    # BUG FIX 7.BUG.29: When year=None (All years), aggregate across ALL years for each
+    # facility. Previously grouped by (facility, year) which returned only the peak year.
     if effective_year is not None:
-        rel_stmt = rel_stmt.where(ReleaseEvent.reporting_year == effective_year)
+        # Single year: group by facility + year
+        rel_stmt = (
+            select(
+                ReleaseEvent.facility_id,
+                func.sum(ReleaseEvent.total_release_lbs).label("total_lbs"),
+                ReleaseEvent.reporting_year,
+            )
+            .join(Chemical, Chemical.id == ReleaseEvent.chemical_id)
+            .where(ReleaseEvent.reporting_year == effective_year)
+            .group_by(ReleaseEvent.facility_id, ReleaseEvent.reporting_year)
+        )
+    else:
+        # All years: aggregate across all years, use max year for display
+        rel_stmt = (
+            select(
+                ReleaseEvent.facility_id,
+                func.sum(ReleaseEvent.total_release_lbs).label("total_lbs"),
+                func.max(ReleaseEvent.reporting_year).label("reporting_year"),
+            )
+            .join(Chemical, Chemical.id == ReleaseEvent.chemical_id)
+            .group_by(ReleaseEvent.facility_id)
+        )
 
     # ADR-007: Use expanded family chemicals if available
     if family_chemicals:
@@ -260,19 +279,31 @@ async def get_all_facilities_browse(
     if not exact_match:
         family_chemicals, search_expansion = await _expand_chemical_family(session, chemical)
 
-    # Aggregate releases per (facility, year) in a subquery
-    rel_stmt = (
-        select(
-            ReleaseEvent.facility_id,
-            func.sum(ReleaseEvent.total_release_lbs).label("total_lbs"),
-            ReleaseEvent.reporting_year,
-        )
-        .join(Chemical, Chemical.id == ReleaseEvent.chemical_id)
-        .group_by(ReleaseEvent.facility_id, ReleaseEvent.reporting_year)
-    )
-
+    # BUG FIX 7.BUG.29: When year=None (All years), aggregate across ALL years for each
+    # facility. Previously grouped by (facility, year) which returned only the peak year.
     if effective_year is not None:
-        rel_stmt = rel_stmt.where(ReleaseEvent.reporting_year == effective_year)
+        # Single year: group by facility + year
+        rel_stmt = (
+            select(
+                ReleaseEvent.facility_id,
+                func.sum(ReleaseEvent.total_release_lbs).label("total_lbs"),
+                ReleaseEvent.reporting_year,
+            )
+            .join(Chemical, Chemical.id == ReleaseEvent.chemical_id)
+            .where(ReleaseEvent.reporting_year == effective_year)
+            .group_by(ReleaseEvent.facility_id, ReleaseEvent.reporting_year)
+        )
+    else:
+        # All years: aggregate across all years, use max year for display
+        rel_stmt = (
+            select(
+                ReleaseEvent.facility_id,
+                func.sum(ReleaseEvent.total_release_lbs).label("total_lbs"),
+                func.max(ReleaseEvent.reporting_year).label("reporting_year"),
+            )
+            .join(Chemical, Chemical.id == ReleaseEvent.chemical_id)
+            .group_by(ReleaseEvent.facility_id)
+        )
 
     # ADR-007: Use expanded family chemicals if available
     if family_chemicals:
@@ -380,7 +411,7 @@ async def get_facility_detail(
     session: AsyncSession,
     tri_facility_id: str,
 ) -> FacilityDetail | None:
-    """Return full detail for a single facility including top-5 chemicals."""
+    """Return full detail for a single facility including top-5 chemicals (all years)."""
     result = await session.execute(
         select(Facility).where(Facility.tri_facility_id == tri_facility_id)
     )
@@ -394,47 +425,59 @@ async def get_facility_detail(
     )
     latest_year: int | None = yr_result.scalar()
 
-    top_chemicals: list[TopChemical] = []
-    if latest_year is not None:
-        chem_rows = (
-            await session.execute(
-                select(
-                    Chemical.name,
-                    Chemical.cas_number,
-                    Chemical.atsdr_url,
-                    Chemical.pubchem_url,
-                    func.sum(ReleaseEvent.total_release_lbs).label("total_lbs"),
-                    ReleaseEvent.unit_of_measure,
-                )
-                .join(ReleaseEvent, ReleaseEvent.chemical_id == Chemical.id)
-                .where(
-                    ReleaseEvent.facility_id == facility.id,
-                    ReleaseEvent.reporting_year == latest_year,
-                )
-                .group_by(
-                    Chemical.name,
-                    Chemical.cas_number,
-                    Chemical.atsdr_url,
-                    Chemical.pubchem_url,
-                    ReleaseEvent.unit_of_measure,
-                )
-                .order_by(desc("total_lbs"))
-                .limit(5)
-            )
-        ).all()
+    # 7.BUG.37: Calculate total_release_lbs across ALL years INCLUDING off-site transfers
+    # This ensures mediums (air + water + land + underground + off-site) sum to the TOTAL
+    total_result = await session.execute(
+        select(
+            func.sum(func.coalesce(ReleaseEvent.total_release_lbs, 0) + func.coalesce(ReleaseEvent.off_site_lbs, 0))
+        ).where(ReleaseEvent.facility_id == facility.id)
+    )
+    total_release_lbs: float | None = None
+    total_raw = total_result.scalar()
+    if total_raw is not None:
+        total_release_lbs = float(total_raw)
 
-        for row in chem_rows:
-            lbs = float(row.total_lbs) if row.total_lbs is not None else 0.0
-            top_chemicals.append(
-                TopChemical(
-                    chemical_name=row.name,
-                    cas_number=row.cas_number,
-                    total_release_lbs=lbs,
-                    unit_of_measure=row.unit_of_measure or "Pounds",
-                    atsdr_url=row.atsdr_url,
-                    pubchem_url=row.pubchem_url,
-                )
+    # 7.BUG.37: Top chemicals aggregated across ALL years INCLUDING off-site transfers
+    # This matches "Emissions estimates (all years)" and ensures consistency with TOTAL
+    top_chemicals: list[TopChemical] = []
+    chem_rows = (
+        await session.execute(
+            select(
+                Chemical.name,
+                Chemical.cas_number,
+                Chemical.atsdr_url,
+                Chemical.pubchem_url,
+                func.sum(
+                    func.coalesce(ReleaseEvent.total_release_lbs, 0) + func.coalesce(ReleaseEvent.off_site_lbs, 0)
+                ).label("total_lbs"),
+                ReleaseEvent.unit_of_measure,
             )
+            .join(ReleaseEvent, ReleaseEvent.chemical_id == Chemical.id)
+            .where(ReleaseEvent.facility_id == facility.id)
+            .group_by(
+                Chemical.name,
+                Chemical.cas_number,
+                Chemical.atsdr_url,
+                Chemical.pubchem_url,
+                ReleaseEvent.unit_of_measure,
+            )
+            .order_by(desc("total_lbs"))
+            .limit(5)
+        )
+    ).all()
+
+    for row in chem_rows:
+        lbs = float(row.total_lbs) if row.total_lbs is not None else 0.0
+        top_chemicals.append(
+            TopChemical(
+                chemical_name=row.name,
+                cas_number=row.cas_number,
+                total_release_lbs=lbs,
+                unit_of_measure=row.unit_of_measure or "Pounds",
+                atsdr_url=row.atsdr_url,
+                pubchem_url=row.pubchem_url,
+            )
+        )
 
     shape = to_shape(facility.location)
     return FacilityDetail(
@@ -451,6 +494,7 @@ async def get_facility_detail(
         location={"lat": shape.y, "lon": shape.x},
         latest_year=latest_year,
         top_chemicals=top_chemicals,
+        total_release_lbs=total_release_lbs,
     )
 
 

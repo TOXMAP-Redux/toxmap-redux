@@ -116,6 +116,8 @@ class FacilityDetail(BaseModel):
     location: dict[str, float]
     latest_year: int | None = None
     top_chemicals: list[TopChemical]
+    # 7.BUG.29: All-years aggregate for TOTAL row + "Other chemicals" calculation
+    total_release_lbs: float | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +134,7 @@ class ReleaseEventSchema(BaseModel):
     water_release_lbs: float | None = None
     land_release_lbs: float | None = None
     underground_release_lbs: float | None = None
+    off_site_lbs: float | None = None  # TRI Field 88 — off-site transfers
     unit_of_measure: str
     form_type: str
 

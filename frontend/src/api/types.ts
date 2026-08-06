@@ -60,6 +60,8 @@ export interface FacilityDetail {
     chemical_name: string
     total_release_lbs: number
   }>
+  /** 7.BUG.29: All-years total for TOTAL row + "Other chemicals" calculation */
+  total_release_lbs?: number | null
 }
 
 // ── Releases ───────────────────────────────────────────────────────────────
@@ -71,6 +73,7 @@ export interface ReleaseEvent {
   water_release_lbs: number | null
   land_release_lbs: number | null
   underground_release_lbs: number | null
+  off_site_lbs: number | null  // TRI Field 88 — off-site transfers
   unit_of_measure: string
   form_type: string
 }

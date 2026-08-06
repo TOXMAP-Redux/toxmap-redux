@@ -77,6 +77,7 @@ async def get_facility_releases(
             water_release_lbs=_lbs(row.ReleaseEvent.water_release_lbs),
             land_release_lbs=_lbs(row.ReleaseEvent.land_release_lbs),
             underground_release_lbs=_lbs(row.ReleaseEvent.underground_release_lbs),
+            off_site_lbs=_lbs(row.ReleaseEvent.off_site_lbs),
             unit_of_measure=row.ReleaseEvent.unit_of_measure,
             form_type=row.ReleaseEvent.form_type,
         )

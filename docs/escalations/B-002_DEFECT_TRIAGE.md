@@ -123,6 +123,18 @@ This document tracks the triage and resolution of defects discovered during the 
 | 7.BUG.23 | Dioxins missing PubChem + "NOT PROVIDED" filter | P2 | Explicit URLs + placeholder filtering | ✅ 2026-08-03 |
 | 7.BUG.24 | Popup cutoff at screen edges | P2 | Extended auto-pan to all edges | ✅ 2026-08-04 |
 | 7.BUG.25 | Geocoding confidence scoring (ADR-008) | P1 | Multi-candidate scoring with 6 weighted signals | ✅ 2026-08-04 |
+| 7.BUG.26 | Hanford radionuclides missing contaminant links | P2 | Added 25+ radionuclides to `SUPERFUND_CAS_LOOKUP` | ✅ 2026-08-04 |
+| 7.BUG.27 | **CRITICAL**: 15-year trend chart data loss — chemicals overwritten not summed | P0 | Aggregation fix + year filter + 4 E2E regression tests | ✅ 2026-08-05 |
+| 7.BUG.28 | Top Chemicals table missing time range disclosure and TOTAL row per Fig 11 | P2 | Header "(lbs./all years)" + % column + TOTAL footer + numbered ranks | ✅ 2026-08-05 |
+| 7.BUG.29 | **CRITICAL**: "All years" search returned single-year data (results + details) | P0 | `_resolve_year()` + aggregation queries + schema + frontend | ✅ 2026-08-05 |
+| 7.BUG.30 | Facility detail drawer not resizable + search results cut off | P2 | Resize handle + wider defaults (sidebar 360px, drawer 420px) | ✅ 2026-08-05 |
+| 7.BUG.31 | Superfund drawer not resizable — missing parity with FacilityDrawer | P2 | Added resize handle + `width`/`onWidthChange` props to SuperfundDrawer | ✅ 2026-08-06 |
+| 7.BUG.32 | Superfund contaminants missing PubChem links (FENSULFOTHION, GUTHION, PESTICIDES, PAHS) | P2 | Added entries to `superfund_cas_lookup.py`; auto-generate URLs from CAS | ✅ 2026-08-06 |
+| 7.BUG.33 | Superfund contaminants missing PubChem links — explosives/nitroaromatics at military sites | P2 | Added 25+ entries (RDX full name, HMX full name, TNB, dinitrobenzene, nitroaromatics, bromochloromethane, etc.) | ✅ 2026-08-06 |
+| 7.BUG.34 | Superfund contaminants missing PubChem links — dioxin/furan congeners, herbicides at California military sites | P2 | Added 95+ entries: dioxin/furan congeners (OCDF, OCDD, HpCDD, HxCDD/HxCDF, PeCDD/PeCDF), herbicides (MCPA, Dicamba, Diuron, 2,4,5-T), generic categories (VOC, METALS, ORGANICS) with search URLs. | ✅ 2026-08-06 |
+| 7.BUG.35 | Superfund contaminants batch — 115+ additional chemicals (radionuclides, PAHs, chemical warfare agents, solvents) | P2 | Batch addition: PAHs (anthanthrene, dibenzo[a,h]pyrene), radionuclides (actinium-228, cesium-134, curium, lead isotopes, plutonium-241/242), chemical warfare agents (mustard gas, lewisite), nitrotoluenes, solvents (methylcyclohexane, cyclohexanone, octane, pentane). Lookup table now **684 entries**. | ✅ 2026-08-06 |
+| 7.BUG.36 | Superfund CAS lookup ADR-007 refactoring — dioxin/furan congeners missing PubChem URLs | P2 | Refactored `superfund_cas_lookup.py` per ADR-007 canonical+aliases pattern (28.5% data reduction). Fixed 18 dioxin/furan entries that were 2-tuples instead of 3-tuples: OCDF, OCDD, HPCDD/HPCDF, HXCDD/HXCDF, PECDD/PECDF variants. Lookup now **763 entries** (500 canonical + 263 aliases). Regression test `test_dioxins_not_missing_urls` passes. | ✅ 2026-08-06 |
+| 7.BUG.37 | "By Medium" data integrity — sum must equal Top Chemicals total | P2 | **Backend:** Added `off_site_lbs` to API; updated facility detail to include off-site in totals. **Frontend:** Fetches 1987–present (not 15-year default); added Off-site to medium breakdown. Hanford now shows 22.6M total = mediums sum. | ✅ 2026-08-06 |
 
 ---
 
@@ -270,8 +282,8 @@ Before closing B-002 and re-certifying Phase 6:
 - **Phase 6 defects resolved:** 39 (6.BUG.1–16, 6.SEC.1–4, 6.DOC.1–3, 6.INFRA.1–7, 6.UX.1–3, 6.PERF.3–5)
 - **Phase 6 defects deferred:** 2 (6.PERF.1–2 — production SLA verification deferred to Phase 7)
 - **Phase 6 defects blocked:** 1 (6.TEST.1 — seed.sql requires human approval to fix)
-- **Phase 7 defects resolved:** 25 (7.BUG.1–25)
-- **Total defects triaged:** 67
+- **Phase 7 defects resolved:** 29 (7.BUG.1–29)
+- **Total defects triaged:** 71
 - **Remaining in progress:** 3 (2 deferred non-blocking, 1 blocked on human approval)
 
 ---
