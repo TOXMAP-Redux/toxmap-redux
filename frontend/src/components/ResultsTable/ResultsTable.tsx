@@ -3,10 +3,24 @@
  * UX Invariants: 2 (no empty rows), 8 (comma-formatted numbers).
  * Supports TRI mode (sorted by total_release_lbs) and Superfund mode (HRS score).
  * ADR-007: Displays chemical family expansion banner when applicable.
+ *
+ * PERFORMANCE: Renders max 100 rows initially to avoid 10+ second freezes
+ * when handling 22K+ facilities. Users can click "Load more" to see additional results.
+ * Sorting is memoized to avoid re-sorting 22K items on every render.
+ * Wrapped with React.memo to prevent re-renders during map animations.
  */
+import { useState, useEffect, useMemo, useRef, memo } from 'react'
 import { formatLbs } from '../../utils/formatLbs'
 import type { FacilityCollection, SuperfundCollection, SearchExpansion } from '../../api/types'
 import { ChemicalFamilyBanner } from '../ChemicalFamilyBanner'
+
+/** Initial number of rows to render (performance optimization) */
+const INITIAL_DISPLAY_LIMIT = 100
+/** Number of additional rows to load on each "Load more" click */
+const LOAD_MORE_INCREMENT = 100
+
+// Performance debugging - set to true to enable console timing
+const PERF_DEBUG = false
 
 interface ResultsTableProps {
   mode: 'tri' | 'superfund' | 'both'
@@ -31,10 +45,71 @@ function hrsColor(score: number | null): string {
 }
 
 /**
+ * Custom comparison function for React.memo.
+ * Compares props by value rather than reference to prevent unnecessary re-renders
+ * when parent components re-render with equivalent data.
+ */
+function arePropsEqual(prev: ResultsTableProps, next: ResultsTableProps): boolean {
+  // Debug logging
+  const reasons: string[] = []
+  
+  // Primitives - direct comparison
+  if (prev.mode !== next.mode) reasons.push('mode')
+  if (prev.loading !== next.loading) reasons.push('loading')
+  if (prev.highlightedFacilityId !== next.highlightedFacilityId) reasons.push('highlightedFacilityId')
+  
+  // Collections - compare by features length and reference
+  // If reference is same, definitely equal. Otherwise check length as proxy for data change.
+  if (prev.triData !== next.triData) {
+    const prevLen = prev.triData?.features.length ?? -1
+    const nextLen = next.triData?.features.length ?? -1
+    if (prevLen !== nextLen) reasons.push(`triData.length (${prevLen} → ${nextLen})`)
+  }
+  
+  if (prev.superfundData !== next.superfundData) {
+    const prevLen = prev.superfundData?.features.length ?? -1
+    const nextLen = next.superfundData?.features.length ?? -1
+    if (prevLen !== nextLen) reasons.push(`superfundData.length (${prevLen} → ${nextLen})`)
+  }
+  
+  // searchExpansion - check existence and key fields
+  if (prev.searchExpansion !== next.searchExpansion) {
+    const prevExp = prev.searchExpansion
+    const nextExp = next.searchExpansion
+    if (!prevExp && nextExp) reasons.push('searchExpansion (null → value)')
+    if (prevExp && !nextExp) reasons.push('searchExpansion (value → null)')
+    if (prevExp && nextExp) {
+      if (prevExp.expanded !== nextExp.expanded) reasons.push('searchExpansion.expanded')
+      if (prevExp.family_name !== nextExp.family_name) reasons.push('searchExpansion.family_name')
+    }
+  }
+  
+  // Functions - onHighlight and onSelect need fresh refs for row interactions
+  if (prev.onHighlight !== next.onHighlight) reasons.push('onHighlight')
+  if (prev.onSelect !== next.onSelect) reasons.push('onSelect')
+  
+  // onSearchExact: log for debugging but DON'T count as reason to re-render.
+  // This callback is only used for the "Search exact term only" banner action.
+  // Its captured values from submission time are what we want anyway.
+  // Function ref changes during flyTo animation are noise, not signal.
+  if (PERF_DEBUG && prev.onSearchExact !== next.onSearchExact) {
+    console.log('[ResultsTable] onSearchExact ref changed (ignored)')
+  }
+  
+  const areEqual = reasons.length === 0
+  if (PERF_DEBUG && !areEqual) {
+    console.log(`[ResultsTable] arePropsEqual=false, reasons: ${reasons.join(', ')}`)
+  }
+  
+  return areEqual
+}
+
+/**
  * Viewport-scoped results table.
  * UX Invariant 2: only non-empty rows rendered (no placeholders).
+ * Wrapped with React.memo to prevent re-renders during map fly animations.
  */
-export function ResultsTable({
+export const ResultsTable = memo(function ResultsTable({
   mode,
   triData,
   superfundData,
@@ -45,6 +120,50 @@ export function ResultsTable({
   searchExpansion,
   onSearchExact,
 }: ResultsTableProps): JSX.Element {
+  // Performance logging
+  // Render count tracking (enable PERF_DEBUG to log)
+  const renderCount = useRef(0)
+  if (PERF_DEBUG) {
+    renderCount.current++
+    console.log(`[ResultsTable] render #${renderCount.current}, triData=${triData?.features.length ?? 'null'}, superfundData=${superfundData?.features.length ?? 'null'}`)
+  }
+
+  // Track how many rows to display (reset when data changes)
+  const [triDisplayLimit, setTriDisplayLimit] = useState(INITIAL_DISPLAY_LIMIT)
+  const [superfundDisplayLimit, setSuperfundDisplayLimit] = useState(INITIAL_DISPLAY_LIMIT)
+
+  // Reset display limits when data changes (new search)
+  useEffect(() => {
+    setTriDisplayLimit(INITIAL_DISPLAY_LIMIT)
+  }, [triData])
+  useEffect(() => {
+    setSuperfundDisplayLimit(INITIAL_DISPLAY_LIMIT)
+  }, [superfundData])
+
+  // PERFORMANCE: Memoize sorting to avoid re-sorting 22K items on every render
+  // (highlight changes, mouse events, etc. would otherwise trigger full re-sort)
+  const sortedTri = useMemo(() => {
+    if (!triData) return []
+    if (PERF_DEBUG) console.time('[ResultsTable] sortedTri useMemo')
+    const result = [...triData.features].sort(
+      (a, b) => (b.properties.total_release_lbs ?? 0) - (a.properties.total_release_lbs ?? 0),
+    )
+    if (PERF_DEBUG) console.timeEnd('[ResultsTable] sortedTri useMemo')
+    return result
+  }, [triData])
+
+  const sortedSuperfund = useMemo(() => {
+    if (!superfundData) return []
+    if (PERF_DEBUG) console.time('[ResultsTable] sortedSuperfund useMemo')
+    const result = [...superfundData.features].sort((a, b) => {
+      const aScore = a.properties.hrs_score ?? -1
+      const bScore = b.properties.hrs_score ?? -1
+      return bScore - aScore
+    })
+    if (PERF_DEBUG) console.timeEnd('[ResultsTable] sortedSuperfund useMemo')
+    return result
+  }, [superfundData])
+
   // ── Both mode (TRI + Superfund combined) ──────────────────────────────────
   if (mode === 'both') {
     if (loading && !triData && !superfundData) {
@@ -63,15 +182,11 @@ export function ResultsTable({
       )
     }
 
-    const sortedTri = triData ? [...triData.features].sort(
-      (a, b) => (b.properties.total_release_lbs ?? 0) - (a.properties.total_release_lbs ?? 0),
-    ) : []
-
-    const sortedSuperfund = superfundData ? [...superfundData.features].sort((a, b) => {
-      const aScore = a.properties.hrs_score ?? -1
-      const bScore = b.properties.hrs_score ?? -1
-      return bScore - aScore
-    }) : []
+    // Use pre-sorted arrays (memoized above)
+    const displayedTri = sortedTri.slice(0, triDisplayLimit)
+    const hasMoreTri = sortedTri.length > triDisplayLimit
+    const displayedSuperfund = sortedSuperfund.slice(0, superfundDisplayLimit)
+    const hasMoreSuperfund = sortedSuperfund.length > superfundDisplayLimit
 
     return (
       <div data-testid="results-table" style={{ fontSize: '12px' }}>
@@ -93,7 +208,7 @@ export function ResultsTable({
             </div>
             <table className="toxmap-results-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
               <tbody>
-                {sortedTri.map((feature) => {
+                {displayedTri.map((feature) => {
                   const props = feature.properties
                   const isHighlighted = props.tri_facility_id === highlightedFacilityId
                   return (
@@ -119,19 +234,27 @@ export function ResultsTable({
                 })}
               </tbody>
             </table>
-
+            {hasMoreTri && (
+              <button
+                type="button"
+                onClick={() => setTriDisplayLimit((prev) => prev + LOAD_MORE_INCREMENT)}
+                style={{ width: '100%', padding: '8px', fontSize: '12px', color: '#166534', background: '#f0fdf4', border: 'none', cursor: 'pointer', fontWeight: 500 }}
+              >
+                Load {Math.min(LOAD_MORE_INCREMENT, sortedTri.length - triDisplayLimit)} more ({sortedTri.length - triDisplayLimit} remaining)
+              </button>
+            )}
           </>
         )}
 
         {/* Superfund section */}
-        {sortedSuperfund.length > 0 && (
+        {displayedSuperfund.length > 0 && (
           <>
             <div style={{ padding: '6px 10px', background: '#fef2f2', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', color: '#991b1b', borderBottom: '1px solid #fecaca' }}>
               Superfund Sites ({superfundCount})
             </div>
             <table className="toxmap-results-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
               <tbody>
-                {sortedSuperfund.map((feature) => {
+                {displayedSuperfund.map((feature) => {
                   const props = feature.properties
                   const isHighlighted = props.epa_id === highlightedFacilityId
                   return (
@@ -160,6 +283,15 @@ export function ResultsTable({
                 })}
               </tbody>
             </table>
+            {hasMoreSuperfund && (
+              <button
+                type="button"
+                onClick={() => setSuperfundDisplayLimit((prev) => prev + LOAD_MORE_INCREMENT)}
+                style={{ width: '100%', padding: '8px', fontSize: '12px', color: '#991b1b', background: '#fef2f2', border: 'none', cursor: 'pointer', fontWeight: 500 }}
+              >
+                Load {Math.min(LOAD_MORE_INCREMENT, sortedSuperfund.length - superfundDisplayLimit)} more ({sortedSuperfund.length - superfundDisplayLimit} remaining)
+              </button>
+            )}
           </>
         )}
       </div>
@@ -179,11 +311,9 @@ export function ResultsTable({
         </p>
       )
     }
-    const sorted = [...superfundData.features].sort((a, b) => {
-      const aScore = a.properties.hrs_score ?? -1
-      const bScore = b.properties.hrs_score ?? -1
-      return bScore - aScore
-    })
+    // Use pre-sorted array (memoized above)
+    const displayed = sortedSuperfund.slice(0, superfundDisplayLimit)
+    const hasMore = sortedSuperfund.length > superfundDisplayLimit
     return (
       <div data-testid="results-table">
         <p data-testid="results-summary" className="toxmap-results-count" style={{ padding: '4px 10px', fontSize: '11px', color: '#6b7280', margin: 0, borderBottom: '1px solid #f3f4f6' }}>
@@ -197,7 +327,7 @@ export function ResultsTable({
             </tr>
           </thead>
           <tbody>
-            {sorted.map((feature) => {
+            {displayed.map((feature) => {
               const props = feature.properties
               const isHighlighted = props.epa_id === highlightedFacilityId
               return (
@@ -238,6 +368,15 @@ export function ResultsTable({
             })}
           </tbody>
         </table>
+        {hasMore && (
+          <button
+            type="button"
+            onClick={() => setSuperfundDisplayLimit((prev) => prev + LOAD_MORE_INCREMENT)}
+            style={{ width: '100%', padding: '8px', fontSize: '12px', color: '#991b1b', background: '#fef2f2', border: 'none', cursor: 'pointer', fontWeight: 500 }}
+          >
+            Load {Math.min(LOAD_MORE_INCREMENT, sortedSuperfund.length - superfundDisplayLimit)} more ({sortedSuperfund.length - superfundDisplayLimit} remaining)
+          </button>
+        )}
       </div>
     )
   }
@@ -255,9 +394,9 @@ export function ResultsTable({
     )
   }
 
-  const sorted = [...triData.features].sort(
-    (a, b) => (b.properties.total_release_lbs ?? 0) - (a.properties.total_release_lbs ?? 0),
-  )
+  // Use pre-sorted array (memoized above)
+  const displayed = sortedTri.slice(0, triDisplayLimit)
+  const hasMore = sortedTri.length > triDisplayLimit
 
   return (
     <div data-testid="results-table">
@@ -272,7 +411,7 @@ export function ResultsTable({
           </tr>
         </thead>
         <tbody>
-          {sorted.map((feature) => {
+          {displayed.map((feature) => {
             const props = feature.properties
             const isHighlighted = props.tri_facility_id === highlightedFacilityId
             return (
@@ -312,6 +451,15 @@ export function ResultsTable({
           })}
         </tbody>
       </table>
+      {hasMore && (
+        <button
+          type="button"
+          onClick={() => setTriDisplayLimit((prev) => prev + LOAD_MORE_INCREMENT)}
+          style={{ width: '100%', padding: '8px', fontSize: '12px', color: '#166534', background: '#f0fdf4', border: 'none', cursor: 'pointer', fontWeight: 500 }}
+        >
+          Load {Math.min(LOAD_MORE_INCREMENT, sortedTri.length - triDisplayLimit)} more ({sortedTri.length - triDisplayLimit} remaining)
+        </button>
+      )}
     </div>
   )
-}
+}, arePropsEqual)

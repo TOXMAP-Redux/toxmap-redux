@@ -1,7 +1,7 @@
 # TOXMAP Progress Tracker
 
 **Owner:** Phase Manager Agent  
-**Last Updated:** 2026-08-06 (7.BUG.37 — By Medium data integrity + off-site transfers [agent])  
+**Last Updated:** 2026-08-07 (ADR-010 — Facility search autocomplete + TRI ID link [agent])  
 **Source of truth for:** `CURRENT_PHASE.txt` · DoD status · active assignments · blockers  
 
 > This file is updated by the Phase Manager at the end of every development session.  
@@ -700,6 +700,32 @@ Phase 5 DoD tests use Census 2000 layer only.
 | 7.BUG.35 | Superfund contaminants batch — 115+ additional chemicals (radionuclides, PAHs, chemical warfare agents, solvents) | 3 | ✅ | BE | Batch addition of chemicals reported from various Superfund sites: (1) PAHs: benzo[a]aceanthrylene, anthanthrene, dibenzo[a,h]pyrene, dibenzo[a,e]pyrene; (2) Radionuclides: actinium-228, cesium-134, cobalt-57, curium, lead-210/212/214, manganese-54, plutonium-241/242, potassium-40, sodium-22, thorium-234, bismuth-214, alpha/beta gross; (3) Chemical warfare agents: mustard gas (1-chloro-2-[(2-chloroethyl)sulfanyl]ethane), lewisite; (4) Nitrotoluenes (2/3/4-nitrotoluene IUPAC names), picric acid, nitroanilines; (5) Pesticides: mevinphos, EPN, silvex; (6) Solvents: methylcyclohexane, cyclohexanone, octane, pentane, nonane, diethyl ether; (7) Misc industrial: biphenyl, polychlorinated terphenyls, caprolactam, dibromomethane, sulfur dioxide, vanadium pentoxide, CFC-114. Lookup table now **684 entries**. 2026-08-06 |
 | 7.BUG.36 | Superfund CAS lookup structural refactoring — dioxin/furan congeners missing PubChem URLs | 2 | ✅ | BE | Root cause: Previous refactoring (ADR-007 canonical+aliases pattern) left 18 dioxin/furan congener entries as 2-tuples `(CAS, ATSDR)` instead of 3-tuples `(CAS, ATSDR, PUBCHEM)`. Test `test_dioxins_not_missing_urls` failed because these entries lacked explicit PubChem URLs. Affected chemicals: OCDF (CID 33318), OCDD (CID 15771), 1,2,3,4,6,7,8-HPCDD (CID 37036), 1,2,3,4,7,8,9-HPCDF (CID 38981), 1,2,3,4,6,7,8-HPCDF (CID 38982), HPCDF (MIXED), 1,2,3,4,7,8-HXCDF (CID 62853), 1,2,3,4,7,8-HXCDD (CID 36831), 1,2,3,6,7,8-HXCDF (CID 62855), 1,2,3,6,7,8-HXCDD (CID 39925), 1,2,3,7,8,9-HXCDD (CID 36830), 1,2,3,7,8,9-HXCDF (CID 62857), 2,3,4,6,7,8-HXCDF (CID 62856), HXCDF (MIXED), 1,2,3,7,8-PECDF (CID 62858), 1,2,3,7,8-PECDD (CID 38990), 2,3,4,7,8-PECDF (CID 62859). Fix: Converted all 18 entries to 3-tuples with explicit PubChem compound URLs. Lookup table structure: 500 canonical + 263 aliases = **763 total entries** with 28.5% data reduction from ADR-007 refactoring. Regression test `test_dioxins_not_missing_urls` now passes. 2026-08-06 |
 | 7.BUG.37 | "By Medium" tab data integrity — medium sum must match Top Chemicals total | 2 | ✅ | BE+FE | **Root causes:** (1) Frontend fetched only 15 years of releases by default while Top Chemicals aggregated ALL years since 1987; (2) Medium breakdown excluded off-site transfers (TRI Field 88) while Top Chemicals total did not account for them. **Backend fixes:** Added `off_site_lbs` field to `ReleaseEventSchema` and service layer. Updated `get_facility_detail` to compute `total_release_lbs` as `SUM(COALESCE(total_release_lbs, 0) + COALESCE(off_site_lbs, 0))` — now includes both on-site and off-site transfers. Same for per-chemical totals. **Frontend fixes:** (1) `useFacilityReleases(facilityId, 1987, currentYear)` — fetches full date range matching "all years" label; (2) Added "Off-site" to `mediumData` array alongside Air/Water/Land/Underground; (3) Updated `ReleaseEvent` type with `off_site_lbs: number | null`. Verified: Hanford (99352SDPRTPOBOX) now shows ~22.6M total = sum of all mediums. 2026-08-06 |
+| 7.BUG.38 | TRI medium discrepancy display — discrepancy between medium sum and EPA-reported total now shown with explanation | 2 | ✅ | FE | **Root cause:** EPA TRI Field 65 (ON-SITE RELEASE TOTAL) does not always equal sum of Fields 51-64 (individual mediums) due to self-reporting errors, data amendments, or Form A certifications. This is an inherent EPA data quality limitation, not a code bug. **Fix:** Added discrepancy section to "By Medium" tab showing: (1) EPA-Reported Total from Top Chemicals; (2) Calculated discrepancy with ± and percentage; (3) Detailed explanatory footnote linking to EPA TRI data quality page. Discrepancy hidden when < 1 lb. **Terminology:** "Discrepancy" used instead of "variance" — variance is a statistical term (σ²); discrepancy correctly describes the arithmetic difference. `data-testid="medium-discrepancy-section"`, `"medium-epa-total"`, `"medium-discrepancy-value"`, `"medium-discrepancy-footnote"`. Escalation doc: `docs/escalations/ESCALATION_20260806_TRI_MEDIUM_TOTAL_VARIANCE.md`. 2026-08-06 |
+
+**Epic 7.ADR10 — Facility Search Autocomplete (ADR-010)** `BE + FE`
+
+> **Purpose:** Implement direct TRI facility search by ID or name. Users can now search facilities by exact/partial TRI ID or facility name without needing a geographic location. Added per [ADR-010](../../adr/ADR-010-facility-search-autocomplete.md).
+>
+> **Definition of Done:**
+> - [x] `GET /api/v1/facilities/search?q=` endpoint live with 6-tier relevance scoring
+> - [x] `pg_trgm` GIN index for <100ms p95 latency
+> - [x] Frontend `FacilitySearchInput` component with autocomplete dropdown
+> - [x] TRI Facility ID in drawer header links to EPA EnviroFacts
+> - [x] "EPA TRI Facility Report ↗" link at bottom of drawer (parity with Superfund)
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 7.ADR10.1 | Alembic migration: `pg_trgm` extension + GIN index on `facilities.name` | 2 | ✅ | BE | `f1a2b3c4d5e6_add_facility_search_indexes.py`. 2026-08-07 |
+| 7.ADR10.2 | `GET /api/v1/facilities/search` endpoint with 6-tier relevance scoring | 3 | ✅ | BE | Exact ID=1.0, prefix ID=0.95, exact name=0.90, prefix name=0.80, contains name=0.60, contains ID=0.50. 2026-08-07 |
+| 7.ADR10.3 | `FacilitySearchResult` Pydantic schema | 1 | ✅ | BE | `match_type: Literal["id", "name"]`, `relevance_score: float`. 2026-08-07 |
+| 7.ADR10.4 | `useFacilitySearch` hook with 300ms debounce | 2 | ✅ | FE | AbortController for request cancellation. 2026-08-07 |
+| 7.ADR10.5 | `FacilitySearchInput` component with autocomplete dropdown | 3 | ✅ | FE | Match type badges (ID Match / Name Match), facility location display. 2026-08-07 |
+| 7.ADR10.6 | Integrate FacilitySearchInput into SearchPanel | 2 | ✅ | FE | "Find Facility by ID or Name" field with "or search by chemical" divider. 2026-08-07 |
+| 7.ADR10.7 | **Enhancement:** TRI Facility ID link in drawer header | 2 | ✅ | FE | TRI ID now links to `enviro.epa.gov/facts/tri/ef-facilities/#/Facility/{TRI_ID}`. Parity with Superfund EPA ID link. 2026-08-07 |
+| 7.ADR10.8 | **Enhancement:** EPA TRI Facility Report link at bottom of drawer | 1 | ✅ | FE | "EPA TRI Facility Report ↗" link above "Close panel" — mirrors Superfund's "EPA Site Progress Profile ↗" link. 2026-08-07 |
+| 7.ADR10.9 | API contract update | 1 | ✅ | FE | `TOXMAP_API_CONTRACT.md` §1c endpoint spec + catalog entry. 2026-08-07 |
+| 7.ADR10.10 | Test ID registry update | 1 | ✅ | QA | `facility-search-input`, `facility-search-dropdown`, `facility-search-option`, `facility-match-badge`, `facility-tri-id-link`, `facility-epa-report-link`. 2026-08-07 |
+| 7.ADR10.11 | Gherkin regression tests | 2 | ✅ | QA | 8 API scenarios in `facility_search.feature` + 4 E2E scenarios in `ux_invariants.feature`. 2026-08-07 |
 
 **Epic 7.ADR9 — Cloudflare Workers Geocoding Proxy (ADR-009)** `OPS + FE`
 

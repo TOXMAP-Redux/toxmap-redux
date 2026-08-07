@@ -2,13 +2,14 @@
 
 Phase 2 — story 2.1.1 through 2.3.x.
 ADR-007 — Chemical families for transparent right-to-know search.
+ADR-010 — Facility search autocomplete (ID and name).
 """
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 # ---------------------------------------------------------------------------
 # Color-band helper
@@ -155,3 +156,35 @@ class LargestReleaseResponse(BaseModel):
     total_release_lbs: float
     unit_of_measure: str
     location: dict[str, float]
+
+
+# ---------------------------------------------------------------------------
+# GET /api/v1/facilities/search — SiteSearchResult (ADR-010)
+# ---------------------------------------------------------------------------
+
+
+class SiteSearchResult(BaseModel):
+    """Unified site search result for TRI facilities and Superfund sites (ADR-010).
+
+    Supports autocomplete by TRI ID, EPA ID (Superfund), or name with ranked results.
+    site_type discriminates between TRI facilities and Superfund sites.
+    site_id contains either the TRI Facility ID or EPA Site ID depending on site_type.
+    match_type indicates whether the query matched an ID or the name.
+    relevance_score ranges from 0.0 to 1.0, with exact ID matches at 1.0.
+    """
+
+    id: int
+    site_type: Literal["tri", "superfund"]
+    site_id: str  # TRI Facility ID or EPA Site ID depending on site_type
+    name: str
+    city: str | None = None
+    state_code: str | None = None
+    county: str | None = None
+    match_type: Literal["id", "name"]
+    relevance_score: float = Field(ge=0.0, le=1.0)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# Legacy alias for backwards compatibility
+FacilitySearchResult = SiteSearchResult

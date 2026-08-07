@@ -127,13 +127,14 @@ export function SuperfundDrawer({ epaId, onClose, width = 340, onWidthChange }: 
       {data && <SuperfundDrawerContent site={data} onClose={onClose} />}
 
       {/* Close link at bottom (UX Invariant 9) */}
-      <div style={{ padding: '12px 16px', borderTop: '1px solid #e5e7eb', marginTop: 'auto', flexShrink: 0 }}>
+      <div className="toxmap-drawer-footer" style={{ flexShrink: 0, borderTop: '1px solid #e5e7eb', padding: '10px', textAlign: 'center' }}>
         <button
           data-testid="popup-close-bottom"
+          type="button"
           onClick={onClose}
-          style={{ fontSize: '12px', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: '#9ca3af', fontFamily: 'inherit' }}
         >
-          ← Close
+          Close panel
         </button>
       </div>
 

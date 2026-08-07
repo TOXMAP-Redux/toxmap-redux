@@ -2432,3 +2432,209 @@ def superfund_drawer_width_increased(page: Page, step_context) -> None:
         f'REGRESSION 7.BUG.31: Superfund drawer width did not increase. '
         f'Initial: {initial_width}px, Current: {current_width}px'
     )
+
+
+# ── 7.BUG.38: TRI Medium Discrepancy Display ───────────────────────────────────────
+
+
+@then('the medium discrepancy section is visible')
+def medium_discrepancy_section_visible(page: Page) -> None:
+    """
+    Regression test for 7.BUG.38: Discrepancy section must be visible in By Medium tab.
+    """
+    discrepancy_section = page.locator('[data-testid="medium-discrepancy-section"]')
+    expect(discrepancy_section).to_be_visible()
+
+
+@then('the EPA-reported total is displayed')
+def epa_total_displayed(page: Page) -> None:
+    """
+    Regression test for 7.BUG.38: EPA-reported total must be shown in discrepancy section.
+    """
+    epa_total = page.locator('[data-testid="medium-epa-total"]')
+    expect(epa_total).to_be_visible()
+    text = epa_total.inner_text()
+    # Should contain "lbs" formatting
+    assert 'lbs' in text.lower() or re.search(r'[\d,]+', text), (
+        f'REGRESSION 7.BUG.38: EPA total should show formatted value. Got: {text}'
+    )
+
+
+@then('the discrepancy footnote explains TRI data quality')
+def discrepancy_footnote_explains_data_quality(page: Page) -> None:
+    """
+    Regression test for 7.BUG.38: Footnote must explain why discrepancy exists.
+    """
+    footnote = page.locator('[data-testid="medium-discrepancy-footnote"]')
+    expect(footnote).to_be_visible()
+    text = footnote.inner_text().lower()
+    # Must mention key concepts
+    assert 'epa' in text or 'self-report' in text or 'data quality' in text, (
+        f'REGRESSION 7.BUG.38: Footnote should explain TRI data quality. Got: {text[:100]}...'
+    )
+
+
+@then('the discrepancy footnote contains a link to EPA TRI data quality page')
+def discrepancy_footnote_contains_epa_link(page: Page) -> None:
+    """
+    Regression test for 7.BUG.38: Footnote must link to EPA TRI data quality page.
+    """
+    footnote = page.locator('[data-testid="medium-discrepancy-footnote"]')
+    expect(footnote).to_be_visible()
+    
+    # Find the link within the footnote
+    link = footnote.locator('a')
+    expect(link).to_be_visible()
+    href = link.get_attribute('href')
+    assert href and 'epa.gov' in href and 'tri' in href.lower(), (
+        f'REGRESSION 7.BUG.38: Footnote link should point to EPA TRI page. Got: {href}'
+    )
+
+
+@then('the discrepancy label shows "Aggregate Discrepancy"')
+def discrepancy_label_shows_aggregate(page: Page) -> None:
+    """
+    Regression test for 7.BUG.38 Option A: Discrepancy must be labeled as "Aggregate"
+    to warn users that it's summed across all years and may mask year-over-year issues.
+    """
+    discrepancy_section = page.locator('[data-testid="medium-discrepancy-section"]')
+    expect(discrepancy_section).to_be_visible()
+    text = discrepancy_section.inner_text().lower()
+    assert 'aggregate' in text, (
+        f'REGRESSION 7.BUG.38: Discrepancy must be labeled as "Aggregate Discrepancy". '
+        f'Text found: {text[:200]}...'
+    )
+
+
+@then('the discrepancy footnote references the 15-Year Trend tab')
+def discrepancy_footnote_references_trend_tab(page: Page) -> None:
+    """
+    Regression test for 7.BUG.38 Option A: Footnote must direct users to the
+    15-Year Trend tab for per-year discrepancy details (prevents aggregation masking).
+    """
+    footnote = page.locator('[data-testid="medium-discrepancy-footnote"]')
+    expect(footnote).to_be_visible()
+    text = footnote.inner_text().lower()
+    assert '15-year trend' in text or 'trend tab' in text, (
+        f'REGRESSION 7.BUG.38: Footnote should reference the 15-Year Trend tab '
+        f'for per-year discrepancy. Text found: {text[:200]}...'
+    )
+
+
+@then('the trend discrepancy legend is visible')
+def trend_discrepancy_legend_visible(page: Page) -> None:
+    """
+    Regression test for 7.BUG.38 Option A: 15-Year Trend tab must show a legend
+    explaining the per-year discrepancy indicators.
+    """
+    legend = page.locator('[data-testid="trend-discrepancy-legend"]')
+    expect(legend).to_be_visible()
+
+
+@then('the trend discrepancy legend explains high discrepancy indicators')
+def trend_discrepancy_legend_explains_indicators(page: Page) -> None:
+    """
+    Regression test for 7.BUG.38 Option A: Legend must explain what the
+    red ring indicator means (≥5% discrepancy for that year).
+    """
+    legend = page.locator('[data-testid="trend-discrepancy-legend"]')
+    expect(legend).to_be_visible()
+    text = legend.inner_text().lower()
+    # Should mention discrepancy percentage threshold
+    assert '5%' in text or 'discrepancy' in text, (
+        f'REGRESSION 7.BUG.38: Legend should explain discrepancy indicator threshold. '
+        f'Text found: {text}'
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ADR-010: Facility Search Autocomplete + TRI ID Links
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@then('the facility search input is present')
+def facility_search_input_is_present(page: Page) -> None:
+    """ADR-010: Facility search input should be visible in search panel."""
+    input_elem = page.locator('[data-testid="facility-search-input"]')
+    expect(input_elem).to_be_visible()
+
+
+@then(parsers.parse('the facility search input has placeholder "{placeholder}"'))
+def facility_search_input_has_placeholder(page: Page, placeholder: str) -> None:
+    """ADR-010: Facility search input should have correct placeholder text."""
+    input_elem = page.locator('[data-testid="facility-search-input"]')
+    expect(input_elem).to_be_visible()
+    actual_placeholder = input_elem.get_attribute('placeholder')
+    assert placeholder in actual_placeholder, (
+        f'ADR-010: Expected placeholder containing "{placeholder}", got "{actual_placeholder}"'
+    )
+
+
+@when(parsers.parse('I type "{text}" into the facility search input'))
+def type_into_facility_search_input(page: Page, text: str) -> None:
+    """ADR-010: Type text into the facility search input."""
+    input_elem = page.locator('[data-testid="facility-search-input"]')
+    input_elem.click()
+    input_elem.fill(text)
+    # Wait for debounce + API response
+    page.wait_for_timeout(400)
+
+
+@then('the facility search dropdown appears')
+def facility_search_dropdown_appears(page: Page) -> None:
+    """ADR-010: Facility search dropdown should appear after typing."""
+    dropdown = page.locator('[data-testid="facility-search-dropdown"]')
+    expect(dropdown).to_be_visible()
+
+
+@then(parsers.parse('the facility search dropdown shows at least {count:d} result'))
+def facility_search_dropdown_has_results(page: Page, count: int) -> None:
+    """ADR-010: Facility search dropdown should show at least N results."""
+    options = page.locator('[data-testid="facility-search-option"]')
+    expect(options.first).to_be_visible()
+    actual_count = options.count()
+    assert actual_count >= count, (
+        f'ADR-010: Expected at least {count} results, got {actual_count}'
+    )
+
+
+@then('the TRI ID link is visible')
+def tri_id_link_is_visible(page: Page) -> None:
+    """ADR-010: TRI Facility ID should be a clickable link in drawer header."""
+    link = page.locator('[data-testid="facility-tri-id-link"]')
+    expect(link).to_be_visible()
+
+
+@then(parsers.parse('the TRI ID links to "{domain}"'))
+def tri_id_links_to_domain(page: Page, domain: str) -> None:
+    """ADR-010: TRI ID link should point to EPA EnviroFacts."""
+    link = page.locator('[data-testid="facility-tri-id-link"]')
+    expect(link).to_be_visible()
+    href = link.get_attribute('href')
+    assert href and domain in href, (
+        f'ADR-010: TRI ID link should point to {domain}. Got: {href}'
+    )
+
+
+@then('the EPA TRI Facility Report link is visible')
+def epa_tri_facility_report_link_visible(page: Page) -> None:
+    """ADR-010: EPA TRI Facility Report link should be visible at bottom of drawer."""
+    link = page.locator('[data-testid="facility-epa-report-link"]')
+    expect(link).to_be_visible()
+
+
+@then('the EPA TRI Facility Report link is above the close button')
+def epa_tri_report_link_above_close(page: Page) -> None:
+    """ADR-010: EPA TRI Facility Report link should appear before close button (parity with Superfund)."""
+    report_link = page.locator('[data-testid="facility-epa-report-link"]')
+    close_button = page.locator('[data-testid="popup-close-bottom"]')
+    expect(report_link).to_be_visible()
+    expect(close_button).to_be_visible()
+    
+    # Check vertical order: report link box should be above close button box
+    report_box = report_link.bounding_box()
+    close_box = close_button.bounding_box()
+    assert report_box and close_box, 'ADR-010: Could not get bounding boxes for layout check'
+    assert report_box['y'] < close_box['y'], (
+        f'ADR-010: EPA TRI Report link (y={report_box["y"]}) should be above close button (y={close_box["y"]})'
+    )

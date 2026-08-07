@@ -44,7 +44,6 @@ This document tracks the triage and resolution of defects discovered during the 
 
 | ID | Summary | Severity | Assigned | PR | Status |
 |----|---------|----------|----------|-----|--------|
-| 6.PERF.1 | Radius search 800ms (SLA: 500ms) with 32K facilities | P2 | BE | — | 🔍 Deferred to Phase 7 |
 | 6.PERF.2 | Chemical autocomplete 110ms (SLA: 100ms) with full chemical table | P3 | BE | — | 🔍 Deferred to Phase 7 |
 | 6.TEST.1 | seed.sql incompatible with production data — 3 API tests fail | P1 | QA | — | 🚫 **BLOCKED** — requires human approval to modify protected file |
 
@@ -52,6 +51,7 @@ This document tracks the triage and resolution of defects discovered during the 
 
 | ID | Summary | Severity | Resolution | Verified |
 |----|---------|----------|------------|----------|
+| 6.PERF.1 | Radius search 800ms (SLA: 500ms) with 32K facilities | P2 | Fixed by 7.PERF.1 query optimization — now ~37ms (spatial filter before aggregation). See `ESCALATION_20260807_RESULTS_TABLE_PERF.md`. | ✅ 2026-08-07 |
 | 6.PERF.3 | Browse endpoint ignored bbox param — returned 21K facilities for any bbox | P1 | Added `bbox` parameter and `ST_Within` filter to `/facilities/browse` | ✅ 2026-08-04 |
 | 6.PERF.4 | Geography GIST index missing — ST_DWithin did sequential scan | P1 | Added `idx_facilities_location_geography` and `idx_superfund_location_geography` indexes | ✅ 2026-08-04 |
 | 6.PERF.5 | Chemicals name index missing — autocomplete slow | P2 | Added `idx_chemicals_name_lower` B-tree index | ✅ 2026-08-04 |
@@ -135,6 +135,8 @@ This document tracks the triage and resolution of defects discovered during the 
 | 7.BUG.35 | Superfund contaminants batch — 115+ additional chemicals (radionuclides, PAHs, chemical warfare agents, solvents) | P2 | Batch addition: PAHs (anthanthrene, dibenzo[a,h]pyrene), radionuclides (actinium-228, cesium-134, curium, lead isotopes, plutonium-241/242), chemical warfare agents (mustard gas, lewisite), nitrotoluenes, solvents (methylcyclohexane, cyclohexanone, octane, pentane). Lookup table now **684 entries**. | ✅ 2026-08-06 |
 | 7.BUG.36 | Superfund CAS lookup ADR-007 refactoring — dioxin/furan congeners missing PubChem URLs | P2 | Refactored `superfund_cas_lookup.py` per ADR-007 canonical+aliases pattern (28.5% data reduction). Fixed 18 dioxin/furan entries that were 2-tuples instead of 3-tuples: OCDF, OCDD, HPCDD/HPCDF, HXCDD/HXCDF, PECDD/PECDF variants. Lookup now **763 entries** (500 canonical + 263 aliases). Regression test `test_dioxins_not_missing_urls` passes. | ✅ 2026-08-06 |
 | 7.BUG.37 | "By Medium" data integrity — sum must equal Top Chemicals total | P2 | **Backend:** Added `off_site_lbs` to API; updated facility detail to include off-site in totals. **Frontend:** Fetches 1987–present (not 15-year default); added Off-site to medium breakdown. Hanford now shows 22.6M total = mediums sum. | ✅ 2026-08-06 |
+| 7.BUG.38 | TRI medium discrepancy display — discrepancy between medium sum and EPA total | P2 | EPA Field 65 (ON-SITE RELEASE TOTAL) ≠ sum of Fields 51-64 due to self-reporting errors. **Fix:** Display EPA total + discrepancy + detailed footnote with EPA TRI data quality link in "By Medium" tab. "Discrepancy" used instead of "variance" (variance is a statistical term; discrepancy is the arithmetic difference). Escalation doc: `ESCALATION_20260806_TRI_MEDIUM_TOTAL_VARIANCE.md`. 3 regression tests. | ✅ 2026-08-06 |
+| 7.PERF.1 | **CRITICAL**: Location search 60s delay — query aggregated 1M rows before spatial filter | P0 | Refactored `facility_service.py` to filter facilities spatially FIRST (PostGIS GiST index → ~150 rows), then aggregate releases. Removed unnecessary Chemical JOIN when no chemical filter. **Result:** 63s → 37ms (1,700x improvement). Escalation doc: `ESCALATION_20260807_RESULTS_TABLE_PERF.md`. | ✅ 2026-08-07 |
 
 ---
 
@@ -282,8 +284,8 @@ Before closing B-002 and re-certifying Phase 6:
 - **Phase 6 defects resolved:** 39 (6.BUG.1–16, 6.SEC.1–4, 6.DOC.1–3, 6.INFRA.1–7, 6.UX.1–3, 6.PERF.3–5)
 - **Phase 6 defects deferred:** 2 (6.PERF.1–2 — production SLA verification deferred to Phase 7)
 - **Phase 6 defects blocked:** 1 (6.TEST.1 — seed.sql requires human approval to fix)
-- **Phase 7 defects resolved:** 29 (7.BUG.1–29)
-- **Total defects triaged:** 71
+- **Phase 7 defects resolved:** 38 (7.BUG.1–38)
+- **Total defects triaged:** 80
 - **Remaining in progress:** 3 (2 deferred non-blocking, 1 blocked on human approval)
 
 ---

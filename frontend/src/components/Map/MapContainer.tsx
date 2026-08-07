@@ -31,7 +31,6 @@ import Map, {
   Popup,
   type MapRef,
   type ViewState,
-  type ViewStateChangeEvent,
   type MapLayerMouseEvent,
 } from 'react-map-gl/maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -106,6 +105,8 @@ interface MapContainerProps {
   viewState: ViewState
   onViewStateChange: (vs: ViewState) => void
   onBoundsChange: (bbox: [number, number, number, number]) => void
+  /** Ref callback to expose flyTo function for programmatic camera moves */
+  onMapReady?: (flyTo: (lat: number, lon: number, zoom: number) => void) => void
   facilities: FacilityCollection | null
   selectedFacilityId: string | null
   highlightedFacilityId: string | null
@@ -206,6 +207,7 @@ export function MapContainer({
   viewState,
   onViewStateChange,
   onBoundsChange,
+  onMapReady,
   facilities,
   selectedFacilityId,
   highlightedFacilityId,
@@ -228,20 +230,42 @@ export function MapContainer({
   /** True once all Superfund SVG sprites are registered — gates the superfund-sites layer */
   const [spritesReady, setSpritesReady] = useState(false)
 
-  // Emit bbox whenever the map stops moving
-  const handleMoveEnd = useCallback(() => {
+  // PERFORMANCE: Don't update React state on every animation frame!
+  // Only sync viewState on moveEnd to prevent 80+ re-renders during flyTo.
+  const handleMoveEndWithViewSync = useCallback(() => {
     const map = mapRef.current?.getMap()
     if (!map) return
     const b = map.getBounds()
     onBoundsChange([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()])
-  }, [onBoundsChange])
+    // Sync viewState to React for legend zoom display
+    const center = map.getCenter()
+    onViewStateChange({
+      latitude: center.lat,
+      longitude: center.lng,
+      zoom: map.getZoom(),
+      bearing: map.getBearing(),
+      pitch: map.getPitch(),
+      padding: map.getPadding(),
+    })
+  }, [onViewStateChange, onBoundsChange])
 
   // Register diamond SVG sprites on map load (story 4.1.1)
   const handleLoad = useCallback(() => {
     setMapLoaded(true)
-    handleMoveEnd()
+    handleMoveEndWithViewSync()
     const map = mapRef.current?.getMap()
     if (!map) return
+
+    // Expose flyTo function for programmatic camera moves
+    // PERFORMANCE: Use jumpTo instead of flyTo to avoid CPU spike from
+    // basemap tile processing during animation. The flyTo animation
+    // triggers MapLibre to load many tiles at intermediate zoom levels,
+    // causing CPU-intensive style expression evaluation.
+    if (onMapReady) {
+      onMapReady((lat: number, lon: number, zoom: number) => {
+        map.jumpTo({ center: [lon, lat], zoom })
+      })
+    }
 
     // DEBUG: Expose map instance globally (can be removed in production)
     ;(window as unknown as { __DEBUG_MAP__: maplibregl.Map }).__DEBUG_MAP__ = map
@@ -266,11 +290,7 @@ export function MapContainer({
       if (!map.hasImage('superfund-deleted')) map.addImage('superfund-deleted', deletedXSquare)
       setSpritesReady(true)
     }).catch(() => { /* sprite registration failure is non-fatal */ })
-  }, [handleMoveEnd])
-
-  const handleMove = useCallback((evt: ViewStateChangeEvent) => {
-    onViewStateChange(evt.viewState)
-  }, [onViewStateChange])
+  }, [handleMoveEndWithViewSync, onMapReady])
 
   const handleMouseEnter = useCallback(() => setCursor('pointer'), [])
   const handleMouseLeave = useCallback(() => setCursor('grab'), [])
@@ -314,33 +334,42 @@ export function MapContainer({
   // NOTE: Clustering is disabled due to a MapLibre/Supercluster bug where the
   // spatial index is not built when source is created imperatively after map load.
   // Individual circles render correctly at all zoom levels.
+  //
+  // PERFORMANCE FIX: Only create source/layer once. Use setData() for updates.
+  // Removing/re-adding 22K features took ~10 seconds and caused CPU spike.
   useEffect(() => {
     if (!mapLoaded) return
-    if (!facilities || facilities.features.length === 0) {
-      // No data — remove existing layers/source if present
-      const map = mapRef.current?.getMap()
-      if (map) {
-        if (map.getLayer('facility-circles')) map.removeLayer('facility-circles')
-        if (map.getSource('facilities')) map.removeSource('facilities')
-      }
-      setTriLayersReady(false)
-      return
-    }
-
     const map = mapRef.current?.getMap()
     if (!map) return
 
-    // Remove existing source/layers (for HMR or data change)
-    if (map.getLayer('facility-circles')) map.removeLayer('facility-circles')
-    if (map.getSource('facilities')) map.removeSource('facilities')
+    // If no data, just update to empty FeatureCollection (don't destroy layers)
+    if (!facilities || facilities.features.length === 0) {
+      const existingSource = map.getSource('facilities') as maplibregl.GeoJSONSource | undefined
+      if (existingSource) {
+        existingSource.setData({ type: 'FeatureCollection', features: [] })
+      }
+      return
+    }
 
-    // Create source WITHOUT clustering (clustering is broken in this context)
+    const newData: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: facilities.features,
+    }
+
+    // If source already exists, just update the data (FAST)
+    const existingSource = map.getSource('facilities') as maplibregl.GeoJSONSource | undefined
+    if (existingSource) {
+      existingSource.setData(newData)
+      return
+    }
+
+    // First time: create source and layer.
+    // buffer=0: no tile buffer for point data — circles don't bleed across tile edges.
+    // This halves worker processing time for the initial 30K browse load.
     map.addSource('facilities', {
       type: 'geojson',
-      data: {
-        type: 'FeatureCollection',
-        features: facilities.features,
-      },
+      data: newData,
+      buffer: 0,
     })
 
     // Individual facility circles (colored by release tier)
@@ -502,13 +531,11 @@ export function MapContainer({
       style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
     >      <Map
         ref={mapRef}
-        {...viewState}
-        // sidebarWidth passed as explicit padding prop AFTER the viewState spread so
-        // it always wins — avoids the imperative setPadding vs. controlled-viewState
-        // conflict where each camera move would reset padding to 0.
+        // PERFORMANCE: Use uncontrolled mode to prevent 80+ re-renders during flyTo animation.
+        // For programmatic camera moves, use flyToLocation callback instead of setViewState.
+        initialViewState={viewState}
         padding={{ top: 0, right: 0, bottom: 0, left: sidebarWidth }}
-        onMove={handleMove}
-        onMoveEnd={handleMoveEnd}
+        onMoveEnd={handleMoveEndWithViewSync}
         onLoad={handleLoad}
         onClick={handleMapClick}
         onMouseEnter={handleMouseEnter}

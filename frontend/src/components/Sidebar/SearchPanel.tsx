@@ -1,15 +1,16 @@
 /**
- * SearchPanel — stories 3.2.3–3.2.9.
+ * SearchPanel — stories 3.2.3–3.2.9 + ADR-010 (facility search).
  * UX Invariants: 1 (single sidebar), 2 (viewport scoped), 3 (state filter restricts),
  *                4 (correct labels), 8 (comma numbers).
  *
  * Panel label MUST be "Search Chemical Releases by Location" — NOT "Quick Search".
  * data-testids match TEST_ID_REGISTRY exactly.
  */
-import { useState, type FormEvent } from 'react'
+import { useState, useCallback, type FormEvent } from 'react'
 import { useChemicalAutocomplete } from '../../hooks/useChemicalAutocomplete'
+import { FacilitySearchInput } from './FacilitySearchInput'
 import { ResultsTable } from '../ResultsTable/ResultsTable'
-import type { Chemical, FacilityCollection, SuperfundCollection } from '../../api/types'
+import type { Chemical, FacilityCollection, FacilitySearchResult, SuperfundCollection } from '../../api/types'
 import type { GeocodeResult, GeocodeConfidence } from '../../api/geocode'
 
 /** US states for the state dropdown. */
@@ -84,6 +85,8 @@ interface SearchPanelProps {
   onSearch: (values: SearchFormValues) => void
   /** Resolved geocode result with confidence info — shown after geocode */
   resolvedGeocode: GeocodeResult | null
+  /** ADR-010: Called when user selects a facility from autocomplete dropdown */
+  onFacilitySearchSelect?: (facility: FacilitySearchResult) => void
 }
 
 /**
@@ -100,6 +103,7 @@ export function SearchPanel({
   onSelect,
   onSearch,
   resolvedGeocode,
+  onFacilitySearchSelect,
 }: SearchPanelProps): JSX.Element {
   const [location, setLocation] = useState('')
   const [chemicalInput, setChemicalInput] = useState('')
@@ -131,7 +135,8 @@ export function SearchPanel({
   }
 
   // ADR-007: Handler for "Search exact term only" from banner
-  const handleSearchExact = () => {
+  // Wrapped in useCallback to prevent unnecessary re-renders of ResultsTable
+  const handleSearchExact = useCallback(() => {
     onSearch({
       location,
       chemical: selectedChemical?.name ?? chemicalInput,
@@ -141,7 +146,7 @@ export function SearchPanel({
       dataset,
       exactMatch: true,
     })
-  }
+  }, [onSearch, location, selectedChemical, chemicalInput, year, state, dataset])
 
   return (
     <div data-testid="search-panel" className="toxmap-search-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -153,6 +158,30 @@ export function SearchPanel({
       {/* Scrollable content area — allows form + results to scroll when window is small */}
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
         <form onSubmit={handleSubmit} className="toxmap-search-form" style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px' }}>
+          {/* Facility search by ID or name — ADR-010 */}
+          {onFacilitySearchSelect && (
+            <>
+              <FacilitySearchInput
+                state={state || undefined}
+                onSelect={onFacilitySearchSelect}
+              />
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  margin: '4px 0',
+                }}
+              >
+                <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
+                <span style={{ fontSize: '10px', color: '#9ca3af', textTransform: 'uppercase' }}>
+                  or search by chemical
+                </span>
+                <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
+              </div>
+            </>
+          )}
+
           {/* Chemical field with autocomplete */}
         <div className="toxmap-search-field" style={{ position: 'relative' }}>
           <label htmlFor="chemical-input" style={{ display: 'block', fontSize: '11px', fontWeight: 500, color: '#6b7280', marginBottom: '3px' }}>
@@ -170,7 +199,7 @@ export function SearchPanel({
             }}
             onFocus={() => setShowSuggestions(true)}
             onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-            placeholder="e.g. LEAD COMPOUNDS"
+            placeholder="e.g. LEAD or GASOLINE"
             autoComplete="off"
           />
 
@@ -243,7 +272,7 @@ export function SearchPanel({
             type="text"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
-            placeholder="e.g. Sparrows Point, MD"
+            placeholder="e.g. Seattle, WA, 98134"
           />
         </div>
 

@@ -642,3 +642,82 @@ Feature: UX Design Invariants
     Then the Superfund detail panel opens
     When I drag the superfund drawer resize handle 100 pixels to the left
     Then the superfund drawer width has increased
+
+  # ── Regression: 7.BUG.38 — TRI Medium Discrepancy Display ────────────────────────
+  # Root cause: EPA TRI Field 65 (ON-SITE RELEASE TOTAL) does not always equal
+  # sum of Fields 51-64 (individual mediums) due to self-reporting errors.
+  # Fix: Display EPA total, calculated discrepancy, and explanatory footnote.
+  # Option A: Per-year discrepancy in Trend tab prevents aggregation masking.
+
+  @regression @7BUG38
+  Scenario: Regression — By Medium tab shows aggregate discrepancy with Trend tab callout
+    Given I am on the map page
+    When I type "Hanford, WA" into the location field
+    And I click "Search"
+    And I click on the first TRI facility in the results
+    Then the facility detail drawer opens
+    When I click the "By Medium" tab
+    Then the medium discrepancy section is visible
+    And the EPA-reported total is displayed
+    And the discrepancy label shows "Aggregate Discrepancy"
+    And the discrepancy footnote references the 15-Year Trend tab
+
+  @regression @7BUG38
+  Scenario: Regression — Medium discrepancy footnote contains EPA link
+    Given I am on the map page
+    When I type "Hanford, WA" into the location field
+    And I click "Search"
+    And I click on the first TRI facility in the results
+    Then the facility detail drawer opens
+    When I click the "By Medium" tab
+    Then the discrepancy footnote contains a link to EPA TRI data quality page
+
+  @regression @7BUG38
+  Scenario: Regression — 15-Year Trend tab shows per-year discrepancy legend
+    Given I am on the map page
+    When I type "Hanford, WA" into the location field
+    And I click "Search"
+    And I click on the first TRI facility in the results
+    Then the facility detail drawer opens
+    When I click the "15-Year Trend" tab
+    Then the trend discrepancy legend is visible
+    And the trend discrepancy legend explains high discrepancy indicators
+
+  # ── ADR-010: Facility Search Autocomplete + TRI ID Links ─────────────────────
+  # Implementation: GET /api/v1/facilities/search endpoint with 6-tier ranking.
+  # UI: FacilitySearchInput component in SearchPanel, TRI ID links in drawer.
+
+  @regression @ADR010
+  Scenario: ADR-010 — Facility search input is present in search panel
+    Given I am on the map page
+    When I click the search panel tab
+    Then the facility search input is present
+    And the facility search input has placeholder "e.g. 89319BHPCP or Bethlehem Steel"
+
+  @regression @ADR010
+  Scenario: ADR-010 — Facility search shows autocomplete results
+    Given I am on the map page
+    When I click the search panel tab
+    And I type "BETHLEHEM" into the facility search input
+    Then the facility search dropdown appears
+    And the facility search dropdown shows at least 1 result
+
+  @regression @ADR010
+  Scenario: ADR-010 — TRI Facility ID in drawer header is a clickable link
+    Given I am on the map page
+    When I type "Sparrows Point, MD" into the location field
+    And I click "Search"
+    And I click on the first TRI facility in the results
+    Then the facility detail drawer opens
+    And the TRI ID link is visible
+    And the TRI ID links to "enviro.epa.gov/facts/tri/ef-facilities"
+
+  @regression @ADR010
+  Scenario: ADR-010 — EPA TRI Facility Report link at bottom of drawer
+    Given I am on the map page
+    When I type "Sparrows Point, MD" into the location field
+    And I click "Search"
+    And I click on the first TRI facility in the results
+    Then the facility detail drawer opens
+    And the EPA TRI Facility Report link is visible
+    And the EPA TRI Facility Report link is above the close button

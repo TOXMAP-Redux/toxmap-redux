@@ -48,7 +48,7 @@ function searchKey(p: MapSearchParams | null): string {
  */
 export function useMapFacilities(params: MapSearchParams | null): UseMapFacilitiesResult {
   const [data, setData] = useState<FacilityCollection | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [fetching, setFetching] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   // Track which key has been SUCCESSFULLY fetched (not just attempted).
@@ -56,8 +56,17 @@ export function useMapFacilities(params: MapSearchParams | null): UseMapFaciliti
   // second mount should retry since lastSuccessfulKeyRef is still null.
   const lastSuccessfulKeyRef = useRef<string | null>(null)
 
+  // Compute current search key
+  const currentKey = searchKey(params)
+  
+  // CRITICAL: loading is true if:
+  // 1. We're actively fetching (fetching=true), OR
+  // 2. The current key doesn't match the last successful fetch (new search pending)
+  // This ensures loading=true SYNCHRONOUSLY when params change, before useEffect runs.
+  const loading = fetching || currentKey !== lastSuccessfulKeyRef.current
+
   useEffect(() => {
-    const key = searchKey(params)
+    const key = currentKey
     
     // Skip if same search already succeeded
     if (key === lastSuccessfulKeyRef.current) return
@@ -67,7 +76,7 @@ export function useMapFacilities(params: MapSearchParams | null): UseMapFaciliti
     const controller = new AbortController()
     abortRef.current = controller
 
-    setLoading(true)
+    setFetching(true)
     setError(null)
 
     const fetchData = params
@@ -102,17 +111,19 @@ export function useMapFacilities(params: MapSearchParams | null): UseMapFaciliti
         setError(null)
       })
       .catch((err: unknown) => {
-        if (err instanceof Error && err.name === 'AbortError') return
+        if (err instanceof Error && err.name === 'AbortError') {
+          return
+        }
         setError(err instanceof Error ? err.message : 'Search failed')
       })
       .finally(() => {
-        setLoading(false)
+        setFetching(false)
       })
 
     return () => {
       controller.abort()
     }
-  }, [params])
+  }, [currentKey, params])
 
   return { data, loading, error }
 }

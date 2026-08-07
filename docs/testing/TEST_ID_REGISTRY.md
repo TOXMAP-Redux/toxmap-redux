@@ -44,6 +44,11 @@
 | `dataset-radio-both`           | Both (TRI + Superfund) radio button        | Default selection; combined search (Fig 2015-4) |
 | `dataset-radio-tri`            | TRI radio button                           | T-04 dataset switch                         |
 | `dataset-radio-superfund`      | Superfund radio button                     | T-02, T-04                                  |
+| `facility-search-input`        | Facility ID/name search text field (ADR-010) | `'I type "{text}" into the facility search field'` |
+| `facility-search-dropdown`     | Facility autocomplete dropdown container   | `"Wait for facility autocomplete"`          |
+| `facility-search-option`       | Each facility autocomplete dropdown item   | Facility search result click                |
+| `facility-match-badge`         | ID/Name match type badge on search result  | `"match type badge shows 'ID Match'"`       |
+| `site-type-badge`              | TRI/Superfund type badge on search result (ADR-010) | `"site type badge shows 'TRI' or 'Superfund'"` |
 
 ---
 
@@ -69,8 +74,17 @@
 | `facility-chart-tab-1`    | Top chemicals tab button     | T-01, T-03 chart tab                  |
 | `facility-chart-tab-2`    | Release by medium tab button | T-03 medium distribution              |
 | `facility-chart-tab-3`    | 15-year trend tab button     | trend chart assertions                |
+| `facility-tri-id-link`    | TRI ID `<a>` link to EPA EnviroFacts (ADR-010) | `"TRI ID link is visible"` |
+| `facility-epa-report-link` | EPA TRI Facility Report `<a>` (ADR-010) | `"EPA TRI Facility Report link is visible"` |
 | `atsdr-link`              | ATSDR ToxFAQ `<a>`           | T-08 external link test               |
 | `pubchem-link`            | PubChem `<a>`                | external link assertions              |
+| `medium-discrepancy-section` | By Medium tab aggregate discrepancy box (7.BUG.38) | `"the medium discrepancy section is visible"` |
+| `medium-epa-total`        | EPA-reported total value (7.BUG.38) | `"the EPA-reported total is displayed"` |
+| `medium-discrepancy-value`   | Calculated aggregate discrepancy ±X lbs (7.BUG.38) | discrepancy percentage display |
+| `medium-discrepancy-footnote`| Explanatory footnote with Trend tab CTA (7.BUG.38) | `"the discrepancy footnote explains TRI data quality"` |
+| `trend-tooltip`           | Custom tooltip in 15-Year Trend chart (7.BUG.38) | per-year discrepancy hover details |
+| `trend-tooltip-discrepancy`  | Discrepancy line within Trend tooltip (7.BUG.38) | per-year discrepancy value display |
+| `trend-discrepancy-legend`   | Legend explaining ≥5% discrepancy ring indicator (7.BUG.38) | discrepancy legend assertions |
 
 ---
 

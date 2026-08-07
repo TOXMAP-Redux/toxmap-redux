@@ -54,6 +54,7 @@ API responses return raw `float` values. **The frontend** is responsible for com
 |--------|-------------------------------------------------|-------------------------------------------------|-----------------|
 | GET    | `/api/v1/facilities`                            | Radius + viewport search                        | TRI Core        |
 | GET    | `/api/v1/facilities/browse`                     | Browse mode — all facilities (no radius)        | TRI Core        |
+| GET    | `/api/v1/facilities/search`                     | Site autocomplete (TRI ID, EPA ID, or name)     | TRI + Superfund |
 | GET    | `/api/v1/facilities/{tri_facility_id}`          | Facility detail                                 | TRI Core        |
 | GET    | `/api/v1/facilities/{tri_facility_id}/releases` | Time series                                     | TRI Core        |
 | GET    | `/api/v1/releases/largest`                      | Largest release by chemical ± state             | TRI Core        |
@@ -221,6 +222,109 @@ const { data } = useMapFacilities({ lat, lon, radiusMiles: 25, ... })
 - **Payload size:** ~22k facilities × ~200 bytes = ~4.4 MB (gzipped ~600 KB)
 - **Response time:** < 2s (single PostGIS query, no spatial constraint)
 - **Caching:** Frontend fetches once per session; MapLibre handles viewport rendering
+
+---
+
+## 1c. `GET /api/v1/facilities/search`
+
+**Description:** Search for TRI facilities and Superfund sites by ID or name with ranked relevance scoring. Returns matches from both datasets ordered by relevance score, with exact ID matches prioritized. Searches TRI facilities by TRI ID or name, and Superfund sites by EPA ID or name. Used for unified site search autocomplete in the search panel. Added in ADR-010.
+
+### Query Parameters
+
+| Parameter | Type   | Required | Default | Constraints          | Description                                  |
+|-----------|--------|----------|---------|----------------------|----------------------------------------------|
+| `q`       | string | ✅        | —       | 2–100 chars          | Search query (TRI ID, EPA ID, or name)       |
+| `state`   | string | ❌        | null    | 2-letter uppercase   | Filter to state                              |
+| `limit`   | int    | ❌        | 10      | 1–50                 | Max results                                  |
+
+### Success Response — 200
+
+```json
+[
+  {
+    "id": 1,
+    "site_type": "tri",
+    "site_id": "21219BTHLS3RD",
+    "name": "BETHLEHEM STEEL CORP - SPARROWS POINT",
+    "city": "SPARROWS POINT",
+    "state_code": "MD",
+    "county": "BALTIMORE",
+    "match_type": "name",
+    "relevance_score": 0.80
+  },
+  {
+    "id": 123,
+    "site_type": "superfund",
+    "site_id": "WAD009248671",
+    "name": "HANFORD 100-AREA (USDOE)",
+    "city": "RICHLAND",
+    "state_code": "WA",
+    "county": "BENTON",
+    "match_type": "id",
+    "relevance_score": 1.0
+  }
+]
+```
+
+### Response Fields
+
+| Field             | Type   | Nullable | Description                                                              |
+|-------------------|--------|----------|--------------------------------------------------------------------------|
+| `id`              | int    | ❌        | Internal database ID (table-specific)                                    |
+| `site_type`       | enum   | ❌        | `"tri"` or `"superfund"` — discriminates result type                     |
+| `site_id`         | string | ❌        | TRI Facility ID (for `site_type="tri"`) or EPA Site ID (for `"superfund"`) |
+| `name`            | string | ❌        | Facility or site name                                                    |
+| `city`            | string | ✅        | City                                                                     |
+| `state_code`      | string | ✅        | 2-letter state code                                                      |
+| `county`          | string | ✅        | County name                                                              |
+| `match_type`      | enum   | ❌        | `"id"` or `"name"` — which field matched                                 |
+| `relevance_score` | float  | ❌        | 0.0–1.0 ranking score                                                    |
+
+### Relevance Score Tiers
+
+| Score | Match Type                      | Description                            |
+|-------|---------------------------------|----------------------------------------|
+| 1.00  | Exact TRI ID or EPA ID          | `UPPER(site_id) = UPPER(q)`            |
+| 0.95  | ID prefix                       | `site_id ILIKE q%`                     |
+| 0.90  | Exact name                      | `UPPER(name) = UPPER(q)`               |
+| 0.80  | Name prefix                     | `name ILIKE q%`                        |
+| 0.60  | Name contains                   | `name ILIKE %q%`                       |
+| 0.50  | ID contains                     | `site_id ILIKE %q%`                    |
+
+### Error Responses
+
+| Status | Condition              | Body                                                                      |
+|--------|------------------------|---------------------------------------------------------------------------|
+| 422    | `q` missing or < 2 chars | `{"detail": "q must be at least 2 characters", "code": "VALIDATION_ERROR"}` |
+| 422    | `limit` out of range   | `{"detail": "limit must be between 1 and 50", "code": "VALIDATION_ERROR"}`  |
+| 422    | Invalid `state`        | `{"detail": "state must be a 2-letter code", "code": "VALIDATION_ERROR"}`   |
+
+### Notes
+
+- Returns empty array `[]` (not 404) when no sites match
+- Results from both datasets are merged and ordered by `relevance_score DESC`, then `name ASC`
+- Exact TRI ID or EPA ID matches always appear first (score = 1.0)
+- Search is case-insensitive for both ID and name
+- Use `site_type` to determine how to handle the selection (TRI vs Superfund drawer)
+
+### Performance SLA
+
+| Metric      | Target  |
+|-------------|---------|
+| p95 latency | < 100ms |
+
+### Frontend Usage
+
+```typescript
+// Autocomplete with 300ms debounce
+const { results, loading, error } = useFacilitySearch(query, state)
+
+// Handle selection based on site_type
+onSelect={(site) => onFacilitySelect(site.site_id, site.site_type)}
+
+// Or direct API call
+const results = await searchFacilities('HANFORD', 'WA', 10)
+```
 
 ---
 

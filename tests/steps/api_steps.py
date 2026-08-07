@@ -548,6 +548,136 @@ def step_every_feature_prop_not_null(prop, step_context):
         )
 
 
+# ─── ADR-010: Facility Search Autocomplete Steps ──────────────────────────────
+
+
+@then(parsers.parse('the first result has "{field}" = "{expected}"'))
+def step_first_result_field_equals_str(field, expected, step_context):
+    """Verify the first result in a JSON array has the expected string value."""
+    body = step_context["response"].json()
+    assert isinstance(body, list), f"Expected list, got {type(body)}"
+    assert len(body) > 0, "Response array is empty"
+    actual = body[0].get(field)
+    assert str(actual) == expected, f"Expected first[{field}]={expected!r}, got {actual!r}"
+
+
+@then(parsers.parse('the first result has "{field}" = {expected:f}'))
+def step_first_result_field_equals_float(field, expected, step_context):
+    """Verify the first result in a JSON array has the expected float value."""
+    body = step_context["response"].json()
+    assert isinstance(body, list), f"Expected list, got {type(body)}"
+    assert len(body) > 0, "Response array is empty"
+    actual = body[0].get(field)
+    assert actual is not None, f"Field {field!r} is null in first result"
+    assert abs(float(actual) - expected) < 0.01, (
+        f"Expected first[{field}]={expected}, got {actual}"
+    )
+
+
+@then(parsers.parse('the first result has "{field}" >= {expected:f}'))
+def step_first_result_field_gte_float(field, expected, step_context):
+    """Verify the first result in a JSON array has a value >= expected."""
+    body = step_context["response"].json()
+    assert isinstance(body, list), f"Expected list, got {type(body)}"
+    assert len(body) > 0, "Response array is empty"
+    actual = body[0].get(field)
+    assert actual is not None, f"Field {field!r} is null in first result"
+    assert float(actual) >= expected, (
+        f"Expected first[{field}] >= {expected}, got {actual}"
+    )
+
+
+@then(parsers.parse('the first result has "{field}" starting with "{prefix}"'))
+def step_first_result_field_starts_with(field, prefix, step_context):
+    """Verify the first result's field starts with the expected prefix."""
+    body = step_context["response"].json()
+    assert isinstance(body, list), f"Expected list, got {type(body)}"
+    assert len(body) > 0, "Response array is empty"
+    actual = str(body[0].get(field, ""))
+    assert actual.startswith(prefix), (
+        f"Expected first[{field}] to start with {prefix!r}, got {actual!r}"
+    )
+
+
+@then(parsers.parse('the first result has "{field}" containing "{substring}"'))
+def step_first_result_field_contains(field, substring, step_context):
+    """Verify the first result's field contains the expected substring."""
+    body = step_context["response"].json()
+    assert isinstance(body, list), f"Expected list, got {type(body)}"
+    assert len(body) > 0, "Response array is empty"
+    actual = str(body[0].get(field, ""))
+    assert substring.upper() in actual.upper(), (
+        f"Expected first[{field}] to contain {substring!r}, got {actual!r}"
+    )
+
+
+@then(parsers.parse("the response array has {count:d} items"))
+def step_response_array_exact_count(count, step_context):
+    """Verify the response array has exactly N items."""
+    body = step_context["response"].json()
+    assert isinstance(body, list), f"Expected list, got {type(body)}"
+    actual = len(body)
+    assert actual == count, f"Expected {count} items, got {actual}"
+
+
+@then(parsers.parse("the response array has at most {count:d} items"))
+def step_response_array_max_count(count, step_context):
+    """Verify the response array has at most N items."""
+    body = step_context["response"].json()
+    assert isinstance(body, list), f"Expected list, got {type(body)}"
+    actual = len(body)
+    assert actual <= count, f"Expected at most {count} items, got {actual}"
+
+
+# ─── ADR-010: Site Search (TRI + Superfund) ───────────────────────────────────
+
+
+@then(parsers.parse('the response contains a result with "{field}" = "{expected}"'))
+def step_response_contains_result_with_field_string(field, expected, step_context):
+    """Verify the response array contains at least one result with the given field value."""
+    body = step_context["response"].json()
+    assert isinstance(body, list), f"Expected list, got {type(body)}"
+    matches = [r for r in body if str(r.get(field, "")) == expected]
+    assert len(matches) > 0, (
+        f'Expected at least one result with {field}={expected!r}. '
+        f'Got values: {[r.get(field) for r in body[:5]]}'
+    )
+
+
+@then(parsers.parse('the response contains a result with "{field}" containing "{substring}"'))
+def step_response_contains_result_with_field_containing(field, substring, step_context):
+    """Verify the response array contains at least one result where field contains substring."""
+    body = step_context["response"].json()
+    assert isinstance(body, list), f"Expected list, got {type(body)}"
+    matches = [r for r in body if substring.upper() in str(r.get(field, "")).upper()]
+    assert len(matches) > 0, (
+        f'Expected at least one result with {field} containing {substring!r}. '
+        f'Got values: {[r.get(field) for r in body[:5]]}'
+    )
+
+
+@then(parsers.parse('the response contains a result with "{field}" starting with "{prefix}"'))
+def step_response_contains_result_with_field_starting(field, prefix, step_context):
+    """Verify the response array contains at least one result where field starts with prefix."""
+    body = step_context["response"].json()
+    assert isinstance(body, list), f"Expected list, got {type(body)}"
+    matches = [r for r in body if str(r.get(field, "")).upper().startswith(prefix.upper())]
+    assert len(matches) > 0, (
+        f'Expected at least one result with {field} starting with {prefix!r}. '
+        f'Got values: {[r.get(field) for r in body[:5]]}'
+    )
+
+
+@then(parsers.parse('the response may contain results with "{field}" = "{value}"'))
+def step_response_may_contain_results_with_field(field, value, step_context):
+    """Non-strict assertion: just verify the response is valid (results with this field are optional)."""
+    body = step_context["response"].json()
+    assert isinstance(body, list), f"Expected list, got {type(body)}"
+    # This step is intentionally non-assertive — it documents that results may have this value
+    # but doesn't fail if they don't (useful for documenting mixed-dataset responses)
+    pass
+
+
 # ─── Regression: 7.BUG.29 — All-years aggregation ─────────────────────────────
 
 

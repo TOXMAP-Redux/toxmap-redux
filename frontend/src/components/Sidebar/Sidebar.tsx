@@ -6,7 +6,7 @@
 import { MapContentsPanel } from './MapContentsPanel'
 import { useState, useRef, useCallback } from 'react'
 import { SearchPanel, type SearchFormValues } from './SearchPanel'
-import type { FacilityCollection, SuperfundCollection, DemographicLayer } from '../../api/types'
+import type { FacilityCollection, FacilitySearchResult, SuperfundCollection, DemographicLayer } from '../../api/types'
 import type { GeocodeResult } from '../../api/geocode'
 
 export type ActivePanel = 'map-contents' | 'search'
@@ -243,6 +243,9 @@ export function Sidebar({
               onSelect={onFacilitySelect}
               onSearch={onSearch}
               resolvedGeocode={resolvedGeocode}
+              onFacilitySearchSelect={(site: FacilitySearchResult) =>
+                onFacilitySelect(site.site_id, site.site_type)
+              }
             />
           )}
         </div>

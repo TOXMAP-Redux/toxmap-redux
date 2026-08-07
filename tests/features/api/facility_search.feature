@@ -98,6 +98,84 @@ Feature: Facility Search by Location
     Then the response status is 200
     And the response meta does not have "search_expansion"
 
+  # ── ADR-010: Site Search Autocomplete (TRI ID, EPA ID, Name) ─────────────────
+
+  Scenario: Search by exact TRI facility ID
+    When I GET "/api/v1/facilities/search?q=89319BHPCP7MILE"
+    Then the response status is 200
+    And the response is a JSON array
+    And the first result has "site_type" = "tri"
+    And the first result has "site_id" = "89319BHPCP7MILE"
+    And the first result has "match_type" = "id"
+    And the first result has "relevance_score" = 1.0
+
+  Scenario: Search by TRI facility ID prefix
+    When I GET "/api/v1/facilities/search?q=89319"
+    Then the response status is 200
+    And the response is a JSON array
+    And the first result has "site_id" starting with "89319"
+    And the first result has "match_type" = "id"
+    And the first result has "relevance_score" >= 0.95
+
+  Scenario: Search by facility name (partial match)
+    When I GET "/api/v1/facilities/search?q=BETHLEHEM"
+    Then the response status is 200
+    And the response is a JSON array
+    And the first result has "name" containing "BETHLEHEM"
+    And the first result has "match_type" = "name"
+
+  Scenario: Search by facility name (case-insensitive)
+    When I GET "/api/v1/facilities/search?q=robinson"
+    Then the response status is 200
+    And the response is a JSON array
+    And the first result has "name" containing "ROBINSON"
+
+  Scenario: Search with state filter
+    When I GET "/api/v1/facilities/search?q=MINING&state=NV"
+    Then the response status is 200
+    And the response is a JSON array
+    And the first result has "state_code" = "NV"
+
+  Scenario: Search with no matches returns empty array
+    When I GET "/api/v1/facilities/search?q=XYZNOTEXIST123"
+    Then the response status is 200
+    And the response is a JSON array
+    And the response array has 0 items
+
+  Scenario: Query too short returns 422
+    When I GET "/api/v1/facilities/search?q=A"
+    Then the response status is 422
+
+  Scenario: Search respects limit parameter
+    When I GET "/api/v1/facilities/search?q=INC&limit=2"
+    Then the response status is 200
+    And the response is a JSON array
+    And the response array has at most 2 items
+
+  # ── ADR-010 Extension: Superfund Site Search ────────────────────────────────
+
+  Scenario: Search by Superfund site name
+    When I GET "/api/v1/facilities/search?q=HANFORD"
+    Then the response status is 200
+    And the response is a JSON array
+    And the response contains a result with "site_type" = "superfund"
+    And the response contains a result with "name" containing "HANFORD"
+
+  Scenario: Search returns both TRI and Superfund results
+    When I GET "/api/v1/facilities/search?q=MINE"
+    Then the response status is 200
+    And the response is a JSON array
+    And the response may contain results with "site_type" = "tri"
+    And the response may contain results with "site_type" = "superfund"
+
+  Scenario: Superfund search by EPA ID prefix
+    # EPA IDs start with state code (e.g., WAD, CAD, NJD)
+    When I GET "/api/v1/facilities/search?q=WAD"
+    Then the response status is 200
+    And the response is a JSON array
+    And the response contains a result with "site_type" = "superfund"
+    And the response contains a result with "site_id" starting with "WAD"
+
   Scenario: Chemical family expansion — exact_match returns fewer results than expanded
     When I GET "/api/v1/facilities/browse?chemical=lead"
     Then the response status is 200

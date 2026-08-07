@@ -2,6 +2,7 @@
 
 Phase 2 — stories 2.1.1, 2.1.2, 2.2.x.
 ADR-007 — Chemical families for transparent right-to-know search.
+ADR-010 — Site search autocomplete (TRI ID, EPA ID, name).
 
 All SQL is built via SQLAlchemy Core/ORM expressions — no f-string SQL.
 PostGIS distance calculations use Geography cast for accurate metre-based results.
@@ -14,12 +15,13 @@ from typing import Any
 
 from geoalchemy2 import Geography
 from geoalchemy2.shape import to_shape
-from sqlalchemy import cast, desc, func, or_, select
+from sqlalchemy import case, cast, desc, func, literal, or_, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.chemical import Chemical
 from app.models.facility import Facility
 from app.models.release_event import ReleaseEvent
+from app.models.superfund_site import SuperfundSite
 from app.schemas.facility import (
     FacilityCollection,
     FacilityCollectionMeta,
@@ -27,6 +29,7 @@ from app.schemas.facility import (
     FacilityFeature,
     FacilityFeatureProperties,
     SearchExpansion,
+    SiteSearchResult,
     TopChemical,
     assign_color_band,
 )
@@ -116,7 +119,12 @@ async def get_facilities_near(
     limit: int,
     raw_query: dict[str, Any],
 ) -> FacilityCollection:
-    """Spatial facility search → GeoJSON FeatureCollection."""
+    """Spatial facility search → GeoJSON FeatureCollection.
+    
+    Performance: Filter facilities spatially FIRST (via PostGIS GiST index),
+    then aggregate only their releases. This avoids scanning the entire
+    release_events table (~1M rows). See 7.PERF.1.
+    """
     effective_year = await _resolve_year(session, year)
     radius_meters = radius_miles * _MILES_TO_METERS
 
@@ -126,9 +134,42 @@ async def get_facilities_near(
     if not exact_match:
         family_chemicals, search_expansion = await _expand_chemical_family(session, chemical)
 
-    # --- Aggregate releases per facility (or per facility+year if filtering by year) ---
-    # BUG FIX 7.BUG.29: When year=None (All years), aggregate across ALL years for each
-    # facility. Previously grouped by (facility, year) which returned only the peak year.
+    # --- STEP 1: Find facility IDs matching spatial + attribute filters ---
+    # This uses the PostGIS GiST index for fast spatial lookup (~200 results typically)
+    point_geo = _geo_point(lon, lat)
+    fac_geo = _fac_geography(Facility.location)
+    
+    matching_fac_stmt = (
+        select(Facility.id)
+        .where(func.ST_DWithin(fac_geo, point_geo, radius_meters))
+    )
+    
+    if naics:
+        matching_fac_stmt = matching_fac_stmt.where(Facility.naics_code.startswith(naics))
+    
+    if state:
+        matching_fac_stmt = matching_fac_stmt.where(Facility.state_code == state.upper()[:2])
+    
+    if bbox:
+        parts = bbox.split(",")
+        if len(parts) == 4:
+            try:
+                min_lon, min_lat, max_lon, max_lat = (float(p) for p in parts)
+                matching_fac_stmt = matching_fac_stmt.where(
+                    func.ST_Within(
+                        Facility.location,
+                        func.ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, 4326),
+                    )
+                )
+            except ValueError:
+                logger.warning("Ignoring invalid bbox parameter: %s", bbox)
+
+    matching_fac_ids = matching_fac_stmt.scalar_subquery()
+
+    # --- STEP 2: Aggregate releases ONLY for matching facilities ---
+    # This uses idx_releases_facility for fast lookup (~10K rows vs 1M+)
+    needs_chemical_join = bool(chemical or family_chemicals)
+    
     if effective_year is not None:
         # Single year: group by facility + year
         rel_stmt = (
@@ -137,7 +178,7 @@ async def get_facilities_near(
                 func.sum(ReleaseEvent.total_release_lbs).label("total_lbs"),
                 ReleaseEvent.reporting_year,
             )
-            .join(Chemical, Chemical.id == ReleaseEvent.chemical_id)
+            .where(ReleaseEvent.facility_id.in_(matching_fac_ids))
             .where(ReleaseEvent.reporting_year == effective_year)
             .group_by(ReleaseEvent.facility_id, ReleaseEvent.reporting_year)
         )
@@ -149,9 +190,13 @@ async def get_facilities_near(
                 func.sum(ReleaseEvent.total_release_lbs).label("total_lbs"),
                 func.max(ReleaseEvent.reporting_year).label("reporting_year"),
             )
-            .join(Chemical, Chemical.id == ReleaseEvent.chemical_id)
+            .where(ReleaseEvent.facility_id.in_(matching_fac_ids))
             .group_by(ReleaseEvent.facility_id)
         )
+
+    # Only join Chemical table when we need to filter by chemical name
+    if needs_chemical_join:
+        rel_stmt = rel_stmt.join(Chemical, Chemical.id == ReleaseEvent.chemical_id)
 
     # ADR-007: Use expanded family chemicals if available
     if family_chemicals:
@@ -177,35 +222,12 @@ async def get_facilities_near(
 
     rel_sub = rel_stmt.subquery()
 
-    # --- Main spatial query ---
-    point_geo = _geo_point(lon, lat)
-    fac_geo = _fac_geography(Facility.location)
-
+    # --- STEP 3: Final join to get facility details + release totals ---
+    # No need to re-apply naics/state/bbox filters - already applied in matching_fac_ids
     stmt = (
         select(Facility, rel_sub.c.total_lbs, rel_sub.c.reporting_year)
         .join(rel_sub, rel_sub.c.facility_id == Facility.id)
-        .where(func.ST_DWithin(fac_geo, point_geo, radius_meters))
     )
-
-    if naics:
-        stmt = stmt.where(Facility.naics_code.startswith(naics))
-
-    if state:
-        stmt = stmt.where(Facility.state_code == state.upper()[:2])
-
-    if bbox:
-        parts = bbox.split(",")
-        if len(parts) == 4:
-            try:
-                min_lon, min_lat, max_lon, max_lat = (float(p) for p in parts)
-                stmt = stmt.where(
-                    func.ST_Within(
-                        Facility.location,
-                        func.ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, 4326),
-                    )
-                )
-            except ValueError:
-                logger.warning("Ignoring invalid bbox parameter: %s", bbox)
 
     # Count rows before applying LIMIT (used for truncated flag)
     count_result = await session.execute(select(func.count()).select_from(stmt.subquery()))
@@ -214,7 +236,6 @@ async def get_facilities_near(
     # Apply ordering + limit
     stmt = stmt.order_by(desc(rel_sub.c.total_lbs)).limit(limit)
     rows = (await session.execute(stmt)).all()
-
     features: list[FacilityFeature] = []
     for row in rows:
         facility: Facility = row[0]
@@ -281,6 +302,10 @@ async def get_all_facilities_browse(
 
     # BUG FIX 7.BUG.29: When year=None (All years), aggregate across ALL years for each
     # facility. Previously grouped by (facility, year) which returned only the peak year.
+    #
+    # PERF FIX: Only join with Chemical table when filtering by chemical.
+    needs_chemical_join = bool(chemical or family_chemicals)
+    
     if effective_year is not None:
         # Single year: group by facility + year
         rel_stmt = (
@@ -289,7 +314,6 @@ async def get_all_facilities_browse(
                 func.sum(ReleaseEvent.total_release_lbs).label("total_lbs"),
                 ReleaseEvent.reporting_year,
             )
-            .join(Chemical, Chemical.id == ReleaseEvent.chemical_id)
             .where(ReleaseEvent.reporting_year == effective_year)
             .group_by(ReleaseEvent.facility_id, ReleaseEvent.reporting_year)
         )
@@ -301,9 +325,12 @@ async def get_all_facilities_browse(
                 func.sum(ReleaseEvent.total_release_lbs).label("total_lbs"),
                 func.max(ReleaseEvent.reporting_year).label("reporting_year"),
             )
-            .join(Chemical, Chemical.id == ReleaseEvent.chemical_id)
             .group_by(ReleaseEvent.facility_id)
         )
+
+    # Only join Chemical table when we need to filter by chemical name
+    if needs_chemical_join:
+        rel_stmt = rel_stmt.join(Chemical, Chemical.id == ReleaseEvent.chemical_id)
 
     # ADR-007: Use expanded family chemicals if available
     if family_chemicals:
@@ -496,6 +523,146 @@ async def get_facility_detail(
         top_chemicals=top_chemicals,
         total_release_lbs=total_release_lbs,
     )
+
+
+# ---------------------------------------------------------------------------
+# ADR-010: Site Search Autocomplete (TRI ID, EPA ID, and Name)
+# ---------------------------------------------------------------------------
+
+
+async def search_facilities(
+    session: AsyncSession,
+    q: str,
+    state: str | None = None,
+    limit: int = 10,
+) -> list[SiteSearchResult]:
+    """Search TRI facilities AND Superfund sites by ID or name with ranked relevance scoring.
+
+    ADR-010 ranking tiers (applied to both datasets):
+    - 1.00: Exact TRI ID or EPA ID match (case-insensitive)
+    - 0.95: TRI ID or EPA ID prefix match
+    - 0.90: Exact name match (case-insensitive)
+    - 0.80: Name prefix match
+    - 0.60: Name contains match
+    - 0.50: TRI ID or EPA ID contains match (but not prefix)
+
+    Results from both datasets are merged and ordered by relevance_score DESC, then name ASC.
+    Returns empty list (not exception) when no matches found.
+    """
+    q_upper = q.upper()
+    q_pattern = f"%{q}%"
+    q_prefix = f"{q}%"
+
+    # ── TRI Facilities Query ───────────────────────────────────────────────
+    tri_score_expr = case(
+        (func.upper(Facility.tri_facility_id) == q_upper, 1.0),
+        (Facility.tri_facility_id.ilike(q_prefix), 0.95),
+        (func.upper(Facility.name) == q_upper, 0.90),
+        (Facility.name.ilike(q_prefix), 0.80),
+        (Facility.name.ilike(q_pattern), 0.60),
+        (Facility.tri_facility_id.ilike(q_pattern), 0.50),
+        else_=0.0,
+    ).label("relevance_score")
+
+    tri_match_type_expr = case(
+        (
+            or_(
+                func.upper(Facility.tri_facility_id) == q_upper,
+                Facility.tri_facility_id.ilike(q_prefix),
+                Facility.tri_facility_id.ilike(q_pattern),
+            ),
+            "id",
+        ),
+        else_="name",
+    ).label("match_type")
+
+    tri_stmt = select(
+        Facility.id.label("id"),
+        literal("tri").label("site_type"),
+        Facility.tri_facility_id.label("site_id"),
+        Facility.name.label("name"),
+        Facility.city.label("city"),
+        Facility.state_code.label("state_code"),
+        Facility.county.label("county"),
+        tri_match_type_expr,
+        tri_score_expr,
+    ).where(
+        or_(
+            Facility.tri_facility_id.ilike(q_pattern),
+            Facility.name.ilike(q_pattern),
+        )
+    )
+
+    if state:
+        tri_stmt = tri_stmt.where(Facility.state_code == state.upper()[:2])
+
+    # ── Superfund Sites Query ──────────────────────────────────────────────
+    sf_score_expr = case(
+        (func.upper(SuperfundSite.epa_id) == q_upper, 1.0),
+        (SuperfundSite.epa_id.ilike(q_prefix), 0.95),
+        (func.upper(SuperfundSite.name) == q_upper, 0.90),
+        (SuperfundSite.name.ilike(q_prefix), 0.80),
+        (SuperfundSite.name.ilike(q_pattern), 0.60),
+        (SuperfundSite.epa_id.ilike(q_pattern), 0.50),
+        else_=0.0,
+    ).label("relevance_score")
+
+    sf_match_type_expr = case(
+        (
+            or_(
+                func.upper(SuperfundSite.epa_id) == q_upper,
+                SuperfundSite.epa_id.ilike(q_prefix),
+                SuperfundSite.epa_id.ilike(q_pattern),
+            ),
+            "id",
+        ),
+        else_="name",
+    ).label("match_type")
+
+    sf_stmt = select(
+        SuperfundSite.id.label("id"),
+        literal("superfund").label("site_type"),
+        SuperfundSite.epa_id.label("site_id"),
+        SuperfundSite.name.label("name"),
+        SuperfundSite.city.label("city"),
+        SuperfundSite.state_code.label("state_code"),
+        SuperfundSite.county.label("county"),
+        sf_match_type_expr,
+        sf_score_expr,
+    ).where(
+        or_(
+            SuperfundSite.epa_id.ilike(q_pattern),
+            SuperfundSite.name.ilike(q_pattern),
+        )
+    )
+
+    if state:
+        sf_stmt = sf_stmt.where(SuperfundSite.state_code == state.upper()[:2])
+
+    # ── UNION ALL and order by score ───────────────────────────────────────
+    combined = union_all(tri_stmt, sf_stmt).subquery()
+    final_stmt = (
+        select(combined)
+        .order_by(desc(combined.c.relevance_score), combined.c.name)
+        .limit(limit)
+    )
+
+    rows = (await session.execute(final_stmt)).all()
+
+    return [
+        SiteSearchResult(
+            id=row.id,
+            site_type=row.site_type,
+            site_id=row.site_id,
+            name=row.name,
+            city=row.city,
+            state_code=row.state_code,
+            county=row.county,
+            match_type=row.match_type,
+            relevance_score=float(row.relevance_score),
+        )
+        for row in rows
+    ]
 
 
 async def get_export_rows(

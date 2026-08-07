@@ -64,6 +64,30 @@ export interface FacilityDetail {
   total_release_lbs?: number | null
 }
 
+/**
+ * Unified site search result from GET /api/v1/facilities/search (ADR-010).
+ * Supports autocomplete for both TRI facilities (by TRI ID or name) and
+ * Superfund sites (by EPA ID or name) with ranked results.
+ */
+export interface FacilitySearchResult {
+  id: number
+  /** Discriminator: "tri" for TRI facilities, "superfund" for Superfund sites */
+  site_type: 'tri' | 'superfund'
+  /** TRI Facility ID (when site_type="tri") or EPA Site ID (when site_type="superfund") */
+  site_id: string
+  name: string
+  city: string | null
+  state_code: string | null
+  county: string | null
+  /** Which field matched the query: "id" for TRI/EPA ID, "name" for site name */
+  match_type: 'id' | 'name'
+  /** Relevance score 0.0–1.0 (exact ID match = 1.0) */
+  relevance_score: number
+}
+
+// Alias for clarity when needed
+export type SiteSearchResult = FacilitySearchResult
+
 // ── Releases ───────────────────────────────────────────────────────────────
 
 export interface ReleaseEvent {

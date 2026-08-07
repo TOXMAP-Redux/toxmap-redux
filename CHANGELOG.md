@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **ADR-010: Unified Site Search** — Extended `GET /api/v1/facilities/search` endpoint to search **both TRI facilities and Superfund sites**. Returns unified results with `site_type` discriminator ("tri" | "superfund") and `site_id` field. Supports TRI ID, EPA ID, or name with same relevance scoring. Frontend shows site type badge (TRI/Superfund) alongside match type badge. See [docs/adr/ADR-010](docs/adr/ADR-010-facility-search-autocomplete.md). [agent]
+- **Facility search frontend hook** — `useFacilitySearch` hook with 300ms debounce for typeahead autocomplete. [agent]
+- **FacilitySearchInput component** — Autocomplete search input in search panel with dropdown showing site ID, facility name, city/state for each result. Match type badges (ID Match/Name Match) and site type badges (TRI/Superfund) indicate relevance and dataset. (`data-testid="facility-search-input/dropdown/option"`). [agent]
+- **TRI Facility ID link in drawer** — TRI ID below facility name in FacilityDrawer is now clickable, linking to EPA EnviroFacts (`data-testid="facility-tri-id-link"`). [agent]
+- **EPA TRI Facility Report link** — Added "EPA TRI Facility Report ↗" link at bottom of FacilityDrawer (above Close button) for parity with Superfund panel (`data-testid="facility-epa-report-link"`). [agent]
 - **CI Workflow Onboarding Guide** — New [docs/onboarding/CI_WORKFLOW_GUIDE.md](docs/onboarding/CI_WORKFLOW_GUIDE.md) documenting all 6 CI jobs, 5 quality gates, artifacts, and troubleshooting. [agent]
 - **ADR-009: Cloudflare Workers Geocoding Proxy** — Documents production scaling path for geocoding with global cache and aggregate rate limiting (~$0-5/month). See [docs/adr/ADR-009](docs/adr/ADR-009-cloudflare-workers-geocoding-proxy.md). [agent]
 - **Deployment guide Workers proxy section** — Complete implementation guide for deploying the geocoding proxy. See [docs/deployment/DEPLOYMENT_GUIDE.md](docs/deployment/DEPLOYMENT_GUIDE.md) §"Cloudflare Workers Proxy". [agent]
@@ -31,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Superfund drawer close button parity** — Updated SuperfundDrawer close button to match FacilityDrawer style (centered gray "Close panel" instead of left-aligned blue "← Close"). [agent]
+- **By Medium discrepancy note conditional display** — Fixed confusing note in By Medium tab that always talked about discrepancies even when no meaningful discrepancy existed. Now shows three variants: (1) full discrepancy explanation when aggregate ≥1 lb, (2) "aggregate minimal but some years show ≥5%" warning when per-year discrepancies cancel out, (3) simple note when no discrepancies exist. [agent]
 - **Superfund ingestion now populates `epa_progress_url`** — `superfund_ingest.py` now builds EPA Site Progress Profile URL from SEMS `site_id` (different from `epa_id`). Re-ran ingestion to update 2,021 existing sites. [agent]
 - **ci.yml YAML syntax error** — Fixed line 369 unquoted colon in benchmark step name (`gate: +20%` → `"gate: +20%"`) that caused GitHub Actions parse failure. [agent]
 - **mypy strict mode errors** — Configured targeted overrides in `pyproject.toml` for FastAPI decorators (`disallow_untyped_decorators = false`), GeoAlchemy2 geometry columns, and SQLAlchemy forward refs. Reduced errors from 97 → 0. [agent]
@@ -41,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Tests
 
 - **6.UX regression tests** — Added API tests (`superfund.feature`) verifying `epa_progress_url` populated with SEMS URL pattern; E2E tests (`ux_invariants.feature`) verifying EPA ID link visible and no CAS patterns in contaminant rows. [agent]
+- **ADR-010 regression tests** — Added 4 E2E scenarios (`@ADR010`): facility search input present, autocomplete dropdown shows results, TRI ID link visible and points to EPA EnviroFacts, EPA TRI Facility Report link above close button. [agent]
 
 ### Security
 
@@ -229,6 +237,24 @@ Bug fixes shipped (7.BUG.9–7.BUG.19):
   `get_facility_detail()` top_chemicals now aggregates all years; added `total_release_lbs`
   field for correct TOTAL row; added "Other chemicals" row for difference between facility
   total and top 5 sum. Backend + frontend + schema changes. (2026-08-05) [agent]
+- **7.BUG.38:** TRI medium discrepancy display with per-year breakdown (Option A + B). Changes:
+  1. "By Medium" tab now shows "Aggregate Discrepancy (all years)" with warning that +/− discrepancies
+     may cancel out across years — footnote directs users to 15-Year Trend tab for details.
+  2. 15-Year Trend tab now includes per-year discrepancy in tooltip (EPA total, medium sum, discrepancy %).
+  3. Red ring indicator around chart dots for years with ≥5% discrepancy.
+  4. Legend explaining discrepancy indicators added below Trend chart.
+  5. **Option B follow-up:** Tooltip now always shows Medium Sum and Discrepancy for years with data,
+     even when discrepancy is ~0 (e.g., "Discrepancy: +0 lbs (0.0%)"). Previously, discrepancy < 1 lb was
+     hidden, which confused users who couldn't tell if data was missing or consistent.
+  6. **Terminology fix:** Renamed "variance" → "discrepancy" throughout — "variance" is a statistical
+     term (σ²); "discrepancy" correctly describes the arithmetic difference between EPA total and
+     computed medium sum that should match but don't due to data quality issues.
+  Root cause: EPA TRI Field 65 does not always equal sum of Fields 51-64 due to self-reporting
+  errors. This prevents aggregation from masking year-over-year data quality issues.
+  Added `data-testid` values: `medium-discrepancy-section`, `medium-epa-total`, `medium-discrepancy-value`,
+  `medium-discrepancy-footnote`, `trend-tooltip`, `trend-tooltip-discrepancy`, `trend-discrepancy-legend`.
+  Escalation docs: `ESCALATION_20260806_TRI_MEDIUM_TOTAL_VARIANCE.md`, 
+  `ESCALATION_20260806_VARIANCE_AGGREGATION_MASKING.md`. 3 regression tests. (2026-08-06) [agent]
 
 ### Fixed
 

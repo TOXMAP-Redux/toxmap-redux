@@ -61,6 +61,12 @@ export default function App(): JSX.Element {
   const viewStateRef = useRef(viewState)
   useEffect(() => { viewStateRef.current = viewState }, [viewState])
   const [mapBbox, setMapBbox] = useState<[number, number, number, number] | null>(null)
+  
+  // PERFORMANCE: Use uncontrolled map mode - store flyTo function from map
+  const flyToRef = useRef<((lat: number, lon: number, zoom: number) => void) | null>(null)
+  const handleMapReady = useCallback((flyTo: (lat: number, lon: number, zoom: number) => void) => {
+    flyToRef.current = flyTo
+  }, [])
 
   // ── Sidebar + search state ────────────────────────────────────────────────
   const [activePanel, setActivePanel] = useState<ActivePanel>('map-contents')
@@ -292,12 +298,18 @@ export default function App(): JSX.Element {
 
   // TRI facilities to show on the map:
   // - Browse mode (no search): all TRI facilities
+  // - Search active but loading: null (prevents rendering 30K old features during flyTo)
   // - Search active: filtered results (includes CONUS filter)
   // - Search with dataset "superfund" only: no TRI (user only wants Superfund)
   const triFacilitiesForMap = useMemo(() => {
     // No search active: browse mode, show all facilities
     if (!submittedSearch) {
       return triMapFacilities
+    }
+    // Search active but still loading: don't show stale 30K browse data
+    // This prevents CPU spike from rendering 30K GeoJSON features during flyTo animation
+    if (loading) {
+      return null
     }
     // Search active with Superfund only: don't show TRI markers
     if (submittedSearch.dataset === 'superfund') {
@@ -306,7 +318,7 @@ export default function App(): JSX.Element {
     // Search active with "both" or "tri": show filtered results
     // triAllResults has CONUS filter applied when state=CONUS_FILTER
     return triAllResults
-  }, [submittedSearch, triMapFacilities, triAllResults])
+  }, [submittedSearch, triMapFacilities, triAllResults, loading])
 
   // Demographics data for choropleth layer (story 5.2.1)
   // Fetch all counties when demographic layer is selected
@@ -357,12 +369,9 @@ export default function App(): JSX.Element {
       })
 
       // Zoom map to US overview for nationwide search
-      setViewState((prev) => ({
-        ...prev,
-        latitude: 38.5,
-        longitude: -96,
-        zoom: 4,
-      }))
+      if (flyToRef.current) {
+        flyToRef.current(38.5, -96, 4)
+      }
 
       // Switch sidebar to search results (UX Invariant 1)
       setActivePanel('search')
@@ -403,12 +412,9 @@ export default function App(): JSX.Element {
     })
 
     // Zoom map to the geocoded location
-    setViewState((prev) => ({
-      ...prev,
-      latitude: geocoded.lat,
-      longitude: geocoded.lon,
-      zoom: 10,
-    }))
+    if (flyToRef.current) {
+      flyToRef.current(geocoded.lat, geocoded.lon, 10)
+    }
 
     // Switch sidebar to search results (UX Invariant 1)
     setActivePanel('search')
@@ -471,6 +477,7 @@ export default function App(): JSX.Element {
         viewState={viewState}
         onViewStateChange={setViewState}
         onBoundsChange={handleBoundsChange}
+        onMapReady={handleMapReady}
         facilities={triFacilitiesForMap}
         selectedFacilityId={selectedFacility?.properties.tri_facility_id ?? null}
         highlightedFacilityId={highlightedFacilityId}

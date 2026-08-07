@@ -23,11 +23,13 @@ from app.schemas.facility import (
     FacilityCollection,
     FacilityDetail,
     ReleaseEventSchema,
+    SiteSearchResult,
 )
 from app.services.facility_service import (
     get_all_facilities_browse,
     get_facilities_near,
     get_facility_detail,
+    search_facilities,
 )
 from app.services.release_service import get_facility_releases
 
@@ -82,6 +84,41 @@ async def browse_all_facilities(
         exact_match=exact_match,
         limit=limit,
     )
+
+
+@router.get("/facilities/search", response_model=list[SiteSearchResult])
+async def search_facilities_endpoint(
+    q: Annotated[
+        str,
+        Query(
+            min_length=2,
+            max_length=100,
+            description="Search query (TRI ID, EPA ID, or site name; min 2 chars)",
+        ),
+    ],
+    state: Annotated[
+        str | None,
+        Query(max_length=2, description="Filter to 2-letter state code"),
+    ] = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+    db: AsyncSession = Depends(get_db),
+) -> list[SiteSearchResult]:
+    """Search TRI facilities and Superfund sites by ID or name (ADR-010).
+
+    Searches both TRI facilities (by TRI ID or name) and Superfund sites
+    (by EPA ID or name). Results are merged and ranked by relevance score:
+    - Exact TRI ID or EPA ID match: score 1.0
+    - ID prefix: score 0.95
+    - Exact name match: score 0.90
+    - Name prefix: score 0.80
+    - Name contains: score 0.60
+    - ID contains: score 0.50
+
+    Returns empty array (not 404) when no sites match.
+    Results ordered by relevance_score DESC, then name ASC.
+    Use site_type field to distinguish TRI ("tri") from Superfund ("superfund").
+    """
+    return await search_facilities(db, q, state, limit)
 
 
 @router.get("/facilities", response_model=FacilityCollection)

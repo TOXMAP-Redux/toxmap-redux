@@ -139,6 +139,9 @@ export function FacilityDrawer({ facilityId, onClose, selectedYear, width = 420,
       ].filter((d) => d.lbs > 0)
     : []
 
+  // Sum of medium breakdowns for discrepancy calculation (EPA data quality issue)
+  const mediumSum = mediumData.reduce((sum, d) => sum + d.lbs, 0)
+
   // 15-year trend data — aggregate all chemicals per year, fill missing years with zeros
   // Range is relative to selected year filter, or current year if no filter
   const trendReferenceYear = selectedYear && /^\d{4}$/.test(selectedYear)
@@ -146,21 +149,47 @@ export function FacilityDrawer({ facilityId, onClose, selectedYear, width = 420,
     : new Date().getFullYear()
   const trendStartYear = trendReferenceYear - 14 // 15 years total
 
+  // Per-year discrepancy data structure for trend chart (Option A: per-year discrepancy in Trend tab)
+  interface YearData {
+    year: number
+    lbs: number              // EPA-reported total (Field 65 + Field 88)
+    mediumSum: number        // Sum of air + water + land + underground + off-site
+    discrepancy: number      // mediumSum - epaTotal (positive = mediums exceed EPA total)
+    discrepancyPct: number   // Absolute discrepancy as percentage of EPA total
+  }
+
   const trendData = (() => {
-    // Aggregate all chemicals per year (sum total_release_lbs across all chemicals)
-    const dataByYear = new Map<number, number>()
+    // Aggregate all chemicals per year with both EPA total and medium breakdown
+    const dataByYear = new Map<number, { epaTotal: number; mediumSum: number }>()
     for (const r of releases) {
-      const currentTotal = dataByYear.get(r.reporting_year) ?? 0
-      dataByYear.set(r.reporting_year, currentTotal + (r.total_release_lbs ?? 0))
+      const current = dataByYear.get(r.reporting_year) ?? { epaTotal: 0, mediumSum: 0 }
+      // EPA total = Field 65 (on-site total from EPA) + Field 88 (off-site)
+      const epaTotal = (r.total_release_lbs ?? 0) + (r.off_site_lbs ?? 0)
+      // Medium sum = individual medium breakdowns (air, water, land, underground are on-site; off-site separate)
+      const mediumSum = (r.air_release_lbs ?? 0) + (r.water_release_lbs ?? 0) + 
+                        (r.land_release_lbs ?? 0) + (r.underground_release_lbs ?? 0) + 
+                        (r.off_site_lbs ?? 0)
+      dataByYear.set(r.reporting_year, {
+        epaTotal: current.epaTotal + epaTotal,
+        mediumSum: current.mediumSum + mediumSum,
+      })
     }
 
     // Generate full 15-year range ending at reference year
-    const fullRange: { year: number; lbs: number }[] = []
+    const fullRange: YearData[] = []
     for (let y = trendStartYear; y <= trendReferenceYear; y++) {
-      fullRange.push({ year: y, lbs: dataByYear.get(y) ?? 0 })
+      const yearData = dataByYear.get(y)
+      const epaTotal = yearData?.epaTotal ?? 0
+      const mediumSum = yearData?.mediumSum ?? 0
+      const discrepancy = mediumSum - epaTotal
+      const discrepancyPct = epaTotal > 0 ? (Math.abs(discrepancy) / epaTotal) * 100 : 0
+      fullRange.push({ year: y, lbs: epaTotal, mediumSum, discrepancy, discrepancyPct })
     }
     return fullRange
   })()
+
+  // Check if ANY year has a significant discrepancy (≥5%) - used to warn even when aggregate is minimal
+  const hasYearWithHighDiscrepancy = trendData.some(d => d.discrepancyPct >= 5 && d.lbs > 0)
 
   return (
     <div
@@ -195,9 +224,23 @@ export function FacilityDrawer({ facilityId, onClose, selectedYear, width = 420,
                 {detail?.name ?? facilityId}
               </p>
               {detail && (
-                <p className="toxmap-drawer-subtitle" style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px', margin: '2px 0 0' }}>
-                  {detail.address}, {detail.city}, {detail.state_code}
-                </p>
+                <>
+                  <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#6b7280', fontFamily: 'monospace' }}>
+                    TRI ID:{' '}
+                    <a
+                      href={`https://enviro.epa.gov/facts/tri/ef-facilities/#/Facility/${detail.tri_facility_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: '#2563eb', textDecoration: 'none' }}
+                      data-testid="facility-tri-id-link"
+                    >
+                      {detail.tri_facility_id}
+                    </a>
+                  </p>
+                  <p className="toxmap-drawer-subtitle" style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px', margin: '2px 0 0' }}>
+                    {detail.address}, {detail.city}, {detail.state_code}
+                  </p>
+                </>
               )}
             </>
           )}
@@ -401,14 +444,92 @@ export function FacilityDrawer({ facilityId, onClose, selectedYear, width = 420,
             {mediumData.length === 0 ? (
               <p style={{ fontSize: '13px', color: '#9ca3af' }}>No medium breakdown available.</p>
             ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={mediumData}>
-                  <XAxis dataKey="medium" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(v) => [formatNumber(Number(v ?? 0)) + ' lbs', 'Released']} />
-                  <Bar dataKey="lbs" fill="#f97316" />
-                </BarChart>
-              </ResponsiveContainer>
+              <>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={mediumData}>
+                    <XAxis dataKey="medium" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip formatter={(v) => [formatNumber(Number(v ?? 0)) + ' lbs', 'Released']} />
+                    <Bar dataKey="lbs" fill="#f97316" />
+                  </BarChart>
+                </ResponsiveContainer>
+                {/* EPA total and discrepancy display */}
+                {detail && (
+                  <div data-testid="medium-discrepancy-section" style={{ marginTop: '16px', padding: '12px', backgroundColor: '#f9fafb', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#374151' }}>EPA-Reported Total:</span>
+                      <span data-testid="medium-epa-total" style={{ fontSize: '13px', fontWeight: 700, color: '#111827' }}>
+                        {formatLbs(detail.total_release_lbs)}
+                      </span>
+                    </div>
+                    {(() => {
+                      const epaTotal = detail.total_release_lbs ?? 0
+                      const discrepancy = mediumSum - epaTotal
+                      const discrepancyAbs = Math.abs(discrepancy)
+                      const discrepancyPct = epaTotal > 0 ? (discrepancyAbs / epaTotal) * 100 : 0
+                      const hasDiscrepancy = discrepancyAbs >= 1
+                      return (
+                        <>
+                          {hasDiscrepancy && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
+                              <span style={{ fontSize: '12px', color: '#6b7280' }}>Aggregate Discrepancy (all years):</span>
+                              <span data-testid="medium-discrepancy-value" style={{ fontSize: '12px', fontWeight: 600, color: discrepancy >= 0 ? '#059669' : '#dc2626' }}>
+                                {discrepancy >= 0 ? '+' : '−'}{formatNumber(discrepancyAbs)} lbs ({discrepancyPct.toFixed(1)}%)
+                              </span>
+                            </div>
+                          )}
+                          <p data-testid="medium-discrepancy-footnote" style={{ margin: '8px 0 0', fontSize: '10px', lineHeight: '1.4', color: '#6b7280' }}>
+                            {hasDiscrepancy ? (
+                              <>
+                                <strong>Note:</strong> This aggregate discrepancy is calculated across all reporting years. Positive and negative 
+                                year-over-year discrepancies may cancel out — <strong>see the 15-Year Trend tab for per-year discrepancy details</strong>. 
+                                The EPA total combines on-site releases (air, water, land, underground) with off-site transfers. While off-site 
+                                values are consistent, the EPA's on-site total does not always equal the sum of individual mediums due to 
+                                facility self-reporting errors, data amendments, or Form A certifications where detailed breakdowns are not required. 
+                                <a 
+                                  href="https://www.epa.gov/toxics-release-inventory-tri-program/tri-data-quality" 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  style={{ color: '#2563eb', marginLeft: '4px' }}
+                                >
+                                  Learn more about TRI data quality →
+                                </a>
+                              </>
+                            ) : hasYearWithHighDiscrepancy ? (
+                              <>
+                                <strong>Note:</strong> While the aggregate discrepancy is minimal, <strong>some individual years show ≥5% discrepancies</strong> that 
+                                cancel out — see the 15-Year Trend tab for per-year details. The EPA's on-site total does not always equal the sum of 
+                                individual mediums due to facility self-reporting errors, data amendments, or Form A certifications. 
+                                <a 
+                                  href="https://www.epa.gov/toxics-release-inventory-tri-program/tri-data-quality" 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  style={{ color: '#2563eb', marginLeft: '4px' }}
+                                >
+                                  Learn more about TRI data quality →
+                                </a>
+                              </>
+                            ) : (
+                              <>
+                                <strong>Note:</strong> The EPA total combines on-site releases (air, water, land, underground) with off-site 
+                                transfers. See the 15-Year Trend tab for year-by-year release data. 
+                                <a 
+                                  href="https://www.epa.gov/toxics-release-inventory-tri-program/tri-data-quality" 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  style={{ color: '#2563eb', marginLeft: '4px' }}
+                                >
+                                  Learn more about TRI data quality →
+                                </a>
+                              </>
+                            )}
+                          </p>
+                        </>
+                      )
+                    })()}
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -422,23 +543,91 @@ export function FacilityDrawer({ facilityId, onClose, selectedYear, width = 420,
             {trendData.length === 0 ? (
               <p style={{ fontSize: '13px', color: '#9ca3af' }}>No trend data available.</p>
             ) : (
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={trendData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="year" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip
-                    labelFormatter={(year) => `Reporting Year: ${year}`}
-                    formatter={(v) => [formatNumber(Number(v ?? 0)) + ' lbs', 'Total release']}
-                  />
-                  <Legend />
-                  <Line type="monotone" dataKey="lbs" stroke="#3b82f6" dot={true} name="Total release (lbs)" />
-                </LineChart>
-              </ResponsiveContainer>
+              <>
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={trendData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="year" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip
+                      labelFormatter={(year) => `Reporting Year: ${year}`}
+                      content={({ active, payload, label }) => {
+                        if (!active || !payload || !payload.length) return null
+                        const data = payload[0].payload as typeof trendData[0]
+                        const hasData = data.lbs > 0 || data.mediumSum > 0
+                        return (
+                          <div data-testid="trend-tooltip" style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '4px', padding: '8px 10px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                            <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: '#374151' }}>
+                              Reporting Year: {label}
+                            </p>
+                            <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#111827' }}>
+                              EPA Total: {formatNumber(data.lbs)} lbs
+                            </p>
+                            {hasData && (
+                              <>
+                                <p style={{ margin: '2px 0 0', fontSize: '10px', color: '#6b7280' }}>
+                                  Medium Sum: {formatNumber(data.mediumSum)} lbs
+                                </p>
+                                <p data-testid="trend-tooltip-discrepancy" style={{ margin: '2px 0 0', fontSize: '10px', fontWeight: 600, color: Math.abs(data.discrepancy) < 1 ? '#059669' : (data.discrepancy >= 0 ? '#059669' : '#dc2626') }}>
+                                  Discrepancy: {data.discrepancy >= 0 ? '+' : '−'}{formatNumber(Math.abs(data.discrepancy))} lbs ({data.discrepancyPct.toFixed(1)}%)
+                                </p>
+                              </>
+                            )}
+                          </div>
+                        )
+                      }}
+                    />
+                    <Legend />
+                    <Line 
+                      type="monotone" 
+                      dataKey="lbs" 
+                      stroke="#3b82f6" 
+                      dot={(props) => {
+                        const { cx, cy, payload } = props
+                        const hasHighDiscrepancy = payload && Math.abs(payload.discrepancy) >= 1 && payload.discrepancyPct >= 5
+                        // Red ring around dots with ≥5% discrepancy to draw attention
+                        return (
+                          <g key={`dot-${payload?.year}`}>
+                            {hasHighDiscrepancy && (
+                              <circle cx={cx} cy={cy} r={6} fill="none" stroke="#dc2626" strokeWidth={2} opacity={0.6} />
+                            )}
+                            <circle cx={cx} cy={cy} r={3} fill="#3b82f6" stroke="#fff" strokeWidth={1} />
+                          </g>
+                        )
+                      }}
+                      name="Total release (lbs)" 
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+                {/* Per-year discrepancy legend */}
+                <div data-testid="trend-discrepancy-legend" style={{ marginTop: '8px', fontSize: '10px', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', border: '2px solid #dc2626', opacity: 0.6 }}></span>
+                    Year with ≥5% data discrepancy
+                  </span>
+                  <span style={{ color: '#9ca3af' }}>|</span>
+                  <span>Hover for per-year discrepancy details</span>
+                </div>
+              </>
             )}
           </div>
         )}
       </div>
+
+      {/* EPA TRI Facility Report link — mirrors Superfund's EPA Site Progress Profile link */}
+      {detail && (
+        <div style={{ flexShrink: 0, borderTop: '1px solid #e5e7eb', padding: '12px 16px' }}>
+          <a
+            data-testid="facility-epa-report-link"
+            href={`https://enviro.epa.gov/facts/tri/ef-facilities/#/Facility/${detail.tri_facility_id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontSize: '13px', color: '#2563eb', display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}
+          >
+            EPA TRI Facility Report ↗
+          </a>
+        </div>
+      )}
 
       {/* Close link at bottom (UX Invariant 9) */}
       <div className="toxmap-drawer-footer" style={{ flexShrink: 0, borderTop: '1px solid #e5e7eb', padding: '10px', textAlign: 'center' }}>
