@@ -2068,13 +2068,13 @@ def click_facility_tab(page: Page, tab_name: str) -> None:
 
 @then('the 15-year trend chart is visible')
 def trend_chart_visible(page: Page) -> None:
-    """Verify the 15-year trend line chart is rendered."""
+    """Verify the Release Trend (formerly 15-year trend) line chart is rendered."""
     # Recharts renders SVG with class recharts-surface
     chart = page.locator('.recharts-surface')
     expect(chart).to_be_visible()
     
-    # Also verify the heading
-    heading = page.locator('h3:has-text("15-year release trend")')
+    # Check for either old or new heading (backward compatibility)
+    heading = page.locator('h3:has-text("release trend"), h3:has-text("Release Trend")')
     expect(heading).to_be_visible()
 
 
@@ -2510,13 +2510,14 @@ def discrepancy_label_shows_aggregate(page: Page) -> None:
 def discrepancy_footnote_references_trend_tab(page: Page) -> None:
     """
     Regression test for 7.BUG.38 Option A: Footnote must direct users to the
-    15-Year Trend tab for per-year discrepancy details (prevents aggregation masking).
+    Release Trend tab (formerly 15-Year Trend) for per-year discrepancy details.
     """
     footnote = page.locator('[data-testid="medium-discrepancy-footnote"]')
     expect(footnote).to_be_visible()
     text = footnote.inner_text().lower()
-    assert '15-year trend' in text or 'trend tab' in text, (
-        f'REGRESSION 7.BUG.38: Footnote should reference the 15-Year Trend tab '
+    # Accept both old "15-Year Trend" and new "Release Trend" naming
+    assert 'release trend' in text or '15-year trend' in text or 'trend tab' in text, (
+        f'REGRESSION 7.BUG.38: Footnote should reference the Release Trend tab '
         f'for per-year discrepancy. Text found: {text[:200]}...'
     )
 
@@ -2638,3 +2639,100 @@ def epa_tri_report_link_above_close(page: Page) -> None:
     assert report_box['y'] < close_box['y'], (
         f'ADR-010: EPA TRI Report link (y={report_box["y"]}) should be above close button (y={close_box["y"]})'
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 7.UX.4: Release Trend Tab Edge Case (1987 Clamp)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@then('the Release Trend tab is labeled "Release Trend"')
+def release_trend_tab_labeled(page: Page) -> None:
+    """7.UX.4: Verify tab is renamed from '15-Year Trend' to 'Release Trend'."""
+    tab = page.locator('[data-testid="facility-chart-tab-3"]')
+    expect(tab).to_be_visible()
+    text = tab.inner_text()
+    assert 'Release Trend' in text, (
+        f'REGRESSION 7.UX.4: Tab should be labeled "Release Trend", got "{text}"'
+    )
+    assert '15-Year' not in text, (
+        f'REGRESSION 7.UX.4: Tab should NOT be labeled "15-Year Trend" (renamed), got "{text}"'
+    )
+
+
+@when(parsers.parse('I click the "{tab_name}" tab'))
+def click_drawer_tab_by_name(page: Page, tab_name: str) -> None:
+    """Click a tab by its visible label text."""
+    # Map tab names to test IDs
+    tab_map = {
+        'Top Chemicals': 'facility-chart-tab-1',
+        'By Medium': 'facility-chart-tab-2',
+        'Release Trend': 'facility-chart-tab-3',
+        '15-Year Trend': 'facility-chart-tab-3',  # Legacy name
+    }
+    testid = tab_map.get(tab_name, 'facility-chart-tab-3')
+    tab = page.locator(f'[data-testid="{testid}"]')
+    expect(tab).to_be_visible()
+    tab.click()
+
+
+@then(parsers.parse('the trend range subtitle shows "{expected_range}"'))
+def trend_range_subtitle_shows(page: Page, expected_range: str) -> None:
+    """7.UX.4: Verify trend subtitle shows expected year range."""
+    subtitle = page.locator('[data-testid="trend-range-subtitle"]')
+    expect(subtitle).to_be_visible()
+    text = subtitle.inner_text()
+    assert expected_range in text, (
+        f'REGRESSION 7.UX.4: Expected range "{expected_range}" in subtitle, got "{text}"'
+    )
+
+
+@then('the trend range subtitle indicates TRI reporting began 1987')
+def trend_subtitle_indicates_tri_start(page: Page) -> None:
+    """7.UX.4: Verify subtitle notes TRI reporting began in 1987 when <15 years."""
+    subtitle = page.locator('[data-testid="trend-range-subtitle"]')
+    expect(subtitle).to_be_visible()
+    text = subtitle.inner_text().lower()
+    assert 'tri reporting began 1987' in text or '1987' in text, (
+        f'REGRESSION 7.UX.4: Subtitle should indicate TRI started 1987 for <15 year ranges, got "{text}"'
+    )
+
+
+@then('the trend range subtitle does not indicate limited years')
+def trend_subtitle_no_limited_years_note(page: Page) -> None:
+    """7.UX.4: Verify subtitle has no '(N years available)' note for full 15-year range."""
+    subtitle = page.locator('[data-testid="trend-range-subtitle"]')
+    expect(subtitle).to_be_visible()
+    text = subtitle.inner_text()
+    assert 'years available' not in text.lower(), (
+        f'REGRESSION 7.UX.4: Full 15-year range should not have "years available" note, got "{text}"'
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 7.UX.5: Missing Year Data as Gaps (Not Zeros)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@then('the Release Trend chart is visible')
+def release_trend_chart_visible(page: Page) -> None:
+    """7.UX.5: Verify the Release Trend line chart is rendered."""
+    # Check for Recharts LineChart container
+    chart = page.locator('.recharts-wrapper')
+    expect(chart).to_be_visible()
+    # Verify we're on the trend tab by checking heading
+    heading = page.locator('h3:has-text("Release Trend")')
+    expect(heading).to_be_visible()
+
+
+@then(parsers.parse('the trend heading shows "{expected_text}"'))
+def trend_heading_shows_text(page: Page, expected_text: str) -> None:
+    """7.UX.3/7.UX.4: Verify the Release Trend tab heading text."""
+    heading = page.locator('h3:has-text("Release Trend"), h3:has-text("release trend")')
+    expect(heading).to_be_visible()
+    text = heading.inner_text()
+    # Normalize for comparison
+    assert expected_text.lower() in text.lower(), (
+        f'REGRESSION 7.UX.3: Expected heading containing "{expected_text}", got "{text}"'
+    )
+

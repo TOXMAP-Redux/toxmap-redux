@@ -53,7 +53,11 @@ TOXMAP Redux is a comprehensive environmental health mapping tool with the follo
 - **Top Chemicals** — The 5 largest chemical releases at each facility with percentages
 - **Superfund Contaminants** — List of hazardous substances found at each Superfund site
 - **Health Information** — Direct links to CDC ToxFAQs and PubChem for many chemicals
-- **Data Vintage** — Footer shows which EPA data release you're viewing (e.g., "October 2024 freeze")
+
+### Data You Can Export
+
+- **CSV Download** — Export your search results for spreadsheet analysis
+- **Data Vintage** — Always shows which EPA data release you're viewing
 
 ### Important Notes
 

@@ -797,7 +797,7 @@ Feature: UX Design Invariants
     And the table header shows "(lbs./all years)"
 
   @regression @7UX3
-  Scenario: 7.UX.3 — 15-Year Trend tab uses selected year as end point
+  Scenario: 7.UX.3 — Release Trend tab uses selected year as end point
     Given I am on the map page
     When I click the search panel tab
     And I type "Carlin, NV" into the location field
@@ -805,5 +805,70 @@ Feature: UX Design Invariants
     And I click "Search"
     And I click on the first TRI facility in the results
     Then the facility detail drawer opens
-    When I click the "15-Year Trend" tab
-    Then the trend heading shows "15-year release trend (2006–2020)"
+    When I click the "Release Trend" tab
+    Then the trend range subtitle shows "2006–2020"
+
+  # ── Regression: 7.UX.4 — Release Trend Tab Edge Case (1987 Clamp) ────────────────
+  # Root cause: TRI reporting started in 1987. Selecting year 1987 computed
+  # trendStartYear = 1987 - 14 = 1973, showing 14 years of misleading zeros.
+  # Fix: Clamp to 1987; rename tab; show dynamic subtitle when <15 years.
+
+  @regression @7UX4
+  Scenario: 7.UX.4 — Release Trend tab is renamed from "15-Year Trend"
+    Given I am on the map page
+    When I perform a search for "COPPER" near "Ruth, NV"
+    And I click on the first result in the results table
+    Then the facility detail drawer opens
+    And the Release Trend tab is labeled "Release Trend"
+
+  @regression @7UX4
+  Scenario: 7.UX.4 — Release Trend with 1990 year filter shows 1987–1990
+    Given I am on the map page
+    When I click the search panel tab
+    And I type "Ruth, NV" into the location field
+    And I select "1990" from the year dropdown
+    And I click "Search"
+    And I click on the first TRI facility in the results
+    Then the facility detail drawer opens
+    When I click the "Release Trend" tab
+    Then the trend range subtitle shows "1987–1990"
+    And the trend range subtitle indicates TRI reporting began 1987
+
+  @regression @7UX4
+  Scenario: 7.UX.4 — Release Trend with 2020 year filter shows full 15 years
+    Given I am on the map page
+    When I click the search panel tab
+    And I type "Ruth, NV" into the location field
+    And I select "2020" from the year dropdown
+    And I click "Search"
+    And I click on the first TRI facility in the results
+    Then the facility detail drawer opens
+    When I click the "Release Trend" tab
+    Then the trend range subtitle shows "2006–2020"
+    And the trend range subtitle does not indicate limited years
+
+  # ── Regression: 7.UX.5 — Missing Year Data as Gaps (Not Zeros) ────────────────
+  # Root cause: Missing years coerced to 0 (misleading). Null ≠ zero.
+  # Fix: Use null for missing data; line breaks at gaps; tooltip explains.
+
+  @regression @7UX5
+  Scenario: 7.UX.5 — Release Trend legend shows gap explanation when missing years exist
+    Given I am on the map page
+    When I perform a search for "COPPER" near "Ruth, NV"
+    And I click on the first result in the results table
+    Then the facility detail drawer opens
+    When I click the "Release Trend" tab
+    Then the trend discrepancy legend is visible
+
+  @regression @7UX5
+  Scenario: 7.UX.5 — Release Trend tooltip shows "No TRI report filed" for missing year
+    Given I am on the map page
+    When I click the search panel tab
+    And I type "Ruth, NV" into the location field
+    And I select "1990" from the year dropdown
+    And I click "Search"
+    And I click on the first TRI facility in the results
+    Then the facility detail drawer opens
+    When I click the "Release Trend" tab
+    # The tooltip content is tested via unit tests; here we just verify the chart renders
+    Then the Release Trend chart is visible

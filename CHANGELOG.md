@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Superfund contaminants display decluttered** — Removed inline CAS numbers from contaminant rows for cleaner UI; chemical name + PubChem/ToxFAQs links remain. [agent]
 - **7.UX.2: Superfund drawer EPA link parity** — Moved "EPA Site Progress Profile" link from scrollable body to fixed footer position (above Close button), matching TRI drawer layout. [agent]
 - **7.UX.3: Reporting Year filter now applies to facility drawer** — Added `year` query parameter to `GET /api/v1/facilities/{id}` endpoint. Frontend passes selected year to drawer; "Top Chemicals", "By Medium", and "15-Year Trend" tabs now show year-filtered data. Labels dynamically display "(2020)" or "(all years)" based on selection. [agent]
+- **7.UX.4: Release Trend tab edge case (1987 clamp)** — Tab renamed from "15-Year Trend" to "Release Trend" since range varies. When year filter is near 1987 (TRI start year), chart now shows clamped range (e.g., 1987–1990 instead of 1973–1987 with misleading zeros). Dynamic subtitle shows "(9 years available — TRI reporting began 1987)" when fewer than 15 years. [agent]
 - Updated ACCEPTED_RISKS.md RISK-009 and RISK-010 to reference Workers proxy as recommended mitigation [agent]
 - Updated ADR-006 (Photon geocoding) with reference to ADR-009 for production scaling [agent]
 - Updated ADR-004 free services table to include Workers, Photon, and OpenFreeMap [agent]
@@ -47,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **7.UX.5: Release Trend missing years render as gaps** — Changed `YearData.lbs` to `number | null` (null = no TRI report filed, 0 = reported zero releases). Added `connectNulls={false}` so Recharts breaks line at gaps instead of interpolating. Tooltip shows "No TRI report filed this year" for null years. Legend dynamically shows "Gap in line = no TRI report filed (N years)" when gaps exist. [agent]
 - **Superfund drawer close button parity** — Updated SuperfundDrawer close button to match FacilityDrawer style (centered gray "Close panel" instead of left-aligned blue "← Close"). [agent]
 - **By Medium discrepancy note conditional display** — Fixed confusing note in By Medium tab that always talked about discrepancies even when no meaningful discrepancy existed. Now shows three variants: (1) full discrepancy explanation when aggregate ≥1 lb, (2) "aggregate minimal but some years show ≥5%" warning when per-year discrepancies cancel out, (3) simple note when no discrepancies exist. [agent]
 - **Superfund ingestion now populates `epa_progress_url`** — `superfund_ingest.py` now builds EPA Site Progress Profile URL from SEMS `site_id` (different from `epa_id`). Re-ran ingestion to update 2,021 existing sites. [agent]
