@@ -22,7 +22,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.services.facility_service import get_export_rows
+from app.services.facility_service import get_export_rows, get_export_rows_browse
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +104,43 @@ async def export_csv(
     year_label = str(year) if year is not None else "latest"
     chem_slug = _safe_slug(chemical)
     filename = f"toxmap_{year_label}_{chem_slug}.csv"
+
+    return StreamingResponse(
+        _csv_generator(rows),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )
+
+
+@router.get("/export/csv/browse")
+async def export_csv_browse(
+    year: Annotated[int | None, Query()] = None,
+    chemical: Annotated[str | None, Query()] = None,
+    naics: Annotated[str | None, Query()] = None,
+    medium: Annotated[str | None, Query()] = None,
+    state: Annotated[str | None, Query(max_length=2)] = None,
+    limit: Annotated[int, Query(ge=1, le=5000)] = 2000,
+    db: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    """Stream a CSV of facility release data for nationwide browse (no spatial constraint).
+    
+    Use this endpoint for exports when no lat/lon is provided (nationwide searches).
+    """
+    rows = await get_export_rows_browse(
+        session=db,
+        year=year,
+        chemical=chemical,
+        naics=naics,
+        medium=medium if medium in _VALID_MEDIA else None,
+        state=state,
+        limit=limit,
+    )
+    year_label = str(year) if year is not None else "latest"
+    chem_slug = _safe_slug(chemical)
+    state_slug = state.upper() if state else "all"
+    filename = f"toxmap_{year_label}_{chem_slug}_{state_slug}.csv"
 
     return StreamingResponse(
         _csv_generator(rows),

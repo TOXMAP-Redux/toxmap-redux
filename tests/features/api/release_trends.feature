@@ -49,3 +49,33 @@ Feature: Release Trends
     When I GET "/api/v1/facilities/89319BHPCP7MILE"
     Then the response status is 200
     And the response field "total_release_lbs" equals 25195.0
+
+  # ── Regression: 7.UX.3 — Facility detail year filter ────────────────────────
+  # FEATURE: Facility detail endpoint now accepts ?year= parameter.
+  # When year is provided, top_chemicals and total_release_lbs are filtered
+  # to that single year. When omitted, all years are aggregated.
+
+  Scenario: Regression 7.UX.3 — Facility detail with year=2008 returns single year data
+    # Robinson Nevada 2008: copper = 8205 lbs
+    When I GET "/api/v1/facilities/89319BHPCP7MILE?year=2008"
+    Then the response status is 200
+    And the response field "total_release_lbs" equals 8205.0
+    And the response field "top_chemicals" is a non-empty list
+
+  Scenario: Regression 7.UX.3 — Facility detail with year=2007 returns different data
+    # Robinson Nevada 2007: copper = 7890 lbs
+    When I GET "/api/v1/facilities/89319BHPCP7MILE?year=2007"
+    Then the response status is 200
+    And the response field "total_release_lbs" equals 7890.0
+
+  Scenario: Regression 7.UX.3 — Facility detail without year returns all years total
+    # Robinson Nevada all years: 2006=9100 + 2007=7890 + 2008=8205 = 25195 lbs
+    When I GET "/api/v1/facilities/89319BHPCP7MILE"
+    Then the response status is 200
+    And the response field "total_release_lbs" equals 25195.0
+
+  Scenario: Regression 7.UX.3 — Year filter with no data returns zero
+    # If a facility has no releases in a year, total should be 0 or null
+    When I GET "/api/v1/facilities/89319BHPCP7MILE?year=2000"
+    Then the response status is 200
+    And the response field "top_chemicals" is an empty list

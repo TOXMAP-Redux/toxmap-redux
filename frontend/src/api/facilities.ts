@@ -46,8 +46,11 @@ export async function fetchFacilities(
 }
 
 /** GET /api/v1/facilities/{id} — single facility detail */
-export async function fetchFacilityDetail(id: string): Promise<FacilityDetail> {
-  const res = await fetch(`${API_BASE}/api/v1/facilities/${encodeURIComponent(id)}`)
+export async function fetchFacilityDetail(id: string, year?: number): Promise<FacilityDetail> {
+  const params = new URLSearchParams()
+  if (year != null) params.set('year', String(year))
+  const qs = params.toString() ? `?${params.toString()}` : ''
+  const res = await fetch(`${API_BASE}/api/v1/facilities/${encodeURIComponent(id)}${qs}`)
   if (!res.ok) throw new Error(`Facility detail failed: ${res.status}`)
   return res.json() as Promise<FacilityDetail>
 }

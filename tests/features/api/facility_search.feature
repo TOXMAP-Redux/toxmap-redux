@@ -284,3 +284,17 @@ Feature: Facility Search by Location
     Then the response status is 200
     And facility "89319BHPCP7MILE" is in the results
     And facility "89319BHPCP7MILE" has total_release_lbs 25195.0
+
+  # Regression: 7.UX.1 — State-only browse returns facilities filtered to that state
+  # User can select a state and click Search without entering a chemical or location
+  Scenario: Regression 7.UX.1 — State-only browse returns NJ facilities
+    When I GET "/api/v1/facilities/browse?state=NJ"
+    Then the response status is 200
+    And the response is a non-empty array
+    And every facility has state "NEW JERSEY"
+
+  Scenario: Regression 7.UX.1 — State-only browse returns VA facilities
+    When I GET "/api/v1/facilities/browse?state=VA"
+    Then the response status is 200
+    And the response is a non-empty array
+    And every facility has state "VIRGINIA"

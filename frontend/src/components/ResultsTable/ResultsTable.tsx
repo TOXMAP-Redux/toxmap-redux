@@ -1,8 +1,9 @@
 /**
- * ResultsTable — stories 3.5.1–3.5.3, 4.1.3.
+ * ResultsTable — stories 3.5.1–3.5.3, 4.1.3, 6.EXPORT.1–4.
  * UX Invariants: 2 (no empty rows), 8 (comma-formatted numbers).
  * Supports TRI mode (sorted by total_release_lbs) and Superfund mode (HRS score).
  * ADR-007: Displays chemical family expansion banner when applicable.
+ * 6.EXPORT: CSV download button in results header.
  *
  * PERFORMANCE: Renders max 100 rows initially to avoid 10+ second freezes
  * when handling 22K+ facilities. Users can click "Load more" to see additional results.
@@ -34,6 +35,10 @@ interface ResultsTableProps {
   searchExpansion?: SearchExpansion | null
   /** Callback for "Search exact term only" button (ADR-007) */
   onSearchExact?: () => void
+  /** Callback for CSV export button (6.EXPORT.1–4) */
+  onExport?: () => void
+  /** Whether export is in progress (6.EXPORT.3) */
+  exportLoading?: boolean
 }
 
 /** HRS score badge coloring (story 4.2.1): red ≥50, amber 28–50, green <28 */
@@ -96,6 +101,13 @@ function arePropsEqual(prev: ResultsTableProps, next: ResultsTableProps): boolea
     console.log('[ResultsTable] onSearchExact ref changed (ignored)')
   }
   
+  // Export props - compare directly
+  if (prev.exportLoading !== next.exportLoading) reasons.push('exportLoading')
+  // onExport is a callback - don't trigger re-render on ref change
+  if (PERF_DEBUG && prev.onExport !== next.onExport) {
+    console.log('[ResultsTable] onExport ref changed (ignored)')
+  }
+  
   const areEqual = reasons.length === 0
   if (PERF_DEBUG && !areEqual) {
     console.log(`[ResultsTable] arePropsEqual=false, reasons: ${reasons.join(', ')}`)
@@ -119,6 +131,8 @@ export const ResultsTable = memo(function ResultsTable({
   onSelect,
   searchExpansion,
   onSearchExact,
+  onExport,
+  exportLoading,
 }: ResultsTableProps): JSX.Element {
   // Performance logging
   // Render count tracking (enable PERF_DEBUG to log)
@@ -196,9 +210,49 @@ export const ResultsTable = memo(function ResultsTable({
             <ChemicalFamilyBanner expansion={searchExpansion} onSearchExact={onSearchExact} />
           </div>
         )}
-        <p data-testid="results-summary" className="toxmap-results-count" style={{ padding: '4px 10px', fontSize: '11px', color: '#6b7280', margin: 0, borderBottom: '1px solid #f3f4f6' }}>
-          {triCount} TRI facilities · {superfundCount} Superfund sites
-        </p>
+        <div data-testid="results-summary" className="toxmap-results-count" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 10px', fontSize: '11px', color: '#6b7280', margin: 0, borderBottom: '1px solid #f3f4f6' }}>
+          <span>{triCount} TRI facilities · {superfundCount} Superfund sites</span>
+          {onExport && totalCount > 0 && (
+            <button
+              type="button"
+              data-testid="export-csv-btn"
+              onClick={onExport}
+              disabled={exportLoading}
+              aria-label="Download CSV"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '2px 8px',
+                fontSize: '10px',
+                fontWeight: 500,
+                color: exportLoading ? '#9ca3af' : '#166534',
+                background: '#f0fdf4',
+                border: '1px solid #dcfce7',
+                borderRadius: '4px',
+                cursor: exportLoading ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {exportLoading ? (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 24 24" style={{ animation: 'spin 1s linear infinite' }}>
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" fill="none" strokeDasharray="31.4 31.4" />
+                  </svg>
+                  <span>Exporting…</span>
+                </>
+              ) : (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <span>CSV</span>
+                </>
+              )}
+            </button>
+          )}
+        </div>
 
         {/* TRI section */}
         {sortedTri.length > 0 && (
@@ -316,9 +370,9 @@ export const ResultsTable = memo(function ResultsTable({
     const hasMore = sortedSuperfund.length > superfundDisplayLimit
     return (
       <div data-testid="results-table">
-        <p data-testid="results-summary" className="toxmap-results-count" style={{ padding: '4px 10px', fontSize: '11px', color: '#6b7280', margin: 0, borderBottom: '1px solid #f3f4f6' }}>
-          {superfundData.meta.total_count} Superfund sites
-        </p>
+        <div data-testid="results-summary" className="toxmap-results-count" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 10px', fontSize: '11px', color: '#6b7280', margin: 0, borderBottom: '1px solid #f3f4f6' }}>
+          <span>{superfundData.meta.total_count} Superfund sites</span>
+        </div>
         <table className="toxmap-results-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
           <thead>
             <tr>
@@ -400,9 +454,49 @@ export const ResultsTable = memo(function ResultsTable({
 
   return (
     <div data-testid="results-table">
-      <p data-testid="results-summary" className="toxmap-results-count" style={{ padding: '4px 10px', fontSize: '11px', color: '#6b7280', margin: 0, borderBottom: '1px solid #f3f4f6' }}>
-        {triData.meta.total_count} TRI facilities
-      </p>
+      <div data-testid="results-summary" className="toxmap-results-count" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 10px', fontSize: '11px', color: '#6b7280', margin: 0, borderBottom: '1px solid #f3f4f6' }}>
+        <span>{triData.meta.total_count} TRI facilities</span>
+        {onExport && triData.features.length > 0 && (
+          <button
+            type="button"
+            data-testid="export-csv-btn"
+            onClick={onExport}
+            disabled={exportLoading}
+            aria-label="Download CSV"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '2px 8px',
+              fontSize: '10px',
+              fontWeight: 500,
+              color: exportLoading ? '#9ca3af' : '#166534',
+              background: '#f0fdf4',
+              border: '1px solid #dcfce7',
+              borderRadius: '4px',
+              cursor: exportLoading ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {exportLoading ? (
+              <>
+                <svg width="12" height="12" viewBox="0 0 24 24" style={{ animation: 'spin 1s linear infinite' }}>
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" fill="none" strokeDasharray="31.4 31.4" />
+                </svg>
+                <span>Exporting…</span>
+              </>
+            ) : (
+              <>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                <span>CSV</span>
+              </>
+            )}
+          </button>
+        )}
+      </div>
       <table className="toxmap-results-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
         <thead>
           <tr>

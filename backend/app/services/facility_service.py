@@ -437,8 +437,16 @@ async def get_all_facilities_browse(
 async def get_facility_detail(
     session: AsyncSession,
     tri_facility_id: str,
+    year: int | None = None,
 ) -> FacilityDetail | None:
-    """Return full detail for a single facility including top-5 chemicals (all years)."""
+    """Return full detail for a single facility including top-5 chemicals.
+    
+    Args:
+        session: Database session
+        tri_facility_id: TRI facility ID
+        year: If provided, filter top chemicals and totals to this reporting year.
+              If None, aggregate across all years.
+    """
     result = await session.execute(
         select(Facility).where(Facility.tri_facility_id == tri_facility_id)
     )
@@ -452,46 +460,49 @@ async def get_facility_detail(
     )
     latest_year: int | None = yr_result.scalar()
 
-    # 7.BUG.37: Calculate total_release_lbs across ALL years INCLUDING off-site transfers
-    # This ensures mediums (air + water + land + underground + off-site) sum to the TOTAL
+    # Build year filter condition (used for both total and top chemicals)
+    year_filter = ReleaseEvent.reporting_year == year if year is not None else True
+
+    # Calculate total_release_lbs (filtered by year if provided)
+    # Includes off-site transfers so mediums (air + water + land + underground + off-site) sum to TOTAL
     total_result = await session.execute(
         select(
             func.sum(func.coalesce(ReleaseEvent.total_release_lbs, 0) + func.coalesce(ReleaseEvent.off_site_lbs, 0))
-        ).where(ReleaseEvent.facility_id == facility.id)
+        ).where(ReleaseEvent.facility_id == facility.id).where(year_filter)
     )
     total_release_lbs: float | None = None
     total_raw = total_result.scalar()
     if total_raw is not None:
         total_release_lbs = float(total_raw)
 
-    # 7.BUG.37: Top chemicals aggregated across ALL years INCLUDING off-site transfers
-    # This matches "Emissions estimates (all years)" and ensures consistency with TOTAL
+    # Top chemicals (filtered by year if provided)
+    # Includes off-site transfers to match the total calculation
     top_chemicals: list[TopChemical] = []
-    chem_rows = (
-        await session.execute(
-            select(
-                Chemical.name,
-                Chemical.cas_number,
-                Chemical.atsdr_url,
-                Chemical.pubchem_url,
-                func.sum(
-                    func.coalesce(ReleaseEvent.total_release_lbs, 0) + func.coalesce(ReleaseEvent.off_site_lbs, 0)
-                ).label("total_lbs"),
-                ReleaseEvent.unit_of_measure,
-            )
-            .join(ReleaseEvent, ReleaseEvent.chemical_id == Chemical.id)
-            .where(ReleaseEvent.facility_id == facility.id)
-            .group_by(
-                Chemical.name,
-                Chemical.cas_number,
-                Chemical.atsdr_url,
-                Chemical.pubchem_url,
-                ReleaseEvent.unit_of_measure,
-            )
-            .order_by(desc("total_lbs"))
-            .limit(5)
+    chem_stmt = (
+        select(
+            Chemical.name,
+            Chemical.cas_number,
+            Chemical.atsdr_url,
+            Chemical.pubchem_url,
+            func.sum(
+                func.coalesce(ReleaseEvent.total_release_lbs, 0) + func.coalesce(ReleaseEvent.off_site_lbs, 0)
+            ).label("total_lbs"),
+            ReleaseEvent.unit_of_measure,
         )
-    ).all()
+        .join(ReleaseEvent, ReleaseEvent.chemical_id == Chemical.id)
+        .where(ReleaseEvent.facility_id == facility.id)
+        .where(year_filter)
+        .group_by(
+            Chemical.name,
+            Chemical.cas_number,
+            Chemical.atsdr_url,
+            Chemical.pubchem_url,
+            ReleaseEvent.unit_of_measure,
+        )
+        .order_by(desc("total_lbs"))
+        .limit(5)
+    )
+    chem_rows = (await session.execute(chem_stmt)).all()
 
     for row in chem_rows:
         lbs = float(row.total_lbs) if row.total_lbs is not None else 0.0
@@ -743,6 +754,94 @@ async def get_export_rows(
                 )
             except ValueError:
                 pass
+
+    stmt = stmt.limit(limit)
+    rows = (await session.execute(stmt)).all()
+
+    def _fmt(val: object) -> str:
+        return str(val) if val is not None else ""
+
+    return [
+        {
+            "tri_facility_id": row.tri_facility_id,
+            "name": row.name,
+            "address": row.address or "",
+            "city": row.city or "",
+            "state_code": row.state_code or "",
+            "naics_code": row.naics_code or "",
+            "chemical_name": row.chemical_name,
+            "cas_number": row.cas_number or "",
+            "reporting_year": row.reporting_year,
+            "total_release_lbs": _fmt(row.total_release_lbs),
+            "air_release_lbs": _fmt(row.air_release_lbs),
+            "water_release_lbs": _fmt(row.water_release_lbs),
+            "land_release_lbs": _fmt(row.land_release_lbs),
+            "underground_release_lbs": _fmt(row.underground_release_lbs),
+            "unit_of_measure": row.unit_of_measure,
+            "form_type": row.form_type,
+        }
+        for row in rows
+    ]
+
+
+async def get_export_rows_browse(
+    session: AsyncSession,
+    year: int | None,
+    chemical: str | None,
+    naics: str | None,
+    medium: str | None,
+    state: str | None,
+    limit: int,
+) -> list[dict[str, Any]]:
+    """Return per-chemical release rows for CSV export, browse mode (no spatial filter).
+    
+    Used for nationwide searches filtered by chemical/state without lat/lon constraint.
+    """
+    effective_year = await _resolve_year(session, year)
+
+    stmt = (
+        select(
+            Facility.tri_facility_id,
+            Facility.name,
+            Facility.address,
+            Facility.city,
+            Facility.state_code,
+            Facility.naics_code,
+            Chemical.name.label("chemical_name"),
+            Chemical.cas_number,
+            ReleaseEvent.reporting_year,
+            ReleaseEvent.total_release_lbs,
+            ReleaseEvent.air_release_lbs,
+            ReleaseEvent.water_release_lbs,
+            ReleaseEvent.land_release_lbs,
+            ReleaseEvent.underground_release_lbs,
+            ReleaseEvent.unit_of_measure,
+            ReleaseEvent.form_type,
+        )
+        .join(ReleaseEvent, ReleaseEvent.facility_id == Facility.id)
+        .join(Chemical, Chemical.id == ReleaseEvent.chemical_id)
+    )
+
+    if effective_year is not None:
+        stmt = stmt.where(ReleaseEvent.reporting_year == effective_year)
+
+    if chemical:
+        stmt = stmt.where(Chemical.name.ilike(f"%{chemical}%"))
+
+    if naics:
+        stmt = stmt.where(Facility.naics_code.startswith(naics))
+
+    if state:
+        stmt = stmt.where(Facility.state_code == state.upper()[:2])
+
+    if medium == "air":
+        stmt = stmt.where(ReleaseEvent.air_release_lbs > 0)
+    elif medium == "water":
+        stmt = stmt.where(ReleaseEvent.water_release_lbs > 0)
+    elif medium == "land":
+        stmt = stmt.where(ReleaseEvent.land_release_lbs > 0)
+    elif medium == "underground":
+        stmt = stmt.where(ReleaseEvent.underground_release_lbs > 0)
 
     stmt = stmt.limit(limit)
     rows = (await session.execute(stmt)).all()

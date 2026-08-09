@@ -66,7 +66,7 @@ async def browse_all_facilities(
         bool,
         Query(description="Skip chemical family expansion (search exact term only)"),
     ] = False,
-    limit: Annotated[int, Query(ge=1, le=30000)] = 30000,
+    limit: Annotated[int, Query(ge=1, le=50000)] = 50000,
     db: AsyncSession = Depends(get_db),
 ) -> FacilityCollection:
     """Browse mode: fetch ALL TRI facilities without radius constraint.
@@ -214,9 +214,13 @@ async def list_facilities(
 )
 async def get_facility(
     tri_facility_id: str,
+    year: Annotated[
+        int | None,
+        Query(description="Filter top chemicals and totals to this reporting year (omit for all years)"),
+    ] = None,
     db: AsyncSession = Depends(get_db),
 ) -> FacilityDetail:
-    detail = await get_facility_detail(db, tri_facility_id)
+    detail = await get_facility_detail(db, tri_facility_id, year=year)
     if detail is None:
         raise HTTPException(status_code=404, detail="Facility not found")
     return detail

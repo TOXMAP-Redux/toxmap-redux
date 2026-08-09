@@ -36,6 +36,7 @@ import Map, {
 import 'maplibre-gl/dist/maplibre-gl.css'
 import maplibregl from 'maplibre-gl'
 import type { FacilityCollection, FacilityFeature, SuperfundCollection, SuperfundFeature, DemographicCollection, DemographicLayer } from '../../api/types'
+import { exportMapImage } from '../../api/export'
 import { getColorScale } from '../Demographics/InlineLegend'
 
 /**
@@ -229,6 +230,25 @@ export function MapContainer({
   const [triLayersReady, setTriLayersReady] = useState(false)
   /** True once all Superfund SVG sprites are registered — gates the superfund-sites layer */
   const [spritesReady, setSpritesReady] = useState(false)
+  /** Screenshot export loading state (story 6.EXPORT.7–8) */
+  const [screenshotLoading, setScreenshotLoading] = useState(false)
+
+  /** Handle map screenshot export */
+  const handleScreenshot = useCallback(async () => {
+    const map = mapRef.current?.getMap()
+    if (!map) return
+    
+    setScreenshotLoading(true)
+    try {
+      const canvas = map.getCanvas()
+      await exportMapImage(canvas)
+    } catch (err) {
+      console.error('Screenshot failed:', err)
+      window.alert('Screenshot failed. Please try again.')
+    } finally {
+      setScreenshotLoading(false)
+    }
+  }, [])
 
   // PERFORMANCE: Don't update React state on every animation frame!
   // Only sync viewState on moveEnd to prevent 80+ re-renders during flyTo.
@@ -545,6 +565,8 @@ export function MapContainer({
         mapStyle={MAP_STYLE}
         style={{ width: '100%', height: '100%' }}
         attributionControl={false}
+        // Required for canvas export (screenshot feature) - WebGL clears buffer after each frame without this
+        preserveDrawingBuffer={true}
       >
         {/*
           Attribution control — compact=false ensures attribution is always visible
@@ -560,6 +582,50 @@ export function MapContainer({
           style={{ fontSize: '11px', maxWidth: '480px' }}
         />
         <NavigationControl position="top-right" />
+
+        {/* Screenshot export button (story 6.EXPORT.7–8) */}
+        <div
+          data-testid="map-screenshot-btn"
+          style={{
+            position: 'absolute',
+            top: '105px', // Below NavigationControl (zoom +/- + compass ≈95px + 10px gap)
+            right: '10px',
+            zIndex: 1,
+          }}
+        >
+          <button
+            type="button"
+            onClick={handleScreenshot}
+            disabled={screenshotLoading || !mapLoaded}
+            aria-label="Download map screenshot"
+            title="Download map as PNG"
+            style={{
+              width: '29px',
+              height: '29px',
+              padding: 0,
+              background: screenshotLoading ? '#e5e7eb' : 'white',
+              border: 'none',
+              borderRadius: '4px',
+              boxShadow: '0 0 0 2px rgba(0,0,0,0.1)',
+              cursor: screenshotLoading || !mapLoaded ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {screenshotLoading ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" style={{ animation: 'spin 1s linear infinite' }}>
+                <circle cx="12" cy="12" r="10" stroke="#9ca3af" strokeWidth="2" fill="none" strokeDasharray="31.4 31.4" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+            )}
+          </button>
+        </div>
 
         {/* TRI facility layers are managed imperatively in handleLoad/useEffect
             to avoid react-map-gl Source calling setData on every render. */}

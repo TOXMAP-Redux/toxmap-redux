@@ -41,7 +41,7 @@ export function useSuperfundViewport(): UseSuperfundViewportResult {
 
     setLoading(true)
 
-    fetchAllSuperfundBrowse(controller.signal)
+    fetchAllSuperfundBrowse({}, controller.signal)
       .then((result) => {
         hasSucceededRef.current = true
         setData(result)

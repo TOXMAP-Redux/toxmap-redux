@@ -87,6 +87,10 @@ interface SearchPanelProps {
   resolvedGeocode: GeocodeResult | null
   /** ADR-010: Called when user selects a facility from autocomplete dropdown */
   onFacilitySearchSelect?: (facility: FacilitySearchResult) => void
+  /** 6.EXPORT: Callback for CSV export button */
+  onExport?: () => void
+  /** 6.EXPORT: Whether export is in progress */
+  exportLoading?: boolean
 }
 
 /**
@@ -104,6 +108,8 @@ export function SearchPanel({
   onSearch,
   resolvedGeocode,
   onFacilitySearchSelect,
+  onExport,
+  exportLoading,
 }: SearchPanelProps): JSX.Element {
   const [location, setLocation] = useState('')
   const [chemicalInput, setChemicalInput] = useState('')
@@ -416,6 +422,8 @@ export function SearchPanel({
             onSelect={onSelect}
             searchExpansion={facilities?.meta.search_expansion}
             onSearchExact={handleSearchExact}
+            onExport={onExport}
+            exportLoading={exportLoading}
           />
         </div>
       )}

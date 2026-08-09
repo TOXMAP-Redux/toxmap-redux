@@ -7,6 +7,7 @@
  */
 import { useState, useRef, useCallback } from 'react'
 import { useSuperfundDetail } from '../../hooks/useSuperfundDetail'
+import { exportSuperfundContaminantsCsv } from '../../api/export'
 import type { SuperfundDetail } from '../../api/types'
 
 /** HRS score badge coloring: red ≥50, amber 28–50, green <28 */
@@ -126,6 +127,21 @@ export function SuperfundDrawer({ epaId, onClose, width = 340, onWidthChange }: 
 
       {data && <SuperfundDrawerContent site={data} onClose={onClose} />}
 
+      {/* EPA Site Progress Profile link — matches TRI panel placement (story 4.2.3) */}
+      {data?.epa_progress_url && (
+        <div style={{ flexShrink: 0, borderTop: '1px solid #e5e7eb', padding: '12px 16px' }}>
+          <a
+            data-testid="superfund-epa-progress-link"
+            href={data.epa_progress_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontSize: '13px', color: '#2563eb', display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}
+          >
+            EPA Site Progress Profile ↗
+          </a>
+        </div>
+      )}
+
       {/* Close link at bottom (UX Invariant 9) */}
       <div className="toxmap-drawer-footer" style={{ flexShrink: 0, borderTop: '1px solid #e5e7eb', padding: '10px', textAlign: 'center' }}>
         <button
@@ -161,6 +177,22 @@ export function SuperfundDrawer({ epaId, onClose, width = 340, onWidthChange }: 
 
 /** Inner content when data is loaded. */
 function SuperfundDrawerContent({ site, onClose }: { site: SuperfundDetail; onClose: () => void }): JSX.Element {
+  // Export state (story 6.EXPORT.9–10)
+  const [exportLoading, setExportLoading] = useState(false)
+
+  const handleExport = useCallback(async () => {
+    if (!site.epa_id) return
+    setExportLoading(true)
+    try {
+      await exportSuperfundContaminantsCsv(site.epa_id, site.name)
+    } catch (err) {
+      console.error('Export failed:', err)
+      window.alert('Export failed. Please try again.')
+    } finally {
+      setExportLoading(false)
+    }
+  }, [site.epa_id, site.name])
+
   return (
     <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
@@ -220,9 +252,51 @@ function SuperfundDrawerContent({ site, onClose }: { site: SuperfundDetail; onCl
 
         {/* Contaminants list (story 4.2.2) */}
         <section>
-          <h3 style={{ margin: '0 0 8px', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>
-            Contaminants ({site.contaminants.length})
-          </h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <h3 style={{ margin: 0, fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>
+              Contaminants ({site.contaminants.length})
+            </h3>
+            {site.contaminants.length > 0 && (
+              <button
+                data-testid="superfund-export-btn"
+                type="button"
+                onClick={handleExport}
+                disabled={exportLoading}
+                style={{
+                  background: exportLoading ? '#e5e7eb' : '#f0fdf4',
+                  border: '1px solid #dcfce7',
+                  borderRadius: '4px',
+                  cursor: exportLoading ? 'not-allowed' : 'pointer',
+                  fontSize: '10px',
+                  color: exportLoading ? '#9ca3af' : '#166534',
+                  padding: '3px 6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  fontWeight: 500,
+                }}
+                aria-label="Export contaminants"
+              >
+                {exportLoading ? (
+                  <>
+                    <svg width="10" height="10" viewBox="0 0 24 24" style={{ animation: 'spin 1s linear infinite' }}>
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" fill="none" strokeDasharray="31.4 31.4" />
+                    </svg>
+                    <span>Exporting…</span>
+                  </>
+                ) : (
+                  <>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    <span>CSV</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
           {site.contaminants.length === 0 ? (
             <p style={{ margin: 0, fontSize: '12px', color: '#9ca3af' }}>None on record.</p>
           ) : (
@@ -270,18 +344,6 @@ function SuperfundDrawerContent({ site, onClose }: { site: SuperfundDetail; onCl
           )}
         </section>
 
-        {/* EPA Site Progress Profile link (story 4.2.3) */}
-        {site.epa_progress_url && (
-          <a
-            data-testid="superfund-epa-progress-link"
-            href={site.epa_progress_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ fontSize: '13px', color: '#2563eb', display: 'flex', alignItems: 'center', gap: '4px' }}
-          >
-            EPA Site Progress Profile ↗
-          </a>
-        )}
       </div>
     </div>
   )

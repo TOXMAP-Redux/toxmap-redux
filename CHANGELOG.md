@@ -16,11 +16,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Epic 6.EXPORT: Data Export UI** — Full export functionality for TRI facilities, Superfund sites, and map screenshots. See [docs/product/EXPORT_FEATURE_PLAN.md](docs/product/EXPORT_FEATURE_PLAN.md). [agent]
+  - **ResultsTable CSV export** — "Download CSV" button exports search results. (`data-testid="export-csv-btn"`)
+  - **FacilityDrawer export** — Export button in drawer header downloads single facility's multi-year release history. (`data-testid="facility-export-btn"`)
+  - **SuperfundDrawer export** — Export button downloads site contaminants list. (`data-testid="superfund-export-btn"`)
+  - **Map screenshot** — Screenshot button captures PNG with OSM attribution watermark. (`data-testid="map-screenshot-btn"`)
+  - **Browse export endpoint** — `GET /api/v1/export/csv/browse` for nationwide searches without spatial constraint.
+- **CSV injection protection** — `escapeCsvField()` utility prefixes formula chars (`=+-@`) with single quote; escapes quotes and wraps fields. [agent]
 - **ADR-010: Unified Site Search** — Extended `GET /api/v1/facilities/search` endpoint to search **both TRI facilities and Superfund sites**. Returns unified results with `site_type` discriminator ("tri" | "superfund") and `site_id` field. Supports TRI ID, EPA ID, or name with same relevance scoring. Frontend shows site type badge (TRI/Superfund) alongside match type badge. See [docs/adr/ADR-010](docs/adr/ADR-010-facility-search-autocomplete.md). [agent]
 - **Facility search frontend hook** — `useFacilitySearch` hook with 300ms debounce for typeahead autocomplete. [agent]
 - **FacilitySearchInput component** — Autocomplete search input in search panel with dropdown showing site ID, facility name, city/state for each result. Match type badges (ID Match/Name Match) and site type badges (TRI/Superfund) indicate relevance and dataset. (`data-testid="facility-search-input/dropdown/option"`). [agent]
 - **TRI Facility ID link in drawer** — TRI ID below facility name in FacilityDrawer is now clickable, linking to EPA EnviroFacts (`data-testid="facility-tri-id-link"`). [agent]
 - **EPA TRI Facility Report link** — Added "EPA TRI Facility Report ↗" link at bottom of FacilityDrawer (above Close button) for parity with Superfund panel (`data-testid="facility-epa-report-link"`). [agent]
+- **7.UX.1: State-only browse mode** — Users can now select a state and click Search without entering a chemical or location. Map zooms to selected state center. Works for both TRI and Superfund datasets. [agent]
+- **STATE_CENTERS map constant** — Added 56-entry `STATE_CENTERS` in `App.tsx` with lat/lon/zoom for all US states, DC, and territories for state-based map centering. [agent]
 - **CI Workflow Onboarding Guide** — New [docs/onboarding/CI_WORKFLOW_GUIDE.md](docs/onboarding/CI_WORKFLOW_GUIDE.md) documenting all 6 CI jobs, 5 quality gates, artifacts, and troubleshooting. [agent]
 - **ADR-009: Cloudflare Workers Geocoding Proxy** — Documents production scaling path for geocoding with global cache and aggregate rate limiting (~$0-5/month). See [docs/adr/ADR-009](docs/adr/ADR-009-cloudflare-workers-geocoding-proxy.md). [agent]
 - **Deployment guide Workers proxy section** — Complete implementation guide for deploying the geocoding proxy. See [docs/deployment/DEPLOYMENT_GUIDE.md](docs/deployment/DEPLOYMENT_GUIDE.md) §"Cloudflare Workers Proxy". [agent]
@@ -29,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Superfund panel EPA ID now clickable** — EPA ID in `SuperfundDrawer.tsx` is now an `<a>` link to the EPA Site Progress Profile when `epa_progress_url` is available (`data-testid="superfund-epa-id-link"`). [agent]
 - **Superfund contaminants display decluttered** — Removed inline CAS numbers from contaminant rows for cleaner UI; chemical name + PubChem/ToxFAQs links remain. [agent]
+- **7.UX.2: Superfund drawer EPA link parity** — Moved "EPA Site Progress Profile" link from scrollable body to fixed footer position (above Close button), matching TRI drawer layout. [agent]
+- **7.UX.3: Reporting Year filter now applies to facility drawer** — Added `year` query parameter to `GET /api/v1/facilities/{id}` endpoint. Frontend passes selected year to drawer; "Top Chemicals", "By Medium", and "15-Year Trend" tabs now show year-filtered data. Labels dynamically display "(2020)" or "(all years)" based on selection. [agent]
 - Updated ACCEPTED_RISKS.md RISK-009 and RISK-010 to reference Workers proxy as recommended mitigation [agent]
 - Updated ADR-006 (Photon geocoding) with reference to ADR-009 for production scaling [agent]
 - Updated ADR-004 free services table to include Workers, Photon, and OpenFreeMap [agent]
@@ -44,10 +55,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Unit test ATSDR toxid values** — Fixed incorrect toxid assertions in `test_atsdr_family_inheritance.py` (e.g., NICKEL was 18 but should be 44 per actual ATSDR data). [agent]
 - **Missing ATSDR known gaps** — Added SULFURIC ACID, HYDROCHLORIC ACID, NITRIC ACID to `KNOWN_GAPS` set in unit tests (not in ATSDR ToxFAQs). [agent]
 - **Duplicate dict keys** — Removed duplicate dictionary key entries in `superfund_cas_lookup.py` flagged by ruff F601. [agent]
+- **6.EXPORT.16: Nationwide search CSV export** — Fixed empty CSV when searching by state without map location. Root cause: `/api/v1/export/csv` required lat/lon; frontend fell back to Kansas center (38.5, -96) with 500-mile radius, excluding distant states. Fix: Added `/api/v1/export/csv/browse` endpoint without spatial constraint; frontend detects `lat=null` and uses browse endpoint. [agent]
+- **6.EXPORT.17: Map screenshot blank PNG** — Fixed blank screenshot caused by WebGL clearing drawing buffer after each frame. Fix: Added `preserveDrawingBuffer={true}` to MapLibre `<Map>` component, allowing `toDataURL()` to capture rendered map content. [agent]
 
 ### Tests
 
+- **6.EXPORT regression tests** — Added E2E scenarios (`export.feature`) for nationwide CSV export and non-blank PNG screenshot; unit tests (`test_export_browse.py`) for browse endpoint state/chemical filtering. [agent]
 - **6.UX regression tests** — Added API tests (`superfund.feature`) verifying `epa_progress_url` populated with SEMS URL pattern; E2E tests (`ux_invariants.feature`) verifying EPA ID link visible and no CAS patterns in contaminant rows. [agent]
+- **7.UX.1 regression tests** — Added API tests (`facility_search.feature`, `superfund.feature`) for state-only browse endpoints; E2E tests (`ux_invariants.feature`) for state-only search flow and map zoom behavior. [agent]
+- **7.UX.2 regression tests** — Added E2E test (`ux_invariants.feature`) verifying Superfund EPA link is in fixed footer position above close button. [agent]
+- **7.UX.3 regression tests** — Added API tests (`release_trends.feature`) for facility detail year filter; E2E tests (`ux_invariants.feature`) verifying drawer tabs show year-specific data when year is selected. [agent]
 - **ADR-010 regression tests** — Added 4 E2E scenarios (`@ADR010`): facility search input present, autocomplete dropdown shows results, TRI ID link visible and points to EPA EnviroFacts, EPA TRI Facility Report link above close button. [agent]
 
 ### Security

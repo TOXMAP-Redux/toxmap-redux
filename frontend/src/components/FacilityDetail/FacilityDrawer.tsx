@@ -19,6 +19,7 @@ import {
 import { useFacilityDetail } from '../../hooks/useFacilityDetail'
 import { useFacilityReleases } from '../../hooks/useFacilityReleases'
 import { searchChemicals } from '../../api/chemicals'
+import { exportSingleFacilityCsv } from '../../api/export'
 import { formatLbs, formatNumber } from '../../utils/formatLbs'
 import type { Chemical } from '../../api/types'
 
@@ -38,9 +39,33 @@ interface FacilityDrawerProps {
 /** Fixed right-side drawer showing full facility detail with Recharts tabs. */
 export function FacilityDrawer({ facilityId, onClose, selectedYear, width = 420, onWidthChange }: FacilityDrawerProps): JSX.Element {
   const [activeTab, setActiveTab] = useState<Tab>('chemicals')
-  const { detail, loading: detailLoading } = useFacilityDetail(facilityId)
-  // Fetch ALL years (1987–present) to match "Emissions estimates (all years)" label
-  const { releases, loading: releasesLoading } = useFacilityReleases(facilityId, 1987, new Date().getFullYear())
+  
+  // Parse selectedYear for API calls (null = all years)
+  const yearFilter = selectedYear && /^\d{4}$/.test(selectedYear) ? parseInt(selectedYear, 10) : null
+  
+  // Fetch facility detail with year filter
+  const { detail, loading: detailLoading } = useFacilityDetail(facilityId, yearFilter)
+  
+  // Fetch releases for trend chart — if year filter is set, end at that year; otherwise use current year
+  const trendEndYear = yearFilter ?? new Date().getFullYear()
+  const trendStartYear = trendEndYear - 14
+  const { releases, loading: releasesLoading } = useFacilityReleases(facilityId, trendStartYear, trendEndYear)
+
+  // Export state (story 6.EXPORT.5–6)
+  const [exportLoading, setExportLoading] = useState(false)
+  
+  const handleExport = useCallback(async () => {
+    if (!facilityId) return
+    setExportLoading(true)
+    try {
+      await exportSingleFacilityCsv(facilityId)
+    } catch (err) {
+      console.error('Export failed:', err)
+      window.alert('Export failed. Please try again.')
+    } finally {
+      setExportLoading(false)
+    }
+  }, [facilityId])
 
   // Ref for direct DOM manipulation during resize (avoids React re-render lag)
   const drawerRef = useRef<HTMLDivElement>(null)
@@ -128,14 +153,19 @@ export function FacilityDrawer({ facilityId, onClose, selectedYear, width = 420,
     })
   }, [detail])
 
-  // Medium breakdown aggregated across all years (consistent with Top Chemicals)
-  const mediumData = releases.length > 0
+  // Medium breakdown: filtered to selected year if set, otherwise all years from trend range
+  // This ensures "By Medium" shows data consistent with "Top Chemicals" tab
+  const filteredReleases = yearFilter 
+    ? releases.filter((r) => r.reporting_year === yearFilter)
+    : releases
+  
+  const mediumData = filteredReleases.length > 0
     ? [
-        { medium: 'Air', lbs: releases.reduce((sum, r) => sum + (r.air_release_lbs ?? 0), 0) },
-        { medium: 'Water', lbs: releases.reduce((sum, r) => sum + (r.water_release_lbs ?? 0), 0) },
-        { medium: 'Land', lbs: releases.reduce((sum, r) => sum + (r.land_release_lbs ?? 0), 0) },
-        { medium: 'Underground', lbs: releases.reduce((sum, r) => sum + (r.underground_release_lbs ?? 0), 0) },
-        { medium: 'Off-site', lbs: releases.reduce((sum, r) => sum + (r.off_site_lbs ?? 0), 0) },
+        { medium: 'Air', lbs: filteredReleases.reduce((sum, r) => sum + (r.air_release_lbs ?? 0), 0) },
+        { medium: 'Water', lbs: filteredReleases.reduce((sum, r) => sum + (r.water_release_lbs ?? 0), 0) },
+        { medium: 'Land', lbs: filteredReleases.reduce((sum, r) => sum + (r.land_release_lbs ?? 0), 0) },
+        { medium: 'Underground', lbs: filteredReleases.reduce((sum, r) => sum + (r.underground_release_lbs ?? 0), 0) },
+        { medium: 'Off-site', lbs: filteredReleases.reduce((sum, r) => sum + (r.off_site_lbs ?? 0), 0) },
       ].filter((d) => d.lbs > 0)
     : []
 
@@ -143,11 +173,7 @@ export function FacilityDrawer({ facilityId, onClose, selectedYear, width = 420,
   const mediumSum = mediumData.reduce((sum, d) => sum + d.lbs, 0)
 
   // 15-year trend data — aggregate all chemicals per year, fill missing years with zeros
-  // Range is relative to selected year filter, or current year if no filter
-  const trendReferenceYear = selectedYear && /^\d{4}$/.test(selectedYear)
-    ? parseInt(selectedYear, 10)
-    : new Date().getFullYear()
-  const trendStartYear = trendReferenceYear - 14 // 15 years total
+  // Uses trendStartYear and trendEndYear computed above based on selectedYear filter
 
   // Per-year discrepancy data structure for trend chart (Option A: per-year discrepancy in Trend tab)
   interface YearData {
@@ -175,9 +201,9 @@ export function FacilityDrawer({ facilityId, onClose, selectedYear, width = 420,
       })
     }
 
-    // Generate full 15-year range ending at reference year
+    // Generate full 15-year range ending at selected year (or current year)
     const fullRange: YearData[] = []
-    for (let y = trendStartYear; y <= trendReferenceYear; y++) {
+    for (let y = trendStartYear; y <= trendEndYear; y++) {
       const yearData = dataByYear.get(y)
       const epaTotal = yearData?.epaTotal ?? 0
       const mediumSum = yearData?.mediumSum ?? 0
@@ -245,16 +271,57 @@ export function FacilityDrawer({ facilityId, onClose, selectedYear, width = 420,
             </>
           )}
         </div>
-        <button
-          data-testid="popup-close-bottom"
-          type="button"
-          onClick={onClose}
-          className="toxmap-drawer-close"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: '#9ca3af', padding: 0, lineHeight: 1, flexShrink: 0 }}
-          aria-label="Close facility detail"
-        >
-          ✕
-        </button>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', flexShrink: 0 }}>
+          <button
+            data-testid="facility-export-btn"
+            type="button"
+            onClick={handleExport}
+            disabled={exportLoading || !detail}
+            className="toxmap-drawer-export"
+            style={{
+              background: exportLoading ? '#e5e7eb' : '#f0fdf4',
+              border: '1px solid #dcfce7',
+              borderRadius: '4px',
+              cursor: exportLoading || !detail ? 'not-allowed' : 'pointer',
+              fontSize: '11px',
+              color: exportLoading ? '#9ca3af' : '#166534',
+              padding: '4px 8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontWeight: 500,
+            }}
+            aria-label="Export facility data"
+          >
+            {exportLoading ? (
+              <>
+                <svg width="12" height="12" viewBox="0 0 24 24" style={{ animation: 'spin 1s linear infinite' }}>
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" fill="none" strokeDasharray="31.4 31.4" />
+                </svg>
+                <span>Exporting…</span>
+              </>
+            ) : (
+              <>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                <span>Export</span>
+              </>
+            )}
+          </button>
+          <button
+            data-testid="popup-close-bottom"
+            type="button"
+            onClick={onClose}
+            className="toxmap-drawer-close"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: '#9ca3af', padding: 0, lineHeight: 1 }}
+            aria-label="Close facility detail"
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       {/* Note about chemical links */}
@@ -294,11 +361,11 @@ export function FacilityDrawer({ facilityId, onClose, selectedYear, width = 420,
           </div>
         )}
 
-        {/* Tab 1: Top chemicals — matches Fig 11 (2006): shows "Release Amount (lbs./all years)", %, and TOTAL */}
+        {/* Tab 1: Top chemicals — matches Fig 11 (2006): shows "Release Amount (lbs.)" with year context */}
         {!detailLoading && activeTab === 'chemicals' && detail && (
           <div>
             <h3 style={{ margin: '0 0 12px', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>
-              Emissions estimates (all years)
+              Emissions estimates {yearFilter ? `(${yearFilter})` : '(all years)'}
             </h3>
             {detail.top_chemicals.length === 0 ? (
               <p style={{ fontSize: '13px', color: '#9ca3af' }}>No chemical data available.</p>
@@ -335,7 +402,7 @@ export function FacilityDrawer({ facilityId, onClose, selectedYear, width = 420,
                             Chemical
                           </th>
                           <th data-testid="top-chemicals-amount-header" style={{ padding: '6px 0', textAlign: 'right', fontSize: '11px', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>
-                            Release Amount<br /><span style={{ fontWeight: 400 }}>(lbs./all years)</span>
+                            Release Amount<br /><span style={{ fontWeight: 400 }}>(lbs./{yearFilter ?? 'all years'})</span>
                           </th>
                           <th style={{ padding: '6px 0', textAlign: 'right', fontSize: '11px', fontWeight: 600, color: '#374151', width: '50px' }}>
                             %
@@ -439,7 +506,7 @@ export function FacilityDrawer({ facilityId, onClose, selectedYear, width = 420,
         {!releasesLoading && activeTab === 'medium' && (
           <div>
             <h3 style={{ margin: '0 0 12px', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>
-              Release by medium (lbs./all years)
+              Release by medium (lbs./{yearFilter ?? 'all years'})
             </h3>
             {mediumData.length === 0 ? (
               <p style={{ fontSize: '13px', color: '#9ca3af' }}>No medium breakdown available.</p>
@@ -472,7 +539,7 @@ export function FacilityDrawer({ facilityId, onClose, selectedYear, width = 420,
                         <>
                           {hasDiscrepancy && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
-                              <span style={{ fontSize: '12px', color: '#6b7280' }}>Aggregate Discrepancy (all years):</span>
+                          <span style={{ fontSize: '12px', color: '#6b7280' }}>Aggregate Discrepancy {yearFilter ? `(${yearFilter})` : '(all years)'}:</span>
                               <span data-testid="medium-discrepancy-value" style={{ fontSize: '12px', fontWeight: 600, color: discrepancy >= 0 ? '#059669' : '#dc2626' }}>
                                 {discrepancy >= 0 ? '+' : '−'}{formatNumber(discrepancyAbs)} lbs ({discrepancyPct.toFixed(1)}%)
                               </span>
@@ -480,25 +547,42 @@ export function FacilityDrawer({ facilityId, onClose, selectedYear, width = 420,
                           )}
                           <p data-testid="medium-discrepancy-footnote" style={{ margin: '8px 0 0', fontSize: '10px', lineHeight: '1.4', color: '#6b7280' }}>
                             {hasDiscrepancy ? (
-                              <>
-                                <strong>Note:</strong> This aggregate discrepancy is calculated across all reporting years. Positive and negative 
-                                year-over-year discrepancies may cancel out — <strong>see the 15-Year Trend tab for per-year discrepancy details</strong>. 
-                                The EPA total combines on-site releases (air, water, land, underground) with off-site transfers. While off-site 
-                                values are consistent, the EPA's on-site total does not always equal the sum of individual mediums due to 
-                                facility self-reporting errors, data amendments, or Form A certifications where detailed breakdowns are not required. 
-                                <a 
-                                  href="https://www.epa.gov/toxics-release-inventory-tri-program/tri-data-quality" 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  style={{ color: '#2563eb', marginLeft: '4px' }}
-                                >
-                                  Learn more about TRI data quality →
-                                </a>
-                              </>
-                            ) : hasYearWithHighDiscrepancy ? (
+                              yearFilter ? (
+                                // Single year selected — simpler note
+                                <>
+                                  <strong>Note:</strong> This discrepancy exists because the EPA&apos;s on-site total (Field 65) does not always equal
+                                  the sum of individual mediums due to facility self-reporting errors, data amendments, or Form A certifications.
+                                  <a 
+                                    href="https://www.epa.gov/toxics-release-inventory-tri-program/tri-data-quality" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    style={{ color: '#2563eb', marginLeft: '4px' }}
+                                  >
+                                    Learn more about TRI data quality →
+                                  </a>
+                                </>
+                              ) : (
+                                // All years — mention year-over-year cancellation
+                                <>
+                                  <strong>Note:</strong> This aggregate discrepancy is calculated across all reporting years. Positive and negative 
+                                  year-over-year discrepancies may cancel out — <strong>see the 15-Year Trend tab for per-year discrepancy details</strong>. 
+                                  The EPA total combines on-site releases (air, water, land, underground) with off-site transfers. While off-site 
+                                  values are consistent, the EPA&apos;s on-site total does not always equal the sum of individual mediums due to 
+                                  facility self-reporting errors, data amendments, or Form A certifications where detailed breakdowns are not required. 
+                                  <a 
+                                    href="https://www.epa.gov/toxics-release-inventory-tri-program/tri-data-quality" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    style={{ color: '#2563eb', marginLeft: '4px' }}
+                                  >
+                                    Learn more about TRI data quality →
+                                  </a>
+                                </>
+                              )
+                            ) : hasYearWithHighDiscrepancy && !yearFilter ? (
                               <>
                                 <strong>Note:</strong> While the aggregate discrepancy is minimal, <strong>some individual years show ≥5% discrepancies</strong> that 
-                                cancel out — see the 15-Year Trend tab for per-year details. The EPA's on-site total does not always equal the sum of 
+                                cancel out — see the 15-Year Trend tab for per-year details. The EPA&apos;s on-site total does not always equal the sum of 
                                 individual mediums due to facility self-reporting errors, data amendments, or Form A certifications. 
                                 <a 
                                   href="https://www.epa.gov/toxics-release-inventory-tri-program/tri-data-quality" 
@@ -512,7 +596,7 @@ export function FacilityDrawer({ facilityId, onClose, selectedYear, width = 420,
                             ) : (
                               <>
                                 <strong>Note:</strong> The EPA total combines on-site releases (air, water, land, underground) with off-site 
-                                transfers. See the 15-Year Trend tab for year-by-year release data. 
+                                transfers. {!yearFilter && 'See the 15-Year Trend tab for year-by-year release data. '}
                                 <a 
                                   href="https://www.epa.gov/toxics-release-inventory-tri-program/tri-data-quality" 
                                   target="_blank" 
@@ -538,7 +622,7 @@ export function FacilityDrawer({ facilityId, onClose, selectedYear, width = 420,
         {!releasesLoading && activeTab === 'trend' && (
           <div>
             <h3 style={{ margin: '0 0 12px', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>
-              15-year release trend ({trendStartYear}–{trendReferenceYear})
+              15-year release trend ({trendStartYear}–{trendEndYear})
             </h3>
             {trendData.length === 0 ? (
               <p style={{ fontSize: '13px', color: '#9ca3af' }}>No trend data available.</p>

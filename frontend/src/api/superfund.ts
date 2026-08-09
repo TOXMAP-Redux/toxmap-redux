@@ -16,14 +16,26 @@ export interface SuperfundSearchParams {
   status?: string
 }
 
+/** Parameters for browse mode (no radius constraint) */
+export interface SuperfundBrowseParams {
+  state?: string
+  status?: string
+}
+
 /**
  * Fetch ALL Superfund sites without radius constraint (browse mode).
  * Used for the always-on diamond layer. Fetched once on app load.
+ * Supports optional state filter for state-only browse mode.
  */
 export async function fetchAllSuperfundBrowse(
+  params: SuperfundBrowseParams = {},
   signal?: AbortSignal,
 ): Promise<SuperfundCollection> {
-  const res = await fetch(`${API_BASE}/api/v1/superfund/browse`, signal ? { signal } : {})
+  const p = new URLSearchParams()
+  if (params.state) p.set('state', params.state)
+  if (params.status) p.set('status', params.status)
+  const qs = p.toString() ? `?${p.toString()}` : ''
+  const res = await fetch(`${API_BASE}/api/v1/superfund/browse${qs}`, signal ? { signal } : {})
   if (!res.ok) throw new Error(`Superfund browse failed: ${res.status}`)
   return res.json() as Promise<SuperfundCollection>
 }

@@ -29,14 +29,37 @@ This project is an open-source recreation of that tool — built on modern, open
 
 ## Features
 
-- **TRI Facility Map** — Color-coded markers for every EPA Toxic Release Inventory facility in the US. Red = highest releases (≥100k lbs). Orange/Yellow = moderate. Green = lowest (<1k lbs). Click any marker for a 15-year release history with charts.
-- **Superfund / NPL Overlay** — Red diamond markers for EPA National Priorities List hazardous waste sites with Hazard Ranking System scores and cleanup status.
-- **Demographics Overlay** — Census data by county and tract: population under 18, median income, cancer mortality, cardiovascular mortality. Overlaid directly on the TRI/Superfund map with co-occurrence disclaimers where required.
-- **Chemical Autocomplete** — Search by chemical name with real-time autocomplete across the full TRI chemical registry.
-- **State + Radius Search** — Find all facilities within N miles of any address, with optional state restriction that actually filters (not just zooms).
-- **CSV Export** — Download filtered facility data for your own analysis.
-- **Health Resource Links** — Every chemical links directly to CDC ToxFAQs, NLM HSDB, and ATSDR data sheets.
-- **No Server in Production** — Runs entirely in your browser via [DuckDB WASM](https://duckdb.org/docs/api/wasm/overview.html) querying Parquet files on Cloudflare R2. Zero cold starts. Zero API bills.
+TOXMAP Redux is a comprehensive environmental health mapping tool with the following capabilities:
+
+### What You Can Find
+
+- **TRI Facilities** — Every EPA Toxic Release Inventory facility in the US (1987–present), color-coded by release amount: green (low) → yellow → orange → red (high)
+- **Superfund Sites** — EPA National Priorities List hazardous waste sites with cleanup status and contaminants
+- **Demographics** — Census data overlays: population, income, age, race, and mortality rates by county
+
+### How You Can Search
+
+- **By Facility Name** — Search for a specific company or site by name, TRI ID, or EPA ID
+- **By Location** — Enter any address or city to find facilities
+- **By Chemical** — Type a chemical name and get instant suggestions 
+- **By State** — Browse all facilities in a state without entering a location
+- **By Year** — Filter to a specific reporting year (1987–present) or view all years combined
+- **By Dataset** — Search TRI facilities, Superfund sites, or both at once
+
+### What You'll See
+
+- **Facility Details** — Click any marker to see the full record: address, chemicals released, release amounts by medium
+- **15-Year Trends** — Bar charts showing how a facility's releases have changed over time
+- **Top Chemicals** — The 5 largest chemical releases at each facility with percentages
+- **Superfund Contaminants** — List of hazardous substances found at each Superfund site
+- **Health Information** — Direct links to CDC ToxFAQs and PubChem for many chemicals
+- **Data Vintage** — Footer shows which EPA data release you're viewing (e.g., "October 2024 freeze")
+
+### Important Notes
+
+- **Free & No Account Required** — Runs entirely in your browser with no server costs
+- **Correlation ≠ Causation** — When viewing health data alongside facilities, a disclaimer reminds you that proximity doesn't prove harm
+- **Release Amount ≠ Health Risk** — High release quantities don't automatically mean danger; toxicity and exposure pathways vary by chemical
 
 ---
 

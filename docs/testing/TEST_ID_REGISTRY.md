@@ -1,6 +1,6 @@
 # TOXMAP `data-testid` Registry
 
-**Last updated:** 2026-08-04  
+**Last updated:** 2026-08-08  
 **Purpose:** Canonical list of every `data-testid` attribute used in Playwright E2E tests and React components. Frontend developers MUST use these exact strings. QA engineers MUST use these exact strings in selectors.
 
 > **Rule:** If a `data-testid` is not in this registry, it does not exist. Add it here before using it in any test or component.
@@ -107,7 +107,16 @@
 
 ---
 
-## Demographics / Census
+## Export (Epic 6.EXPORT)
+
+| `data-testid`          | Component                          | Used in Gherkin Step                               |
+|------------------------|------------------------------------|----------------------------------------------------|
+| `export-csv-btn`       | "Download CSV" button in ResultsTable header | `"I click the Download CSV button"`          |
+| `map-screenshot-btn`   | Screenshot button in map controls  | `"I click the Save Map Image button"`              |
+| `facility-export-btn`  | Export button in FacilityDrawer    | `"I click the facility export button"`             |
+| `superfund-export-btn` | Export button in SuperfundDrawer   | `"I click the Superfund export button"`            |
+
+> **Note:** Export buttons are disabled when no data is available. Use `aria-disabled="true"` for accessibility assertions.
 
 | `data-testid`                 | Component                     | Used in Gherkin Step                              |
 |-------------------------------|-------------------------------|---------------------------------------------------|

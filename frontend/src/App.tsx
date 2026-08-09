@@ -36,6 +36,7 @@ import { useSuperfundSearch } from './hooks/useSuperfundSearch'
 import { useDemographics } from './hooks/useDemographics'
 import { useMeta } from './hooks/useMeta'
 import { geocodeLocation, type GeocodeResult } from './api/geocode'
+import { exportFacilitiesCsv } from './api/export'
 import type { FacilityFeature, SubmittedSearch, SuperfundFeature, SuperfundCollection, DemographicLayer } from './api/types'
 import type { SuperfundSearchParams } from './api/superfund'
 import type { SearchFormValues } from './components/Sidebar/SearchPanel'
@@ -49,6 +50,66 @@ const INITIAL_VIEW: ViewState = {
   bearing: 0,
   pitch: 0,
   padding: { top: 0, bottom: 0, left: 0, right: 0 },
+}
+
+/** Approximate center coordinates and zoom levels for US states (used for state-only browse) */
+const STATE_CENTERS: Record<string, { lat: number; lon: number; zoom: number }> = {
+  AL: { lat: 32.7, lon: -86.7, zoom: 6.5 },
+  AK: { lat: 64.0, lon: -153.0, zoom: 4 },
+  AZ: { lat: 34.2, lon: -111.6, zoom: 6 },
+  AR: { lat: 34.8, lon: -92.2, zoom: 6.5 },
+  CA: { lat: 37.2, lon: -119.4, zoom: 5.5 },
+  CO: { lat: 39.0, lon: -105.5, zoom: 6 },
+  CT: { lat: 41.6, lon: -72.7, zoom: 8 },
+  DE: { lat: 39.0, lon: -75.5, zoom: 8 },
+  FL: { lat: 28.1, lon: -81.6, zoom: 6 },
+  GA: { lat: 32.6, lon: -83.4, zoom: 6.5 },
+  HI: { lat: 20.8, lon: -156.3, zoom: 6.5 },
+  ID: { lat: 44.4, lon: -114.7, zoom: 5.5 },
+  IL: { lat: 40.0, lon: -89.2, zoom: 6 },
+  IN: { lat: 40.0, lon: -86.3, zoom: 6.5 },
+  IA: { lat: 42.0, lon: -93.5, zoom: 6.5 },
+  KS: { lat: 38.5, lon: -98.4, zoom: 6 },
+  KY: { lat: 37.8, lon: -85.3, zoom: 6.5 },
+  LA: { lat: 31.0, lon: -91.9, zoom: 6.5 },
+  ME: { lat: 45.4, lon: -69.0, zoom: 6 },
+  MD: { lat: 39.0, lon: -76.8, zoom: 7 },
+  MA: { lat: 42.2, lon: -71.5, zoom: 7.5 },
+  MI: { lat: 44.3, lon: -85.4, zoom: 6 },
+  MN: { lat: 46.3, lon: -94.3, zoom: 5.5 },
+  MS: { lat: 32.7, lon: -89.7, zoom: 6.5 },
+  MO: { lat: 38.4, lon: -92.5, zoom: 6.5 },
+  MT: { lat: 47.0, lon: -109.6, zoom: 5.5 },
+  NE: { lat: 41.5, lon: -99.8, zoom: 6 },
+  NV: { lat: 39.3, lon: -116.6, zoom: 5.5 },
+  NH: { lat: 43.6, lon: -71.5, zoom: 7 },
+  NJ: { lat: 40.1, lon: -74.7, zoom: 7.5 },
+  NM: { lat: 34.4, lon: -106.1, zoom: 6 },
+  NY: { lat: 43.0, lon: -75.5, zoom: 6 },
+  NC: { lat: 35.5, lon: -79.8, zoom: 6.5 },
+  ND: { lat: 47.4, lon: -100.3, zoom: 6 },
+  OH: { lat: 40.2, lon: -82.8, zoom: 6.5 },
+  OK: { lat: 35.5, lon: -97.5, zoom: 6 },
+  OR: { lat: 43.9, lon: -120.6, zoom: 6 },
+  PA: { lat: 40.9, lon: -77.8, zoom: 6.5 },
+  RI: { lat: 41.7, lon: -71.5, zoom: 9 },
+  SC: { lat: 33.8, lon: -80.9, zoom: 7 },
+  SD: { lat: 44.4, lon: -100.2, zoom: 6 },
+  TN: { lat: 35.8, lon: -86.3, zoom: 6.5 },
+  TX: { lat: 31.5, lon: -99.4, zoom: 5.5 },
+  UT: { lat: 39.3, lon: -111.7, zoom: 6 },
+  VT: { lat: 44.0, lon: -72.7, zoom: 7 },
+  VA: { lat: 37.5, lon: -78.8, zoom: 6.5 },
+  WA: { lat: 47.4, lon: -120.5, zoom: 6 },
+  WV: { lat: 38.6, lon: -80.6, zoom: 7 },
+  WI: { lat: 44.6, lon: -89.7, zoom: 6 },
+  WY: { lat: 43.0, lon: -107.5, zoom: 6 },
+  DC: { lat: 38.9, lon: -77.0, zoom: 11 },
+  PR: { lat: 18.2, lon: -66.5, zoom: 8 },
+  VI: { lat: 18.3, lon: -64.8, zoom: 9 },
+  GU: { lat: 13.4, lon: 144.8, zoom: 10 },
+  AS: { lat: -14.3, lon: -170.7, zoom: 10 },
+  MP: { lat: 15.2, lon: 145.8, zoom: 8 },
 }
 
 /**
@@ -77,6 +138,7 @@ export default function App(): JSX.Element {
   const [submittedSearch, setSubmittedSearch] = useState<SubmittedSearch | null>(null)
   const [geocodeError, setGeocodeError] = useState<string | null>(null)
   const [resolvedGeocode, setResolvedGeocode] = useState<GeocodeResult | null>(null)
+  const [exportLoading, setExportLoading] = useState(false)
 
   // ── Facility selection (TRI) ──────────────────────────────────────────────
   const [selectedFacility, setSelectedFacility] = useState<FacilityFeature | null>(null)
@@ -243,17 +305,32 @@ export default function App(): JSX.Element {
       return null
     }
     
-    // Nationwide mode: filter the always-on layer by chemical and state (and CONUS if applicable)
-    if (submittedSearch.lat === null && submittedSearch.chemical && superfundViewportSites) {
-      const chemicalUpper = submittedSearch.chemical.toUpperCase()
-      let filtered = superfundViewportSites.features.filter((f) =>
-        f.properties.contaminants.some((c) => c.toUpperCase().includes(chemicalUpper))
-      )
+    // Nationwide mode: filter the always-on layer by chemical and/or state (and CONUS if applicable)
+    if (submittedSearch.lat === null && superfundViewportSites) {
+      const hasChemicalFilter = Boolean(submittedSearch.chemical?.trim())
+      const hasStateFilter = submittedSearch.state && submittedSearch.state !== CONUS_FILTER && submittedSearch.state !== 'All'
+      
+      // At least one filter must be active (chemical or state)
+      if (!hasChemicalFilter && !hasStateFilter && !isConusFilter) {
+        return null
+      }
+      
+      let filtered = superfundViewportSites.features
+      
+      // Apply chemical filter
+      if (hasChemicalFilter) {
+        const chemicalUpper = submittedSearch.chemical!.toUpperCase()
+        filtered = filtered.filter((f) =>
+          f.properties.contaminants.some((c) => c.toUpperCase().includes(chemicalUpper))
+        )
+      }
+      
       // Apply state filter (non-CONUS)
-      if (submittedSearch.state && submittedSearch.state !== CONUS_FILTER) {
-        const stateUpper = submittedSearch.state.toUpperCase()
+      if (hasStateFilter) {
+        const stateUpper = submittedSearch.state!.toUpperCase()
         filtered = filtered.filter((f) => f.properties.state_code === stateUpper)
       }
+      
       // Apply CONUS filter
       if (isConusFilter) {
         filtered = filtered.filter((f) => isContinentalUS(f.properties.state_code))
@@ -267,9 +344,9 @@ export default function App(): JSX.Element {
             lat: 0,
             lon: 0,
             radius_miles: 0,
-            chemical: submittedSearch.chemical,
+            chemical: submittedSearch.chemical || null,
             state: submittedSearch.state || null,
-            restrict_to_state: Boolean(submittedSearch.state && submittedSearch.state !== CONUS_FILTER),
+            restrict_to_state: Boolean(hasStateFilter),
             status: null,
           },
         },
@@ -344,16 +421,20 @@ export default function App(): JSX.Element {
     setResolvedGeocode(null)
     
     const locationTrimmed = values.location.trim()
+    const chemicalTrimmed = values.chemical.trim()
+    const hasStateFilter = values.state && values.state !== 'All'
     
-    // Nationwide search: no location provided
+    // Browse/search modes without location:
+    // 1. State-only browse: just a state filter selected
+    // 2. Nationwide chemical search: chemical specified (optionally with state filter)
     if (!locationTrimmed) {
-      // Need at least a chemical for nationwide search
-      if (!values.chemical.trim()) {
-        setGeocodeError('Please enter a chemical or location to search.')
+      // Need at least a chemical OR a state filter
+      if (!chemicalTrimmed && !hasStateFilter) {
+        setGeocodeError('Please enter a chemical, location, or select a state to search.')
         return
       }
       
-      // Reset bbox and set nationwide search (lat/lon = null)
+      // Reset bbox and set browse search (lat/lon = null)
       setMapBbox(null)
       
       setSubmittedSearch({
@@ -368,9 +449,14 @@ export default function App(): JSX.Element {
         exactMatch: values.exactMatch,
       })
 
-      // Zoom map to US overview for nationwide search
+      // Zoom map: state-specific if state filter, otherwise US overview
       if (flyToRef.current) {
-        flyToRef.current(38.5, -96, 4)
+        if (hasStateFilter && STATE_CENTERS[values.state]) {
+          const { lat, lon, zoom } = STATE_CENTERS[values.state]
+          flyToRef.current(lat, lon, zoom)
+        } else {
+          flyToRef.current(38.5, -96, 4)
+        }
       }
 
       // Switch sidebar to search results (UX Invariant 1)
@@ -458,6 +544,34 @@ export default function App(): JSX.Element {
     setSelectedSuperfundEpaId(null)
   }, [])
 
+  /**
+   * Handle CSV export (story 6.EXPORT.1–4).
+   * Uses the current search parameters to fetch and download CSV.
+   */
+  const handleExport = useCallback(async () => {
+    if (!submittedSearch) return
+    
+    setExportLoading(true)
+    try {
+      await exportFacilitiesCsv({
+        lat: submittedSearch.lat,
+        lon: submittedSearch.lon,
+        radius_miles: submittedSearch.radiusMiles,
+        chemical: submittedSearch.chemical || undefined,
+        year: submittedSearch.year ? parseInt(submittedSearch.year, 10) : undefined,
+        state: submittedSearch.state && submittedSearch.state !== CONUS_FILTER 
+          ? submittedSearch.state 
+          : undefined,
+      })
+    } catch (err) {
+      console.error('Export failed:', err)
+      // Could add toast notification here
+      window.alert('Export failed. Please try again.')
+    } finally {
+      setExportLoading(false)
+    }
+  }, [submittedSearch])
+
   const handleBoundsChange = useCallback((bbox: [number, number, number, number]) => {
     setMapBbox(bbox)
   }, [])
@@ -529,6 +643,8 @@ export default function App(): JSX.Element {
         superfundViewportLoading={false}
         selectedDemographicLayer={selectedDemographicLayer}
         onDemographicLayerSelect={setSelectedDemographicLayer}
+        onExport={handleExport}
+        exportLoading={exportLoading}
       />
 
       {/* Facility detail drawer (right panel — TRI mode) */}

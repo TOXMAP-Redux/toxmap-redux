@@ -184,3 +184,18 @@ Feature: Superfund Site Search
     When I GET "/api/v1/superfund/WAD980833065"
     Then the response status is 200
     And no contaminant has null pubchem_url
+
+  # Regression: 7.UX.1 — State-only browse returns Superfund sites filtered to that state
+  @regression @7UX1
+  Scenario: Regression 7.UX.1 — State-only browse returns NJ Superfund sites
+    When I GET "/api/v1/superfund/browse?state=NJ"
+    Then the response status is 200
+    And the response is a non-empty array
+    And every Superfund site has state "NJ"
+
+  @regression @7UX1
+  Scenario: Regression 7.UX.1 — State-only browse returns VA Superfund sites
+    When I GET "/api/v1/superfund/browse?state=VA"
+    Then the response status is 200
+    And the response is a non-empty array
+    And every Superfund site has state "VA"

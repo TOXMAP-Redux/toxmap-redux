@@ -52,6 +52,10 @@ interface SidebarProps {
   selectedDemographicLayer: DemographicLayer | null
   /** Handler for demographic layer selection */
   onDemographicLayerSelect: (layer: DemographicLayer | null) => void
+  /** 6.EXPORT: Callback for CSV export button */
+  onExport?: () => void
+  /** 6.EXPORT: Whether export is in progress */
+  exportLoading?: boolean
 }
 
 /**
@@ -85,6 +89,8 @@ export function Sidebar({
   superfundViewportLoading,
   selectedDemographicLayer,
   onDemographicLayerSelect,
+  onExport,
+  exportLoading,
 }: SidebarProps): JSX.Element {
   // Ref for direct DOM manipulation during resize (avoids React re-render lag)
   const sidebarRef = useRef<HTMLDivElement>(null)
@@ -246,6 +252,8 @@ export function Sidebar({
               onFacilitySearchSelect={(site: FacilitySearchResult) =>
                 onFacilitySelect(site.site_id, site.site_type)
               }
+              onExport={onExport}
+              exportLoading={exportLoading}
             />
           )}
         </div>

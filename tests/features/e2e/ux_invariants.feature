@@ -721,3 +721,89 @@ Feature: UX Design Invariants
     Then the facility detail drawer opens
     And the EPA TRI Facility Report link is visible
     And the EPA TRI Facility Report link is above the close button
+
+  # Regression: 7.UX.1 — State-only browse mode (no chemical, no location)
+  @regression @7UX1
+  Scenario: 7.UX.1 — State-only browse shows TRI facilities in selected state
+    Given I am on the map page
+    When I click the search panel tab
+    And I select "NJ" from the state dropdown
+    And I click "Search"
+    Then the results table shows TRI facilities
+    And the map zooms to New Jersey
+    And the results table shows more than 100 TRI facilities
+
+  @regression @7UX1
+  Scenario: 7.UX.1 — State-only browse shows Superfund sites in selected state
+    Given I am on the map page
+    When I click the search panel tab
+    And I select "Superfund" from the dataset radio group
+    And I select "NJ" from the state dropdown
+    And I click "Search"
+    Then the results table shows Superfund sites
+    And the map zooms to New Jersey
+    And the results table shows more than 50 Superfund sites
+
+  # Regression: 7.UX.2 — Superfund drawer EPA link parity
+  @regression @7UX2
+  Scenario: 7.UX.2 — Superfund drawer EPA link in fixed footer position
+    Given I am on the map page
+    When I click the search panel tab
+    And I select "Superfund" from the dataset radio group
+    And I type "Front Royal, VA" into the location field
+    And I click "Search"
+    And I click on the first Superfund site in the results
+    Then the Superfund detail drawer opens
+    And the EPA Site Progress Profile link is visible
+    And the EPA Site Progress Profile link is above the close button
+
+  # Regression: 7.UX.3 — Facility drawer year filtering
+  # The facility detail drawer should show data for the selected year only,
+  # not all years, when a year is selected in the search panel.
+  @regression @7UX3
+  Scenario: 7.UX.3 — Facility drawer shows year-filtered data in Top Chemicals tab
+    Given I am on the map page
+    When I click the search panel tab
+    And I type "Carlin, NV" into the location field
+    And I select "2020" from the year dropdown
+    And I click "Search"
+    And I click on the first TRI facility in the results
+    Then the facility detail drawer opens
+    And the drawer heading shows "EMISSIONS ESTIMATES (2020)"
+    And the table header shows "(lbs./2020)"
+
+  @regression @7UX3
+  Scenario: 7.UX.3 — Facility drawer shows year-filtered data in By Medium tab
+    Given I am on the map page
+    When I click the search panel tab
+    And I type "Carlin, NV" into the location field
+    And I select "2020" from the year dropdown
+    And I click "Search"
+    And I click on the first TRI facility in the results
+    Then the facility detail drawer opens
+    When I click the "By Medium" tab
+    Then the medium heading shows "Release by medium (lbs./2020)"
+
+  @regression @7UX3
+  Scenario: 7.UX.3 — Facility drawer shows all years when no year selected
+    Given I am on the map page
+    When I click the search panel tab
+    And I type "Carlin, NV" into the location field
+    # No year selected = "All years"
+    And I click "Search"
+    And I click on the first TRI facility in the results
+    Then the facility detail drawer opens
+    And the drawer heading shows "EMISSIONS ESTIMATES (all years)"
+    And the table header shows "(lbs./all years)"
+
+  @regression @7UX3
+  Scenario: 7.UX.3 — 15-Year Trend tab uses selected year as end point
+    Given I am on the map page
+    When I click the search panel tab
+    And I type "Carlin, NV" into the location field
+    And I select "2020" from the year dropdown
+    And I click "Search"
+    And I click on the first TRI facility in the results
+    Then the facility detail drawer opens
+    When I click the "15-Year Trend" tab
+    Then the trend heading shows "15-year release trend (2006–2020)"
