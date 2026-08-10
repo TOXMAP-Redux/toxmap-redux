@@ -29,7 +29,8 @@ import { FacilityDrawer } from './components/FacilityDetail/FacilityDrawer'
 import { SuperfundDrawer } from './components/FacilityDetail/SuperfundDrawer'
 import { DataVintageLabel } from './components/DataVintageLabel'
 import { InterpretationBanner } from './components/Onboarding/InterpretationBanner'
-import { InlineLegend, ZoomNotice } from './components/Demographics'
+import { InlineLegend } from './components/Demographics'
+import type { CensusYearValue } from './components/Demographics/CensusHealthPanel'
 import { useMapFacilities, filterByBbox, type MapSearchParams } from './hooks/useMapFacilities'
 import { useSuperfundViewport } from './hooks/useSuperfundViewport'
 import { useSuperfundSearch } from './hooks/useSuperfundSearch'
@@ -152,6 +153,7 @@ export default function App(): JSX.Element {
 
   // ── Demographics layer (Phase 5) ──────────────────────────────────────────
   const [selectedDemographicLayer, setSelectedDemographicLayer] = useState<DemographicLayer | null>(null)
+  const [censusYear, setCensusYear] = useState<CensusYearValue>(2000)
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const { meta } = useMeta()
@@ -400,9 +402,13 @@ export default function App(): JSX.Element {
   // Demographics data for choropleth layer (story 5.2.1)
   // Fetch all counties when demographic layer is selected
   // If a search has been performed, filter to the searched state
+  // C-002: Pass selected census year to API
   const { data: demographicsData } = useDemographics(
     selectedDemographicLayer
-      ? submittedSearch?.state ? { state: submittedSearch.state } : {}
+      ? {
+          ...(submittedSearch?.state ? { state: submittedSearch.state } : {}),
+          censusYear,
+        }
       : undefined
   )
 
@@ -643,6 +649,8 @@ export default function App(): JSX.Element {
         superfundViewportLoading={false}
         selectedDemographicLayer={selectedDemographicLayer}
         onDemographicLayerSelect={setSelectedDemographicLayer}
+        censusYear={censusYear}
+        onCensusYearChange={setCensusYear}
         onExport={handleExport}
         exportLoading={exportLoading}
       />
@@ -685,12 +693,6 @@ export default function App(): JSX.Element {
           />
         </div>
       )}
-
-      {/* Zoom notice for demographics — when zoomed in past county level (story 5.2.2) */}
-      <ZoomNotice
-        zoom={viewState.zoom}
-        isLayerActive={selectedDemographicLayer !== null}
-      />
 
       {/* Data vintage label — map footer (story 3.1.5) */}
       <DataVintageLabel

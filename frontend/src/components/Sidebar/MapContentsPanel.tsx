@@ -5,7 +5,7 @@
  * UX Invariant 6: Superfund toggle + legend entry distinct from TRI circles.
  * UX Invariant 4: Label is "US Census & Health Data" (NOT "Demographics").
  */
-import { CensusHealthPanel } from '../Demographics/CensusHealthPanel'
+import { CensusHealthPanel, type CensusYearValue } from '../Demographics/CensusHealthPanel'
 import type { DemographicLayer } from '../../api/types'
 
 interface MapContentsPanelProps {
@@ -27,6 +27,10 @@ interface MapContentsPanelProps {
   selectedDemographicLayer: DemographicLayer | null
   /** Handler for demographic layer selection */
   onDemographicLayerSelect: (layer: DemographicLayer | null) => void
+  /** Currently selected census year */
+  censusYear: CensusYearValue
+  /** Handler for census year changes */
+  onCensusYearChange: (year: CensusYearValue) => void
 }
 
 /** Small inline status badge: "loading…", "N sites", or empty */
@@ -61,6 +65,8 @@ export function MapContentsPanel({
   superfundLoading,
   selectedDemographicLayer,
   onDemographicLayerSelect,
+  censusYear,
+  onCensusYearChange,
 }: MapContentsPanelProps): JSX.Element {
   return (
     <div data-testid="map-contents-panel" className="toxmap-map-contents" style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '14px', overflowY: 'auto', flex: 1 }}>
@@ -177,6 +183,8 @@ export function MapContentsPanel({
       <CensusHealthPanel
         selectedLayer={selectedDemographicLayer}
         onLayerSelect={onDemographicLayerSelect}
+        censusYear={censusYear}
+        onCensusYearChange={onCensusYearChange}
       />
     </div>
   )

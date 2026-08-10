@@ -39,6 +39,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/toxmap
       DATABASE_URL_SYNC: postgresql+psycopg2://postgres:postgres@postgres:5432/toxmap
       ALLOWED_ORIGINS: "http://localhost:3000"
+      CENSUS_API_KEY: ${CENSUS_API_KEY:-}
     ports:
       - "8000:8000"
     volumes:

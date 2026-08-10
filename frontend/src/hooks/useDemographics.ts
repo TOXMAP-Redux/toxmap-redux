@@ -28,6 +28,7 @@ export function useDemographics(params?: DemographicParams): UseDemographicsResu
   // Track if params were provided (even empty object means "fetch")
   const shouldFetch = params !== undefined
   const stateParam = params?.state
+  const censusYearParam = params?.censusYear
 
   useEffect(() => {
     // Don't fetch if params is undefined
@@ -43,7 +44,13 @@ export function useDemographics(params?: DemographicParams): UseDemographicsResu
       setError(null)
 
       try {
-        const result = await fetchDemographics(stateParam ? { state: stateParam } : undefined, abortController.signal)
+        const fetchParams: DemographicParams = {}
+        if (stateParam) fetchParams.state = stateParam
+        if (censusYearParam) fetchParams.censusYear = censusYearParam
+        const result = await fetchDemographics(
+          Object.keys(fetchParams).length > 0 ? fetchParams : undefined,
+          abortController.signal,
+        )
         if (!abortController.signal.aborted) {
           setData(result)
         }
@@ -63,7 +70,7 @@ export function useDemographics(params?: DemographicParams): UseDemographicsResu
     return () => {
       abortController.abort()
     }
-  }, [shouldFetch, stateParam])
+  }, [shouldFetch, stateParam, censusYearParam])
 
   return { data, loading, error }
 }

@@ -1,7 +1,7 @@
 # TOXMAP Progress Tracker
 
 **Owner:** Phase Manager Agent  
-**Last Updated:** 2026-08-07 (ADR-010 — Facility search autocomplete + TRI ID link [agent])  
+**Last Updated:** 2026-08-09 (Census pipeline remediation complete: DE+FE+QA agents dispatched; B-003 resolved)  
 **Source of truth for:** `CURRENT_PHASE.txt` · DoD status · active assignments · blockers  
 
 > This file is updated by the Phase Manager at the end of every development session.  
@@ -29,8 +29,8 @@ See: [ROLLBACK_PHASE7_TO_PHASE6_20260803.md](../escalations/ROLLBACK_PHASE7_TO_P
 | **Active Milestone** | M6 — Feature Complete |
 | **Phase Lead** | QA |
 | **Phase Start Date** | 2026-07-29 (resumed 2026-08-03 after rollback) |
-| **Stories Completed** | Phase 0 complete (33/33 pts); Phase 1 complete (48/48 pts); Phase 2 complete (62/62 pts); Phase 3 complete (79/79 pts); Phase 4 complete (28/28 pts); Phase 5 complete (33/33 pts); **Phase 6: 6.BUG.1–16 ✅, 6.DOC.1–3 ✅, 6.INFRA.1–7 ✅** |
-| **Open Blockers** | **B-002 (Phase 6 rollback — new defects pre-Phase 7; blocks M7)** · B-001 (Phase 1 `workflow_dispatch` verification — human gate; does not block Phase 7) |
+| **Stories Completed** | Phase 0 complete (33/33 pts); Phase 1 complete (48/48 pts); Phase 2 complete (62/62 pts); Phase 3 complete (79/79 pts); Phase 4 complete (28/28 pts); Phase 5 complete (33/33 pts); **Phase 6: 6.BUG.1–20 ✅, 6.DOC.1–3 ✅, 6.INFRA.1–7 ✅, 6.LEGAL.1–5 ✅** |
+| **Open Blockers** | **B-002 (Phase 6 rollback — new defects pre-Phase 7; blocks M7)** · ~~B-003~~ ✅ Resolved 2026-08-09: Census API integration + attribution complete (DE+FE+QA remediation) · ~~B-004~~ ✅ Resolved 2026-08-09: Mortality descoped (SEER DUA incompatible) · B-001 (Phase 1 `workflow_dispatch` verification — human gate; does not block Phase 7) |
 
 ---
 
@@ -583,6 +583,11 @@ Phase 5 DoD tests use Census 2000 layer only.
 - [ ] Schemathesis `--checks response_schema_conformance` passes — **re-verification required**
 - [ ] Semgrep OWASP-Top-Ten clean — **re-verification required**
 - [ ] **NEW:** All newly discovered defects triaged and resolved
+- [x] **NEW:** 6.BUG.17 Census year mismatch — ✅ **Resolved** (DE+FE agent Census API integration)
+- [x] **NEW:** 6.BUG.18 Missing ACS demographic columns — ✅ **Resolved** (DE agent Census Bureau Data API)
+- [x] **NEW:** 6.BUG.19 Census seed test data missing — ✅ **Resolved** (QA agent seed reload verified)
+- [x] **NEW:** 6.BUG.20 Mortality tab requires NIH SEER data (not Census) — ✅ **Descoped for MVP** (PM decision 2026-08-09; SEER DUA incompatible)
+- [x] **NEW:** 6.LEGAL.1–6 Data source attribution — ✅ **P0 items complete** (Census ToS attribution + Mortality descope; P1/P2 deferred)
 
 **Epic 6.BUG — Bug Fixes & Regressions** `FE + QA`
 
@@ -604,6 +609,10 @@ Phase 5 DoD tests use Census 2000 layer only.
 | 6.BUG.14 | Add: Green tier seed data — added facility with < 1,000 lbs release for complete color_band coverage | 1 | ✅ | QA | Added `22630SMRLG0001` "SMALL RELEASE FACILITY" (Front Royal, VA) with 450 lbs ammonia release. Updated: seed.sql (facility 9, chemical 6 ammonia, release event), conftest.py teardown, TOXMAP_TEST_SEED_DATA.md (table + SQL sections). Provides green tier test target for regression tests. 2026-07-30 |
 | 6.BUG.15 | Add: Color band regression tests — Gherkin scenarios for all 4 release tier thresholds | 2 | ✅ | QA | Added 4 scenarios to `facility_search.feature`: green (<1k: 22630SMRLG0001, 450 lbs), yellow (1k–9k: 89319BHPCP7MILE, 8205 lbs), orange (10k–99k: 21219BTHLS3RD, 12485 lbs), red (≥100k: 70663ENTGR0001, 342500 lbs). Each scenario asserts `total_release_lbs` and `color_band` values. Fixed `test_facility_search.py` feature path. 2026-07-30 |
 | 6.BUG.16 | Fix: Legend consistency — Superfund legend always visible regardless of layer toggle state | 1 | ✅ | FE | TRI legend entries were always visible but Superfund legend entries were conditional on `showSuperfundLayer`. Removed conditional wrapper so both legend sections behave consistently. 2026-07-30 |
+| 6.BUG.17 | **CRITICAL**: Census year mismatch — API returns 0 features | 5 | ✅ | DE/FE | **Resolved 2026-08-09**: DE agent rewrote `census_ingest.py` with Census Bureau Data API integration (`CENSUS_API_KEY` env var). FE agent updated `CensusHealthPanel.tsx` to propagate `census_year` param through hooks to API. QA verified with test counties. |
+| 6.BUG.18 | **CRITICAL**: Missing ACS demographic columns — all NULL | 5 | ✅ | DE | **Resolved 2026-08-09**: DE agent replaced CSV download with Census Bureau Data API. Now fetches: `B01003_001E` (total_pop), `B19013_001E` (median_income), `B02001_001E+B02001_002E` (pct_nonwhite), `S0101_C02_022E` (pct_under_18), `S0101_C02_030E` (pct_over_65). |
+| 6.BUG.19 | Census seed test data missing — Warren VA, Harris TX, Aiken SC | 3 | ✅ | QA | **Resolved 2026-08-09**: QA agent reloaded seed.sql. Verified all 3 test counties exist: 51187 (Warren, VA), 48201 (Harris, TX), 45003 (Aiken, SC) with `census_year=2000`. API contract test added to `demographics.feature`. |
+| 6.BUG.20 | **ARCHITECTURE**: Mortality tab requires NIH SEER Mortality Data — **descoped for MVP** | 3 | ✅ | FE/PM | **PM Decision 2026-08-09**: SEER Research Data Use Agreement (DUA) §4, §10, §3, §11 prohibit public redistribution — each user must sign individual DUA; cannot serve via public API. **Resolution**: Disable Mortality tab in UI; remove `cancer_mortality_*`, `heart_disease_mortality_*` columns from MVP scope. Consider CDC/ATSDR SVI or CDC WONDER for future health data overlay (Phase 15+). Audit: `docs/escalations/AUDIT_CENSUS_PIPELINE_20260809.md`. |
 
 **Epic 6.SEC — Security Hardening & Review** `SEC` *(from Roadmap Epic 6.4)*
 
@@ -669,6 +678,22 @@ Phase 5 DoD tests use Census 2000 layer only.
 | 6.EXPORT.17 | **DEFECT FIX**: Map screenshot produced blank PNG — WebGL buffer cleared before capture | 2 | ✅ | FE | **Root cause:** WebGL clears its drawing buffer after each frame render. When calling `getCanvas().toDataURL()`, the buffer was already empty → blank image. **Fix:** Added `preserveDrawingBuffer={true}` prop to MapLibre `<Map>` component in `MapContainer.tsx`. This tells WebGL to retain buffer contents between frames, allowing `toDataURL()` to capture the actual rendered map. Regression test added to `export.feature`. 2026-08-08 |
 
 **Epic 6.EXPORT Total Points:** 30 (26 completed, 4 pending QA step implementations)
+
+**Epic 6.LEGAL — Data Source Compliance & Attribution** `FE + PM` *(added 2026-08-09)*
+
+> **Purpose:** Ensure TOXMAP-redux complies with data source terms of service and attribution requirements.
+> Triggered by Census pipeline audit — reviewed Census Bureau API ToS and NIH SEER DUA.
+
+| Story | Description | Points | Status | Agent | Notes |
+|-------|-------------|--------|--------|-------|-------|
+| 6.LEGAL.1 | **Census Attribution**: Add required notice to CensusHealthPanel | 2 | ✅ | FE | **Completed 2026-08-09**: FE agent added attribution text below year tabs with `data-testid="census-attribution"`. Text: "This product uses the Census Bureau Data API but is not endorsed or certified by the Census Bureau." |
+| 6.LEGAL.2 | **Census Attribution**: Add Census notice to app footer/About section | 1 | ⬜ | FE | P1 — deferred to Phase 7; primary attribution in CensusHealthPanel satisfies ToS |
+| 6.LEGAL.3 | **Mortality Descope**: Disable Mortality tab with tooltip | 2 | ✅ | FE | **Completed 2026-08-09**: FE agent disabled Mortality tab at 50% opacity with `cursor: not-allowed`; tooltip: "Mortality data coming in future release" |
+| 6.LEGAL.4 | **EPA Attribution**: Add TRI Program and Superfund Program attribution | 1 | ⬜ | FE | P1 — deferred to Phase 7 |
+| 6.LEGAL.5 | **OpenStreetMap Attribution**: Verify OSM attribution visible on map export PNG | 1 | ✅ | QA | **Verified 2026-08-09**: Code in `export.ts` adds "© OpenStreetMap contributors" watermark. E2E step implementation pending. |
+| 6.LEGAL.6 | **Data vintage disclosure**: Display data update dates in About section | 1 | ⬜ | FE | P2 — deferred to Phase 7 |
+
+**Epic 6.LEGAL Total Points:** 8 (5 completed, 3 deferred P1/P2)
 
 ---
 

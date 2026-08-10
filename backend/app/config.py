@@ -24,5 +24,9 @@ class Settings(BaseSettings):
     # CORS — comma-separated list of allowed origins
     allowed_origins: str = "http://localhost:3000"
 
+    # Census Bureau Data API key (free: https://api.census.gov/data/key_signup.html)
+    # Required for census demographics ingestion (income, age distribution, race)
+    census_api_key: str | None = None
+
 
 settings = Settings()

@@ -8,6 +8,7 @@ import { useState, useRef, useCallback } from 'react'
 import { SearchPanel, type SearchFormValues } from './SearchPanel'
 import type { FacilityCollection, FacilitySearchResult, SuperfundCollection, DemographicLayer } from '../../api/types'
 import type { GeocodeResult } from '../../api/geocode'
+import type { CensusYearValue } from '../Demographics/CensusHealthPanel'
 
 export type ActivePanel = 'map-contents' | 'search'
 
@@ -52,6 +53,10 @@ interface SidebarProps {
   selectedDemographicLayer: DemographicLayer | null
   /** Handler for demographic layer selection */
   onDemographicLayerSelect: (layer: DemographicLayer | null) => void
+  /** Currently selected census year (C-002) */
+  censusYear: CensusYearValue
+  /** Handler for census year changes */
+  onCensusYearChange: (year: CensusYearValue) => void
   /** 6.EXPORT: Callback for CSV export button */
   onExport?: () => void
   /** 6.EXPORT: Whether export is in progress */
@@ -89,6 +94,8 @@ export function Sidebar({
   superfundViewportLoading,
   selectedDemographicLayer,
   onDemographicLayerSelect,
+  censusYear,
+  onCensusYearChange,
   onExport,
   exportLoading,
 }: SidebarProps): JSX.Element {
@@ -236,6 +243,8 @@ export function Sidebar({
               superfundLoading={superfundViewportLoading}
               selectedDemographicLayer={selectedDemographicLayer}
               onDemographicLayerSelect={onDemographicLayerSelect}
+              censusYear={censusYear}
+              onCensusYearChange={onCensusYearChange}
             />
           )}
           {activePanel === 'search' && (

@@ -12,6 +12,8 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 export interface DemographicParams {
   /** Two-letter state code to filter (optional) */
   state?: string
+  /** Census year: 2000 or 2020 (optional, defaults to latest available) */
+  censusYear?: number
 }
 
 /**
@@ -37,6 +39,9 @@ export async function fetchDemographics(
   const url = new URL(`${API_BASE}/api/v1/demographics/county`, window.location.origin)
   if (params?.state) {
     url.searchParams.set('state', params.state)
+  }
+  if (params?.censusYear) {
+    url.searchParams.set('census_year', params.censusYear.toString())
   }
 
   const res = await fetch(url.toString(), { signal })

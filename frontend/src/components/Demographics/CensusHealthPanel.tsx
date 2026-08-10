@@ -12,17 +12,21 @@
 import { useState, type ReactNode } from 'react'
 import type { DemographicLayer } from '../../api/types'
 
-/** Census year tabs */
-type CensusYear = '2000' | '2020'
-
 /** Category tabs within a census year */
 type Category = 'population' | 'income' | 'mortality'
+
+/** Census year: 2000, 2010, or 2020 */
+export type CensusYearValue = 2000 | 2010 | 2020
 
 interface CensusHealthPanelProps {
   /** Currently selected sub-layer */
   selectedLayer: DemographicLayer | null
   /** Handler when user selects a sub-layer */
   onLayerSelect: (layer: DemographicLayer | null) => void
+  /** Currently selected census year */
+  censusYear: CensusYearValue
+  /** Handler when user changes census year */
+  onCensusYearChange: (year: CensusYearValue) => void
 }
 
 /** Simple tab button component */
@@ -96,6 +100,10 @@ function SubLayerButton({
   )
 }
 
+// C-005: Mortality data requires NIH SEER which has DUA restrictions
+// incompatible with public web apps. Descoped for MVP per PM decision.
+const MORTALITY_AVAILABLE = false
+
 /**
  * US Census & Health Data panel (story 5.1.1).
  * Provides tab navigation for demographic layers and choropleth controls.
@@ -103,13 +111,14 @@ function SubLayerButton({
 export function CensusHealthPanel({
   selectedLayer,
   onLayerSelect,
+  censusYear,
+  onCensusYearChange,
 }: CensusHealthPanelProps): JSX.Element {
-  const [censusYear, setCensusYear] = useState<CensusYear>('2000')
   const [category, setCategory] = useState<Category>('population')
   const [gender, setGender] = useState<'male' | 'female'>('female')
 
-  // Only Census 2000 is available for MVP (story 5.1.2)
-  const showComingSoon = censusYear === '2020'
+  // Census 2000 and 2020 both available (ingestion pipeline verified 2026-08-09)
+  const showComingSoon = false
 
   // Determine if we're on a mortality tab (UX Invariant 10)
   const isMortalityTab = category === 'mortality'
@@ -147,14 +156,42 @@ export function CensusHealthPanel({
       </h2>
 
       {/* Year tabs (story 5.1.2) */}
-      <div style={{ display: 'flex', gap: '4px', background: '#f3f4f6', padding: '4px', borderRadius: '6px' }}>
-        <TabButton active={censusYear === '2000'} onClick={() => setCensusYear('2000')}>
+      <div style={{ display: 'flex', justifyContent: 'space-evenly', background: '#f3f4f6', padding: '4px', borderRadius: '6px' }}>
+        <TabButton
+          active={censusYear === 2000}
+          onClick={() => onCensusYearChange(2000)}
+          testId="census-year-2000"
+        >
           Census 2000
         </TabButton>
-        <TabButton active={censusYear === '2020'} onClick={() => setCensusYear('2020')}>
+        <TabButton
+          active={censusYear === 2010}
+          onClick={() => onCensusYearChange(2010)}
+          testId="census-year-2010"
+        >
+          Census 2010
+        </TabButton>
+        <TabButton
+          active={censusYear === 2020}
+          onClick={() => onCensusYearChange(2020)}
+          testId="census-year-2020"
+        >
           Census 2020
         </TabButton>
       </div>
+
+      {/* C-010: Census Bureau attribution notice (required by ToS) */}
+      <p
+        data-testid="census-attribution"
+        style={{
+          margin: 0,
+          fontSize: '10px',
+          color: '#6b7280',
+          lineHeight: 1.4,
+        }}
+      >
+        This product uses the Census Bureau Data API but is not endorsed or certified by the Census Bureau.
+      </p>
 
       {/* Census 2020 coming soon placeholder */}
       {showComingSoon ? (
@@ -188,13 +225,27 @@ export function CensusHealthPanel({
             >
               Income
             </TabButton>
-            <TabButton
-              active={category === 'mortality'}
+            <button
+              type="button"
+              data-testid="demo-tab-mortality"
+              disabled={!MORTALITY_AVAILABLE}
+              title={!MORTALITY_AVAILABLE ? 'Mortality data coming in future release' : undefined}
               onClick={() => setCategory('mortality')}
-              testId="demo-tab-mortality"
+              style={{
+                padding: '6px 12px',
+                background: category === 'mortality' ? '#2563eb' : 'transparent',
+                color: category === 'mortality' ? '#fff' : '#4b5563',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: MORTALITY_AVAILABLE ? 'pointer' : 'not-allowed',
+                fontSize: '12px',
+                fontWeight: category === 'mortality' ? 600 : 400,
+                transition: 'all 150ms ease',
+                opacity: MORTALITY_AVAILABLE ? 1 : 0.5,
+              }}
             >
               Mortality
-            </TabButton>
+            </button>
           </div>
 
           {/* Sub-layers per category */}

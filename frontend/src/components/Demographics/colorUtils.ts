@@ -40,9 +40,11 @@ export function getColorScale(layer: DemographicLayer): readonly string[] {
 export function getLegendRanges(layer: DemographicLayer): string[] {
   switch (layer) {
     case 'pct_under_18':
-      return ['0-15%', '15-20%', '20-25%', '25-30%', '30%+']
+      // US county range typically 15-30%, bins centered around national avg ~22%
+      return ['0-18%', '18-21%', '21-24%', '24-27%', '27%+']
     case 'pct_over_65':
-      return ['0-10%', '10-15%', '15-20%', '20-25%', '25%+']
+      // US county range typically 10-25%, bins centered around national avg ~16%
+      return ['0-12%', '12-15%', '15-18%', '18-22%', '22%+']
     case 'pct_nonwhite':
       return ['0-10%', '10-25%', '25-40%', '40-60%', '60%+']
     case 'median_income':

@@ -46,14 +46,16 @@ import { getColorScale } from '../Demographics/InlineLegend'
 function getDemographicColorStops(layer: DemographicLayer): (number | string)[] {
   const colors = getColorScale(layer)
   
-  // Define breakpoints based on layer type
+  // Define breakpoints based on layer type (must match getLegendRanges in colorUtils.ts)
   let breaks: number[]
   switch (layer) {
     case 'pct_under_18':
-      breaks = [0, 15, 20, 25, 30]
+      // US county range typically 15-30%, bins centered around national avg ~22%
+      breaks = [0, 18, 21, 24, 27]
       break
     case 'pct_over_65':
-      breaks = [0, 10, 15, 20, 25]
+      // US county range typically 10-25%, bins centered around national avg ~16%
+      breaks = [0, 12, 15, 18, 22]
       break
     case 'pct_nonwhite':
       breaks = [0, 10, 25, 40, 60]

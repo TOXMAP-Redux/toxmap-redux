@@ -32,3 +32,22 @@ Feature: Demographics County Overlay
     Then the response status is 200
     And the response is a GeoJSON FeatureCollection
     And the FeatureCollection contains exactly 0 features
+
+  @C-006
+  Scenario: Filter demographics by census year
+    # Verifies that the census_year parameter filters results correctly.
+    # Test counties in seed.sql have census_year=2000.
+    When I GET "/api/v1/demographics/county?state=VA&census_year=2000"
+    Then the response status is 200
+    And the response is a GeoJSON FeatureCollection
+    And the FeatureCollection contains exactly 1 features
+    And the response meta has "census_year" = 2000
+
+  @C-006
+  Scenario: Census year filter excludes non-matching years
+    # When querying for a year not in our seed data, no results should return.
+    # Seed data has census_year=2000, so 2010 should return 0 features.
+    When I GET "/api/v1/demographics/county?state=VA&census_year=2010"
+    Then the response status is 200
+    And the response is a GeoJSON FeatureCollection
+    And the FeatureCollection contains exactly 0 features
