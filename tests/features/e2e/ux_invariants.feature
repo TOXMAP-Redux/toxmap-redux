@@ -872,3 +872,130 @@ Feature: UX Design Invariants
     When I click the "Release Trend" tab
     # The tooltip content is tested via unit tests; here we just verify the chart renders
     Then the Release Trend chart is visible
+
+  # ── Regression: 7.BUG.39 — Census Choropleth Z-Order ───────────────────────
+  # Root cause: Demographics fill layer obscured Superfund symbols when state filtered.
+  # Fix: Added beforeId props and data event listener to enforce z-order.
+  # Order: demographics (bottom) → superfund → TRI (top)
+
+  @regression @7BUG39
+  Scenario: 7.BUG.39 — Superfund sites visible above census demographics layer
+    Given I am on the map page
+    When I enable the Census & Health Data panel
+    And I select "Census 2020" from the census year dropdown
+    And I select "Population" from the census category
+    And I click "Total Population" sub-layer
+    Then the demographics layer is visible on the map
+    When I filter by state "VA"
+    And I click "Search"
+    Then the Superfund layer is visible on the map
+    And the Superfund sites are rendered above the demographics fill layer
+
+  @regression @7BUG39
+  Scenario: 7.BUG.39 — TRI facilities visible above census and Superfund layers
+    Given I am on the map page
+    When I enable the Census & Health Data panel
+    And I select "Census 2020" from the census year dropdown
+    And I select "Population" from the census category
+    And I click "Total Population" sub-layer
+    Then the demographics layer is visible on the map
+    When I filter by state "VA"
+    And I click "Search"
+    Then the TRI layer is visible on the map
+    And the TRI facilities are rendered above the Superfund layer
+
+  # ── Regression: 7.BUG.40 — Census 2000 Age Layers Unavailable ──────────────
+  # Root cause: Census API Subject Tables (age distribution) not available for 2000.
+  # Fix: Disable unsupported buttons with explanatory tooltip.
+
+  @regression @7BUG40
+  Scenario: 7.BUG.40 — Census 2000 disables "% Under 18" and "% Over 65" buttons
+    Given I am on the map page
+    When I enable the Census & Health Data panel
+    And I select "Census 2000" from the census year dropdown
+    And I select "Population" from the census category
+    Then the "% Under 18" button is disabled
+    And the "% Over 65" button is disabled
+    And the disabled button tooltip shows "Age distribution data not available for Census 2000"
+
+  @regression @7BUG40
+  Scenario: 7.BUG.40 — Census 2010 and 2020 enable age percentage buttons
+    Given I am on the map page
+    When I enable the Census & Health Data panel
+    And I select "Census 2010" from the census year dropdown
+    And I select "Population" from the census category
+    Then the "% Under 18" button is enabled
+    And the "% Over 65" button is enabled
+    When I select "Census 2020" from the census year dropdown
+    Then the "% Under 18" button is enabled
+    And the "% Over 65" button is enabled
+
+  @regression @7BUG40
+  Scenario: 7.BUG.40 — Switching to Census 2000 with unsupported layer selected clears selection
+    Given I am on the map page
+    When I enable the Census & Health Data panel
+    And I select "Census 2020" from the census year dropdown
+    And I select "Population" from the census category
+    And I click "% Under 18" sub-layer
+    Then the demographics layer is visible on the map
+    When I select "Census 2000" from the census year dropdown
+    Then the demographics layer is not visible on the map
+    And no sub-layer button is selected
+
+  # ── Regression: 7.BUG.41 — Census Overlay Color Scheme (Historical TOXMAP) ──
+  # Root cause: Used separate color schemes per tab instead of unified scheme.
+  # Fix: All demographic layers now use 8-bin light green → dark blue gradient
+  # (ColorBrewer GnBu 8-class) matching historical TOXMAP Fig 2015-5.
+
+  @regression @7BUG41
+  Scenario: 7.BUG.41 — Census overlay uses green-to-blue color scheme (historical TOXMAP)
+    Given I am on the map page
+    When I enable the Census & Health Data panel
+    And I select "Census 2020" from the census year dropdown
+    And I select "Population" from the census category
+    And I click "Total Population" sub-layer
+    Then the demographics legend shows the 8-bin green-to-blue color scale
+    And the map fill colors range from light green to dark blue
+
+  @regression @7BUG41
+  Scenario: 7.BUG.41 — All demographic layers use consistent green-to-blue scheme
+    Given I am on the map page
+    When I enable the Census & Health Data panel
+    And I select "Census 2020" from the census year dropdown
+    And I select "Population" from the census category
+    And I click "% Under 18" sub-layer
+    Then the demographics legend shows the 8-bin green-to-blue color scale
+    When I click "% Over 65" sub-layer
+    Then the demographics legend shows the 8-bin green-to-blue color scale
+    When I select "Income" from the census category
+    And I click "Median Household Income" sub-layer
+    Then the demographics legend shows the 8-bin green-to-blue color scale
+
+  # ── Regression: 7.UX.6 — Census County Hover Tooltip ───────────────────────
+  # Enhancement: Added tooltip showing county name, value, and bin label on hover.
+
+  @regression @7UX6
+  Scenario: 7.UX.6 — Census county hover shows tooltip with value and bin label
+    Given I am on the map page
+    When I enable the Census & Health Data panel
+    And I select "Census 2020" from the census year dropdown
+    And I select "Population" from the census category
+    And I click "% Over 65" sub-layer
+    Then the demographics layer is visible on the map
+    When I hover over a county on the demographics layer
+    Then the county tooltip popup appears
+    And the tooltip shows the county name
+    And the tooltip shows the demographic value with units
+    And the tooltip shows the bin range label
+
+  @regression @7UX6
+  Scenario: 7.UX.6 — County tooltip updates when switching demographic layers
+    Given I am on the map page
+    When I enable the Census & Health Data panel
+    And I select "Census 2020" from the census year dropdown
+    And I select "Population" from the census category
+    And I click "Total Population" sub-layer
+    And I hover over a county on the demographics layer
+    Then the tooltip shows the population value with "people" units
+    When I click "% Over 65" sub-layer without moving mouse
+    Then the tooltip shows the percentage value with "%" units

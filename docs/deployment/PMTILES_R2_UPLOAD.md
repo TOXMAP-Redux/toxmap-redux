@@ -35,7 +35,14 @@ You will:
 You are now on the Cloudflare dashboard. You do not need to add a domain.
 
 > **Free tier covers everything in this guide.** R2 gives you 10 GB free storage and 10 million free read
-> requests per month. The US PMTiles extract (~3–8 GiB) plus Parquet data files (~50–100 MB) fits within the 10 GB limit.
+> requests per month. Storage breakdown:
+>
+> | Data Type | Size | Notes |
+> |-----------|------|-------|
+> | US PMTiles (basemap) | ~3–8 GB | Depending on zoom level |
+> | TRI Parquet files | ~50–100 MB | All years combined |
+> | Census GeoJSON/Parquet | ~30 MB | County boundaries + demographics |
+> | **Total** | ~3.5–8.5 GB | Fits within 10 GB free tier |
 
 ---
 

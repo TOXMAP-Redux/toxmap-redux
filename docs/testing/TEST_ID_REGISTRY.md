@@ -1,6 +1,6 @@
 # TOXMAP `data-testid` Registry
 
-**Last updated:** 2026-08-08  
+**Last updated:** 2026-08-10  
 **Purpose:** Canonical list of every `data-testid` attribute used in Playwright E2E tests and React components. Frontend developers MUST use these exact strings. QA engineers MUST use these exact strings in selectors.
 
 > **Rule:** If a `data-testid` is not in this registry, it does not exist. Add it here before using it in any test or component.
@@ -130,6 +130,15 @@
 | `demo-tab-mortality`          | Mortality tab button          | T-09                                              |
 | `demo-sublayer-pct-under-18`  | % Under 18 radio/button       | T-05                                              |
 | `demo-sublayer-cancer-female` | Cancer Mortality / Female     | T-09                                              |
+| `census-year-select`          | Census year dropdown (2000/2010/2020) (7.BUG.40) | `"I select 'Census 2000' from the census year dropdown"` |
+| `county-tooltip-popup`        | County hover tooltip `<Popup>` (7.UX.6) | `"the county tooltip popup appears"` |
+| `county-tooltip-name`         | County name in hover tooltip (7.UX.6) | `"the tooltip shows the county name"` |
+| `county-tooltip-value`        | Demographic value in hover tooltip (7.UX.6) | `"the tooltip shows the demographic value with units"` |
+| `county-tooltip-bin`          | Bin range label in hover tooltip (7.UX.6) | `"the tooltip shows the bin range label"` |
+
+> **Note:** Sub-layer buttons use `disabled` attribute and `title` for tooltip when unavailable (e.g., Census 2000 age layers).
+> Selector for disabled state: `[data-testid="demo-sublayer-pct-under-18"]:disabled`
+> Selector for tooltip: `[data-testid="demo-sublayer-pct-under-18"][title="Age distribution data not available for Census 2000"]`
 
 ---
 

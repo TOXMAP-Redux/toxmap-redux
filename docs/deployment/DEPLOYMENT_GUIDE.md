@@ -93,6 +93,10 @@ DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/toxmap
 DATABASE_URL_SYNC=postgresql+psycopg2://postgres:postgres@localhost:5432/toxmap
 DATABASE_URL_TEST=postgresql+psycopg2://postgres:postgres@localhost:5432/toxmap_test
 ALLOWED_ORIGINS=http://localhost:3000
+
+# Census API key (required for demographics overlay)
+# Get a free key at: https://api.census.gov/data/key_signup.html
+CENSUS_API_KEY=your_key_here
 ```
 
 > **Note on `DATABASE_URL_TEST`:** The `toxmap_test` database is **not** created automatically by Docker Compose.
@@ -183,6 +187,36 @@ docker compose exec backend python -m ingestion.tri_ingest --year 2024 --file /p
 > ```bash
 > docker compose exec backend python -m ingestion.seed --fixtures tests/fixtures/seed.sql
 > ```
+
+---
+
+### Step 1.6B — Ingest Census Data (Demographics Overlay) — 🤖 Agent artifact · 👤 Human executes
+
+> **Who does what:** The Data Engineering agent writes `ingestion/census_ingest.py`. The developer provides a Census API key and runs the ingestion command. See [ADR-011](../adr/ADR-011-census-demographics-api.md) for data source details.
+
+**Prerequisites:**
+- A free Census API key from https://api.census.gov/data/key_signup.html
+- Add the key to `backend/.env` as `CENSUS_API_KEY=your_key_here`
+
+```bash
+# Ingest Census 2020 TIGER boundaries + ACS demographics (~20-30 min)
+docker compose exec backend python -m ingestion.census_ingest --year 2020
+
+# Optional: ingest historical census years for time-series comparison
+docker compose exec backend python -m ingestion.census_ingest --year 2010
+docker compose exec backend python -m ingestion.census_ingest --year 2000
+```
+
+**Storage impact:**
+
+| Component | Size | Notes |
+|-----------|------|-------|
+| TIGER shapefile download | ~77 MB | One-time download per census year |
+| PostGIS county geometries | ~80-100 MB | 3,229 counties × ~25 KB avg |
+| Demographics columns | <1 MB | 6 numeric fields |
+
+> **Memory warning:** Census ingestion peaks at ~250-300 MB RAM (TIGER shapefile processing in geopandas).
+> Run locally via Docker Compose. Do NOT run on Fly.io's 256 MB free-tier VMs.
 
 ---
 
@@ -613,8 +647,13 @@ Use this **only** if you need features that require a live server:
 - Server-side query validation beyond what the React layer provides
 - The last 20 years of TRI data (2005–present) in a queryable SQL database
 
-> ⚠️ **Data limitation:** Supabase's free tier is 500 MB. This holds approximately 20 years of TRI data
-> (2005–present, ~300 MB). Full 1987–present history requires Option A (Part 2) Parquet files.
+> ⚠️ **Data limitation:** Supabase's free tier is 500 MB. This holds approximately:
+> - TRI data: ~300 MB for 20 years (2005–present)
+> - Census data: ~100 MB for demographics overlay (one census year)
+> - **Total:** ~400 MB — fits within 500 MB but is tight
+>
+> Full 1987–present TRI history requires Option A (Part 2) Parquet files.
+> For multiple census years (2000, 2010, 2020), use Option A or upgrade Supabase.
 
 **Time to complete:** ~45 minutes
 
@@ -1264,7 +1303,8 @@ Verify attribution is visible before launch. See `frontend/src/components/Map/Ma
 | `.github/workflows/deploy-frontend.yml` | Auto-deploy frontend on push to `main` |
 | `.github/workflows/keep-alive.yml` | Weekly Supabase ping to prevent pausing (Option B only) |
 | `backend/alembic/` | Database schema migrations — run with `alembic upgrade head` |
-| `scripts/build_data.py` | Converts EPA TRI CSV → Parquet files for DuckDB WASM |
+| `scripts/build_parquet.py` | Converts EPA TRI CSV → Parquet files for DuckDB WASM |
+| `backend/ingestion/census_ingest.py` | Ingests Census TIGER boundaries + ACS demographics |
 
 ---
 

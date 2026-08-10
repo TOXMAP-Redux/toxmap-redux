@@ -49,6 +49,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **7.UX.5: Release Trend missing years render as gaps** — Changed `YearData.lbs` to `number | null` (null = no TRI report filed, 0 = reported zero releases). Added `connectNulls={false}` so Recharts breaks line at gaps instead of interpolating. Tooltip shows "No TRI report filed this year" for null years. Legend dynamically shows "Gap in line = no TRI report filed (N years)" when gaps exist. [agent]
+- **7.BUG.39: Census choropleth z-order** — Fixed layer z-order where Superfund symbols were rendered below census choropleth when state filtered. Added `beforeId` props and `data` event listener to enforce z-order: demographics (bottom) → superfund → TRI (top). [agent]
+- **7.BUG.40: Census 2000 age layers unavailable** — Disabled "% Under 18" and "% Over 65" buttons when Census 2000 is selected since Census Bureau Subject Tables (age distribution) are only available for ACS data (2010, 2020). Added tooltip explaining limitation. Added useEffect to clear selection when switching to Census 2000 with unsupported layer active. [agent]
+- **7.BUG.41: Census overlay color scheme (historical TOXMAP)** — Replaced per-tab color schemes (blue/green/red) with unified 8-bin light green → dark blue gradient (ColorBrewer GnBu 8-class) matching historical TOXMAP Fig 2015-5. All demographic layers now use consistent coloring. [agent]
+- **7.UX.6: Census county hover tooltip** — Added hover tooltip showing county name, formatted value, and bin label when hovering over census demographics layer. Uses `getBinLabel()` and `formatValue()` utilities from `colorUtils.ts`. Tooltip updates dynamically when switching demographic layers. [agent]
 - **Superfund drawer close button parity** — Updated SuperfundDrawer close button to match FacilityDrawer style (centered gray "Close panel" instead of left-aligned blue "← Close"). [agent]
 - **By Medium discrepancy note conditional display** — Fixed confusing note in By Medium tab that always talked about discrepancies even when no meaningful discrepancy existed. Now shows three variants: (1) full discrepancy explanation when aggregate ≥1 lb, (2) "aggregate minimal but some years show ≥5%" warning when per-year discrepancies cancel out, (3) simple note when no discrepancies exist. [agent]
 - **Superfund ingestion now populates `epa_progress_url`** — `superfund_ingest.py` now builds EPA Site Progress Profile URL from SEMS `site_id` (different from `epa_id`). Re-ran ingestion to update 2,021 existing sites. [agent]
@@ -68,6 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **7.UX.2 regression tests** — Added E2E test (`ux_invariants.feature`) verifying Superfund EPA link is in fixed footer position above close button. [agent]
 - **7.UX.3 regression tests** — Added API tests (`release_trends.feature`) for facility detail year filter; E2E tests (`ux_invariants.feature`) verifying drawer tabs show year-specific data when year is selected. [agent]
 - **ADR-010 regression tests** — Added 4 E2E scenarios (`@ADR010`): facility search input present, autocomplete dropdown shows results, TRI ID link visible and points to EPA EnviroFacts, EPA TRI Facility Report link above close button. [agent]
+- **7.BUG.39/40/41 + 7.UX.6 regression tests** — Added 11 E2E scenarios (`@7BUG39`, `@7BUG40`, `@7BUG41`, `@7UX6`) in `ux_invariants.feature` for census demographics layer z-order, Census 2000 disabled buttons, Population tab blue color scheme, and county hover tooltip. [agent]
 
 ### Security
 

@@ -9,7 +9,7 @@
  *   Sub-layer buttons >
  *   Gender radio (mortality only)
  */
-import { useState, type ReactNode } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import type { DemographicLayer } from '../../api/types'
 
 /** Category tabs within a census year */
@@ -69,30 +69,37 @@ function SubLayerButton({
   onClick,
   testId,
   children,
+  disabled = false,
+  disabledReason,
 }: {
   active: boolean
   onClick: () => void
   testId: string
   children: ReactNode
+  disabled?: boolean
+  disabledReason?: string
 }): JSX.Element {
   return (
     <button
       type="button"
       data-testid={testId}
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      title={disabled ? disabledReason : undefined}
       style={{
         display: 'block',
         width: '100%',
         textAlign: 'left',
         padding: '8px 12px',
-        background: active ? '#eff6ff' : '#f9fafb',
-        color: active ? '#1d4ed8' : '#374151',
-        border: active ? '1px solid #3b82f6' : '1px solid #e5e7eb',
+        background: disabled ? '#f3f4f6' : active ? '#eff6ff' : '#f9fafb',
+        color: disabled ? '#9ca3af' : active ? '#1d4ed8' : '#374151',
+        border: active && !disabled ? '1px solid #3b82f6' : '1px solid #e5e7eb',
         borderRadius: '4px',
-        cursor: 'pointer',
+        cursor: disabled ? 'not-allowed' : 'pointer',
         fontSize: '12px',
-        fontWeight: active ? 600 : 400,
+        fontWeight: active && !disabled ? 600 : 400,
         marginBottom: '6px',
+        opacity: disabled ? 0.6 : 1,
       }}
     >
       {children}
@@ -119,6 +126,13 @@ export function CensusHealthPanel({
 
   // Census 2000 and 2020 both available (ingestion pipeline verified 2026-08-09)
   const showComingSoon = false
+
+  // Age percentage layers not available for Census 2000 — clear selection when switching
+  useEffect(() => {
+    if (censusYear === 2000 && (selectedLayer === 'pct_under_18' || selectedLayer === 'pct_over_65')) {
+      onLayerSelect(null)
+    }
+  }, [censusYear, selectedLayer, onLayerSelect])
 
   // Determine if we're on a mortality tab (UX Invariant 10)
   const isMortalityTab = category === 'mortality'
@@ -252,10 +266,13 @@ export function CensusHealthPanel({
           <div>
             {category === 'population' && (
               <>
+                {/* Age percentages not available for Census 2000 (API limitation) */}
                 <SubLayerButton
                   active={selectedLayer === 'pct_under_18'}
                   onClick={() => handleLayerClick('pct_under_18')}
                   testId="demo-sublayer-pct-under-18"
+                  disabled={censusYear === 2000}
+                  disabledReason="Age distribution data not available for Census 2000"
                 >
                   % Under 18
                 </SubLayerButton>
@@ -263,6 +280,8 @@ export function CensusHealthPanel({
                   active={selectedLayer === 'pct_over_65'}
                   onClick={() => handleLayerClick('pct_over_65')}
                   testId="demo-sublayer-pct-over-65"
+                  disabled={censusYear === 2000}
+                  disabledReason="Age distribution data not available for Census 2000"
                 >
                   % Over 65
                 </SubLayerButton>

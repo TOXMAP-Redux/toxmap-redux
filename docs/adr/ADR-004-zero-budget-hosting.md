@@ -320,15 +320,23 @@ primary_region = "iad"  # Washington DC — closest to EPA data users
 
 ### Data Size vs. Supabase 500 MB Limit
 
-| Years of TRI Data | Approximate DB Size | Fits in Supabase Free? |
-|-------------------|--------------------|-----------------------|
-| Latest year only (2024) | ~15 MB | ✅ |
-| 5 years (2020–2024) | ~75 MB | ✅ |
-| 10 years (2015–2024) | ~150 MB | ✅ |
-| 20 years (2005–2024) | ~300 MB | ✅ |
-| Full history (1987–2024) | ~800 MB | ❌ (use Option A) |
+| Data Type | Approximate Size | Notes |
+|-----------|------------------|-------|
+| TRI (latest year only) | ~15 MB | 2024 data |
+| TRI (5 years: 2020–2024) | ~75 MB | |
+| TRI (10 years: 2015–2024) | ~150 MB | |
+| TRI (20 years: 2005–2024) | ~300 MB | Recommended subset |
+| TRI (full history: 1987–2024) | ~800 MB | ❌ Exceeds 500 MB |
+| **Census demographics** | **~100 MB** | TIGER boundaries + ACS data |
 
-**Recommendation:** Load 2005–present (~300 MB) which covers the era most users care about. Pre-2005 TRI data is available via Option A's Parquet files for researchers.
+**Storage budget for Supabase 500 MB free tier:**
+- TRI 20-year (2005–2024): ~300 MB
+- Census (one year): ~100 MB
+- **Total:** ~400 MB ✅ (tight but fits)
+
+**Recommendation:** Load TRI 2005–present (~300 MB) + Census 2020 (~100 MB) = ~400 MB. For multiple census years or pre-2005 TRI data, use Option A (Parquet files on R2).
+
+> **Note:** Census ingestion peaks at ~250–300 MB RAM. Do NOT run `census_ingest.py` on Fly.io's 256 MB free-tier VMs — run locally via Docker Compose, then connect to Supabase with `--db-url`.
 
 ### Tradeoffs
 
@@ -341,7 +349,8 @@ primary_region = "iad"  # Washington DC — closest to EPA data users
 **❌ Disadvantages:**
 - Fly.io free VM has 256 MB RAM — fine for API, tight for concurrent geospatial queries
 - Fly.io cold start: ~2 seconds after idle (set `min_machines_running = 1` to avoid, but uses free quota)
-- Supabase 500 MB = ~20 years of TRI data max
+- Supabase 500 MB = ~20 years TRI + 1 census year max (400 MB combined)
+- Census ingestion must run locally (exceeds Fly.io 256 MB RAM) — cannot ingest census data directly on Fly.io
 - Supabase free tier pauses after 1 week of inactivity (must unpause manually)
 - Combined free tier limits are easily exceeded with moderate traffic
 

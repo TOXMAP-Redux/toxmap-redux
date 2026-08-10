@@ -142,6 +142,10 @@ This document tracks the triage and resolution of defects discovered during the 
 | 7.UX.3 | Reporting Year filter now applies to facility drawer tabs | P2 | Added `year` parameter to facility detail endpoint. Frontend passes selected year to drawer, which now shows year-filtered data in Top Chemicals, By Medium, and 15-Year Trend tabs. Labels dynamically show "(2020)" or "(all years)". API + E2E regression tests added. | ✅ 2026-08-08 |
 | 7.UX.4 | Release Trend tab edge case: year filter near 1987 showed misleading zeros | P2 | Clamped `trendStartYear = Math.max(1987, endYear - 14)`; renamed tab to "Release Trend"; dynamic subtitle when <15 years | ✅ 2026-08-08 |
 | 7.UX.5 | Release Trend chart treated missing years as 0 instead of gaps | P2 | Changed to `null` for missing years; `connectNulls={false}` breaks line at gaps; tooltip shows "No TRI report filed" | ✅ 2026-08-08 |
+| 7.BUG.39 | Census choropleth z-order — Superfund layer rendered below census overlay | P1 | Added `beforeId` props + `data` event listener for layer reordering; z-order now enforced as demographics → superfund → TRI | ✅ 2026-08-10 |
+| 7.BUG.40 | Census 2000 age percentages "No data" — UI allowed selecting unavailable layers | P1 | Disabled % Under 18 / % Over 65 buttons for Census 2000 with tooltip explaining API limitation | ✅ 2026-08-10 |
+| 7.BUG.41 | Census overlay color scheme — used per-tab colors instead of historical unified scheme | P2 | Unified 8-bin light green → dark blue gradient (ColorBrewer GnBu 8-class) matching historical TOXMAP Fig 2015-5 | ✅ 2026-08-10 |
+| 7.UX.6 | Census county hover tooltip — color bins difficult to distinguish | P2 | Added hover tooltip showing county name, formatted value, and bin label; uses `getBinLabel()` from colorUtils | ✅ 2026-08-10 |
 
 ---
 

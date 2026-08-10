@@ -37,44 +37,45 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import maplibregl from 'maplibre-gl'
 import type { FacilityCollection, FacilityFeature, SuperfundCollection, SuperfundFeature, DemographicCollection, DemographicLayer } from '../../api/types'
 import { exportMapImage } from '../../api/export'
-import { getColorScale } from '../Demographics/InlineLegend'
+import { getColorScale, getBinLabel, formatValue, getLayerLabel } from '../Demographics/colorUtils'
 
 /**
  * Generate color stops for MapLibre interpolate expression.
  * Returns [value1, color1, value2, color2, ...] array.
+ * Uses 8-bin scheme matching historical TOXMAP (Fig 2015-5).
  */
 function getDemographicColorStops(layer: DemographicLayer): (number | string)[] {
   const colors = getColorScale(layer)
   
-  // Define breakpoints based on layer type (must match getLegendRanges in colorUtils.ts)
+  // Define breakpoints based on layer type — 8 bins to match DEMOGRAPHIC_COLORS
   let breaks: number[]
   switch (layer) {
     case 'pct_under_18':
       // US county range typically 15-30%, bins centered around national avg ~22%
-      breaks = [0, 18, 21, 24, 27]
+      breaks = [0, 16, 18, 20, 22, 24, 26, 28]
       break
     case 'pct_over_65':
       // US county range typically 10-25%, bins centered around national avg ~16%
-      breaks = [0, 12, 15, 18, 22]
+      breaks = [0, 10, 12, 14, 16, 18, 20, 22]
       break
     case 'pct_nonwhite':
-      breaks = [0, 10, 25, 40, 60]
+      breaks = [0, 5, 10, 20, 30, 40, 50, 70]
       break
     case 'median_income':
-      breaks = [0, 30000, 45000, 60000, 80000]
+      breaks = [0, 25000, 35000, 45000, 55000, 65000, 80000, 100000]
       break
     case 'cancer_mortality_male_per_100k':
     case 'cancer_mortality_female_per_100k':
-      breaks = [0, 100, 150, 200, 250]
+      breaks = [0, 80, 100, 120, 150, 180, 210, 250]
       break
     case 'heart_disease_mortality_per_100k':
-      breaks = [0, 100, 150, 200, 300]
+      breaks = [0, 80, 100, 130, 160, 200, 250, 300]
       break
     case 'total_pop':
-      breaks = [0, 10000, 50000, 100000, 500000]
+      breaks = [0, 5000, 10000, 25000, 50000, 100000, 250000, 500000]
       break
     default:
-      breaks = [0, 25, 50, 75, 100]
+      breaks = [0, 12, 25, 37, 50, 62, 75, 87]
   }
   
   // Interleave breaks and colors: [break1, color1, break2, color2, ...]
@@ -234,6 +235,14 @@ export function MapContainer({
   const [spritesReady, setSpritesReady] = useState(false)
   /** Screenshot export loading state (story 6.EXPORT.7–8) */
   const [screenshotLoading, setScreenshotLoading] = useState(false)
+  /** Hovered county info for demographics tooltip */
+  const [hoveredCounty, setHoveredCounty] = useState<{
+    name: string
+    stateCode: string
+    properties: Record<string, number | null>
+    lng: number
+    lat: number
+  } | null>(null)
 
   /** Handle map screenshot export */
   const handleScreenshot = useCallback(async () => {
@@ -317,6 +326,28 @@ export function MapContainer({
   const handleMouseEnter = useCallback(() => setCursor('pointer'), [])
   const handleMouseLeave = useCallback(() => setCursor('grab'), [])
 
+  // Demographics layer hover handler — show tooltip with bin info
+  const handleDemographicsMouseMove = useCallback((evt: MapLayerMouseEvent) => {
+    // Find the demographics-fill feature specifically (not TRI or Superfund layers)
+    const feature = evt.features?.find(f => f.layer?.id === 'demographics-fill')
+    if (!feature || !feature.properties) {
+      setHoveredCounty(null)
+      return
+    }
+    const props = feature.properties
+    setHoveredCounty({
+      name: props.name as string,
+      stateCode: props.state_code as string,
+      properties: props as Record<string, number | null>,
+      lng: evt.lngLat.lng,
+      lat: evt.lngLat.lat,
+    })
+  }, [])
+
+  const handleDemographicsMouseLeave = useCallback(() => {
+    setHoveredCounty(null)
+  }, [])
+
   // Click on a facility circle → emit onFacilityClick
   const handleMapClick = useCallback((evt: MapLayerMouseEvent) => {
     const feature = evt.features?.[0]
@@ -351,6 +382,49 @@ export function MapContainer({
     if (!map || !map.getLayer('superfund-sites')) return
     map.setLayoutProperty('superfund-sites', 'visibility', showSuperfundLayer ? 'visible' : 'none')
   }, [showSuperfundLayer, mapLoaded])
+
+  // Ensure correct layer z-order: demographics (bottom) → superfund → TRI (top)
+  // This runs whenever relevant layers are added/updated to maintain consistent ordering.
+  // Also listens to map 'data' events to catch react-map-gl's async layer updates.
+  useEffect(() => {
+    if (!mapLoaded) return
+    const map = mapRef.current?.getMap()
+    if (!map) return
+
+    const reorderLayers = () => {
+      const hasDemographics = map.getLayer('demographics-fill')
+      const hasSuperfund = map.getLayer('superfund-sites')
+      const hasFacilities = map.getLayer('facility-circles')
+
+      // Move layers to correct order: demographics < superfund < facility-circles
+      // moveLayer(id, beforeId) places `id` immediately BELOW `beforeId` in draw order
+      if (hasDemographics && hasSuperfund) {
+        // Demographics should be below Superfund
+        map.moveLayer('demographics-fill', 'superfund-sites')
+        map.moveLayer('demographics-outline', 'superfund-sites')
+      }
+      if (hasSuperfund && hasFacilities) {
+        // Superfund should be below facility circles
+        map.moveLayer('superfund-sites', 'facility-circles')
+      }
+    }
+
+    // Run immediately
+    reorderLayers()
+
+    // Listen for sourcedata events to catch layer additions/updates from react-map-gl
+    const handleSourceData = (e: maplibregl.MapSourceDataEvent) => {
+      if (e.sourceId === 'demographics-source' || e.sourceId === 'superfund-source') {
+        // Use requestAnimationFrame to ensure layers are fully rendered
+        requestAnimationFrame(reorderLayers)
+      }
+    }
+    map.on('sourcedata', handleSourceData)
+
+    return () => {
+      map.off('sourcedata', handleSourceData)
+    }
+  }, [mapLoaded, demographicLayer, demographics, superfundSites, facilities])
 
   // Create/update TRI source + layers when facilities data changes.
   // NOTE: Clustering is disabled due to a MapLibre/Supercluster bug where the
@@ -561,8 +635,27 @@ export function MapContainer({
         onLoad={handleLoad}
         onClick={handleMapClick}
         onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        interactiveLayerIds={['facility-circles', 'superfund-sites']}
+        onMouseLeave={(evt) => {
+          handleMouseLeave()
+          // Clear demographics tooltip when leaving map or changing layers
+          if (evt.features?.[0]?.layer?.id === 'demographics-fill') {
+            handleDemographicsMouseLeave()
+          }
+        }}
+        onMouseMove={(evt) => {
+          // Handle demographics layer hover for tooltip
+          // Only show county tooltip when NOT hovering over a point marker
+          const hasFacilityHover = evt.features?.some(f => f.layer?.id === 'facility-circles')
+          const hasSuperfundHover = evt.features?.some(f => f.layer?.id === 'superfund-sites')
+          const demogFeature = evt.features?.find(f => f.layer?.id === 'demographics-fill')
+          
+          if (demogFeature && demographicLayer && !hasFacilityHover && !hasSuperfundHover) {
+            handleDemographicsMouseMove(evt)
+          } else if (hoveredCounty) {
+            setHoveredCounty(null)
+          }
+        }}
+        interactiveLayerIds={['facility-circles', 'superfund-sites', ...(demographicLayer ? ['demographics-fill'] : [])]}
         cursor={cursor}
         mapStyle={MAP_STYLE}
         style={{ width: '100%', height: '100%' }}
@@ -633,7 +726,8 @@ export function MapContainer({
             to avoid react-map-gl Source calling setData on every render. */}
 
         {/* Demographics choropleth layer (story 5.2.1) — rendered BELOW point layers.
-            TRI circles and Superfund diamonds remain visible above the fill layer. */}
+            TRI circles and Superfund diamonds remain visible above the fill layer.
+            Uses beforeId to ensure rendering below Superfund (preferred) or TRI. */}
         {demographics && demographicLayer && (
           <Source
             id="demographics-source"
@@ -643,7 +737,13 @@ export function MapContainer({
             <Layer
               id="demographics-fill"
               type="fill"
-              beforeId={mapLoaded && mapRef.current?.getMap()?.getLayer('facility-circles') ? 'facility-circles' : undefined}
+              beforeId={
+                mapLoaded && mapRef.current?.getMap()?.getLayer('superfund-sites') 
+                  ? 'superfund-sites' 
+                  : mapLoaded && mapRef.current?.getMap()?.getLayer('facility-circles') 
+                    ? 'facility-circles' 
+                    : undefined
+              }
               paint={{
                 'fill-color': [
                   'interpolate',
@@ -657,7 +757,13 @@ export function MapContainer({
             <Layer
               id="demographics-outline"
               type="line"
-              beforeId={mapLoaded && mapRef.current?.getMap()?.getLayer('facility-circles') ? 'facility-circles' : undefined}
+              beforeId={
+                mapLoaded && mapRef.current?.getMap()?.getLayer('superfund-sites') 
+                  ? 'superfund-sites' 
+                  : mapLoaded && mapRef.current?.getMap()?.getLayer('facility-circles') 
+                    ? 'facility-circles' 
+                    : undefined
+              }
               paint={{
                 'line-color': '#666',
                 'line-width': 0.5,
@@ -669,7 +775,8 @@ export function MapContainer({
 
         {/* Superfund sites — separate, unclustered symbol layer (story 4.1.1).
             Only rendered after diamond sprites are registered (spritesReady),
-            preventing a race condition where the layer mounts before addImage completes. */}
+            preventing a race condition where the layer mounts before addImage completes.
+            Uses beforeId to ensure rendering above demographics but below TRI circles. */}
         {spritesReady && superfundSites && (
           <Source
             id="superfund-source"
@@ -679,6 +786,7 @@ export function MapContainer({
             <Layer
               id="superfund-sites"
               type="symbol"
+              beforeId={mapLoaded && mapRef.current?.getMap()?.getLayer('facility-circles') ? 'facility-circles' : undefined}
               layout={{
                 // UCD-17: 3-way status distinction
                 // NPL → filled red square
@@ -753,6 +861,52 @@ export function MapContainer({
               lineHeight: 1.3,
             }}>
               {highlightedSuperfundFeature.properties.name}
+            </div>
+          </Popup>
+        )}
+
+        {/* Hover tooltip for demographics county layer */}
+        {hoveredCounty && demographicLayer && (
+          <Popup
+            longitude={hoveredCounty.lng}
+            latitude={hoveredCounty.lat}
+            anchor="bottom"
+            closeButton={false}
+            closeOnClick={false}
+            offset={[0, -5]}
+            style={{ zIndex: 5 }}
+          >
+            <div 
+              data-testid="county-tooltip-popup"
+              style={{
+                padding: '8px 12px',
+                fontSize: '12px',
+                color: '#1f2937',
+                maxWidth: '220px',
+                lineHeight: 1.4,
+              }}
+            >
+              <div data-testid="county-tooltip-name" style={{ fontWeight: 600, marginBottom: '4px' }}>
+                {hoveredCounty.name}, {hoveredCounty.stateCode}
+              </div>
+              <div data-testid="county-tooltip-value" style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                <span style={{ color: '#6b7280' }}>{getLayerLabel(demographicLayer)}:</span>
+                <span style={{ fontWeight: 500 }}>{formatValue(demographicLayer, hoveredCounty.properties[demographicLayer] as number | null)}</span>
+              </div>
+              <div 
+                data-testid="county-tooltip-bin"
+                style={{ 
+                  marginTop: '4px', 
+                  padding: '2px 6px', 
+                  backgroundColor: '#f3f4f6', 
+                  borderRadius: '4px',
+                  textAlign: 'center',
+                  fontSize: '11px',
+                  color: '#4b5563',
+                }}
+              >
+                Bin: {getBinLabel(demographicLayer, hoveredCounty.properties[demographicLayer] as number | null)}
+              </div>
             </div>
           </Popup>
         )}
