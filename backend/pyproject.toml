@@ -5,45 +5,45 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi==0.141.1",
-    "uvicorn[standard]==0.34.0",
+    "uvicorn[standard]==0.52.1",
     "sqlalchemy[asyncio]==2.0.51",
-    "geoalchemy2==0.17.0",
-    "asyncpg==0.30.0",
-    "alembic==1.14.1",
+    "geoalchemy2==0.20.0",
+    "asyncpg==0.31.0",
+    "alembic==1.19.0",
     "pydantic==2.13.4",
-    "pydantic-settings==2.8.0",
+    "pydantic-settings==2.15.0",
     "httpx==0.28.1",
-    "python-dotenv==1.1.0",
-    "slowapi==0.1.9",
+    "python-dotenv==1.2.2",
+    "slowapi==0.1.10",
 ]
 
 [project.optional-dependencies]
 ingestion = [
-    "geopandas==1.0.1",
+    "geopandas==1.1.4",
     "pandas==2.2.3",
     "pyarrow==19.0.1",
-    "requests==2.32.3",
-    "shapely==2.0.7",
+    "requests==2.34.2",
+    "shapely==2.1.2",
 ]
 test = [
     "pytest==8.4.0",
     "pytest-bdd==8.1.0",
     "pytest-asyncio==0.25.3",
-    "pytest-benchmark==5.1.0",
+    "pytest-benchmark==5.2.3",
     "pytest-cov==6.1.1",
     "pytest-rerunfailures==15.0",
-    "psycopg2-binary==2.9.10",
-    "playwright==1.52.0",
-    "pytest-playwright==0.7.0",
+    "psycopg2-binary==2.9.12",
+    "playwright==1.62.0",
+    "pytest-playwright==0.8.0",
     "schemathesis==3.39.14",
-    "mutmut==3.2.0",
+    "mutmut==3.7.0",
 ]
 # dev = test + linting tools; used by CI: pip install -e ".[dev]"
 # Self-referential: toxmap-backend[test] resolves the test extras of this package.
 # pip 21.2+ supports self-referential extras when installed with -e (editable mode).
 dev = [
     "toxmap-backend[test]",
-    "ruff==0.11.0",
+    "ruff==0.16.1",
     "mypy==1.15.0",
 ]
 
