@@ -146,6 +146,7 @@ This document tracks the triage and resolution of defects discovered during the 
 | 7.BUG.40 | Census 2000 age percentages "No data" — UI allowed selecting unavailable layers | P1 | Disabled % Under 18 / % Over 65 buttons for Census 2000 with tooltip explaining API limitation | ✅ 2026-08-10 |
 | 7.BUG.41 | Census overlay color scheme — used per-tab colors instead of historical unified scheme | P2 | Unified 8-bin light green → dark blue gradient (ColorBrewer GnBu 8-class) matching historical TOXMAP Fig 2015-5 | ✅ 2026-08-10 |
 | 7.UX.6 | Census county hover tooltip — color bins difficult to distinguish | P2 | Added hover tooltip showing county name, formatted value, and bin label; uses `getBinLabel()` from colorUtils | ✅ 2026-08-10 |
+| 7.BUG.42 | Census county hover tooltip overlaps TRI/Superfund popup | P2 | Added condition to hide county tooltip when `selectedFacilityId` or `selectedSuperfundEpaId` is set | ✅ 2026-08-10 |
 
 ---
 

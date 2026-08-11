@@ -13,7 +13,6 @@
 
 > *"TOXMAP was decommissioned in December 2019. The data didn't go anywhere. The need didn't go anywhere. We're bringing the map back."*
 
----
 
 ## What Is TOXMAP?
 
@@ -25,7 +24,6 @@ This project is an open-source recreation of that tool — built on modern, open
 
 **The data is public. The map should be too.**
 
----
 
 ## Features
 
@@ -65,7 +63,6 @@ TOXMAP Redux is a comprehensive environmental health mapping tool with the follo
 - **Correlation ≠ Causation** — When viewing health data alongside facilities, a disclaimer reminds you that proximity doesn't prove harm
 - **Release Amount ≠ Health Risk** — High release quantities don't automatically mean danger; toxicity and exposure pathways vary by chemical
 
----
 
 ## Live Demo
 
@@ -73,7 +70,6 @@ TOXMAP Redux is a comprehensive environmental health mapping tool with the follo
 
 When live: **[https://toxmap.pages.dev](https://toxmap.pages.dev)**
 
----
 
 ## Quick Start (Local Dev)
 
@@ -119,7 +115,6 @@ cd backend && pip install -e ".[dev]"
 uvicorn app.main:app --reload
 ```
 
----
 
 ## Architecture
 
@@ -147,7 +142,6 @@ Prod mode (VITE_DATA_SOURCE=duckdb)
 
 Full design rationale: [ADR-001](docs/adr/ADR-001-fastapi-postgis-react.md) · [ADR-004](docs/adr/ADR-004-zero-budget-hosting.md)
 
----
 
 ## Data Sources
 
@@ -170,48 +164,6 @@ This is a **public health tool**. Inaccurate data is not just a bug — it can m
 
 Full policy: [GOVERNANCE.md §9 — Data Provenance](docs/GOVERNANCE.md)
 
----
-
-## Roadmap
-
-The project is built in **8 sequential phases** with objective Definition-of-Done checklists. Each phase gate requires passing CI, Playwright tests, and Schemathesis before advancing.
-
-| Phase | Name | Status | Milestone | Story Points |
-|-------|------|--------|-----------|-------------|
-| **0** | Foundation — Repo, Docker, CI, security baseline | ✅ | M0 — Dev Environment Ready | 33 |
-| **1** | Data Pipeline — TRI + Superfund + Census → PostGIS + Parquet | ✅ | M1 — Data Pipeline Working | 48 |
-| **2** | Core API — 17 domain endpoints + `/api/v1/meta` | ✅ | M2 — Core API Green | 62 |
-| **3** | Core Map UI — Map, search, TRI markers, T-01/T-03/T-08 E2E pass | ✅ | M3 — First Shareable Demo | 79 |
-| **4** | Superfund Overlay — Diamond markers, T-02/T-04 E2E pass | ✅ | M4 — Superfund Layer | 28 |
-| **5** | Demographics Layer — Census choropleth, T-05/T-06/T-09 E2E pass | ✅ | M5 — Demographics Layer | 33 |
-| **6** | Full QA Pass — All Gherkin green, SLAs met, security regression | 🔄 In Progress | M6 — Feature Complete | 51 |
-| **7** | Production Deploy — Cloudflare Pages + DuckDB WASM, $0 cost | ⬜ | **M7 — MVP Shipped 🚀** | 51 |
-
-**Total: ~385 story points · ~13–19 weeks**
-
-Live phase status: [`CURRENT_PHASE.txt`](CURRENT_PHASE.txt) · Full story table: [`TOXMAP_PROGRESS_TRACKER.md`](docs/product/TOXMAP_PROGRESS_TRACKER.md)
-
----
-
-## Acceptance Tests
-
-The MVP is defined by **9 task scenarios** sourced directly from NLM's 2011 User-Centered Design usability study. If these pass, the app is done. No earlier.
-
-| Scenario | What It Tests |
-|---------|--------------|
-| **T-01** | Lead compounds near Sparrows Point, MD → facility `21219BTHLS3RD`, `12,485 lbs`, year 2008 |
-| **T-02** | Superfund-reportable chemical list reachable within 2 clicks |
-| **T-03** | Copper releases >8,000 lbs in eastern Nevada → `89319BHPCP7MILE`, `8,205 lbs`, land medium |
-| **T-04** | Styrene Superfund site near Front Royal, VA → AVTEX FIBERS INC |
-| **T-05** | TRI styrene + under-18 demographic overlay — both visible, single-sidebar invariant holds |
-| **T-06** | Income layer applies; units from database (not hardcoded); "Clear layer" works |
-| **T-07** | Largest chlorine release: SC → `85,000 lbs`; nationwide → `342,500 lbs` |
-| **T-08** | CDC ToxFAQ link opens in new tab; map state preserved (no history entry lost) |
-| **T-09** | Benzene + cancer mortality overlay; co-occurrence disclaimer visible; NOT on income tab |
-
-Run all 9: `pytest tests/features/e2e/F7_ucd_task_scenarios.feature -v`
-
----
 
 ## Contributing
 
@@ -230,37 +182,6 @@ TOXMAP is actively welcoming contributors. Whether you're a GIS developer, a dat
 
 **Code of Conduct:** [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)
 
----
-
-## Security
-
-TOXMAP is a **public, read-only** data visualization tool with no user accounts and no payment processing. The attack surface is intentionally narrow. We take it seriously anyway.
-
-- `gitleaks`, `pip-audit`, `npm audit`, and `bandit` run on every PR
-- All third-party GitHub Actions pinned to full 40-character commit SHAs (supply chain protection)
-- No secrets in code; no `VITE_`-prefixed env vars may contain credentials
-- Production uses DuckDB WASM — there is no server to attack
-
-**To report a vulnerability:** Open a [private security advisory](https://github.com/VictorCannestro/toxmap/security/advisories/new). Do not open a public GitHub issue. We acknowledge within 72 hours.
-
-Full security policy: [`SECURITY.md`](SECURITY.md) · Threat model: [`docs/security/THREAT_MODEL.md`](docs/security/THREAT_MODEL.md)
-
----
-
-## Development Documentation
-
-| Document | What's In It |
-|---------|-------------|
-| [`docs/adr/ADR-001-fastapi-postgis-react.md`](docs/adr/ADR-001-fastapi-postgis-react.md) | Full stack spec: SQL DDL for all 7 tables, API design, spatial query patterns, UX decisions |
-| [`docs/adr/ADR-004-zero-budget-hosting.md`](docs/adr/ADR-004-zero-budget-hosting.md) | How the $0 production architecture works; DuckDB WASM + Parquet + Cloudflare |
-| [`docs/api/TOXMAP_API_CONTRACT.md`](docs/api/TOXMAP_API_CONTRACT.md) | Every endpoint: URL, parameters, response shape, example JSON, SLAs |
-| [`docs/testing/TOXMAP_ACCEPTANCE_TESTS.md`](docs/testing/TOXMAP_ACCEPTANCE_TESTS.md) | All Gherkin scenarios (the authoritative product contract) |
-| [`docs/testing/TOXMAP_TEST_SEED_DATA.md`](docs/testing/TOXMAP_TEST_SEED_DATA.md) | The exact seed dataset and known-good assertion values |
-| [`docs/product/TOXMAP_SCREEN_CATALOG.md`](docs/product/TOXMAP_SCREEN_CATALOG.md) | Annotated screenshots of the original 2006 and 2015 NLM TOXMAP UI |
-| [`docs/onboarding/TECH_STACK_ONBOARDING.md`](docs/onboarding/TECH_STACK_ONBOARDING.md) | Getting oriented: env vars, Docker services, port map, troubleshooting |
-| [`docs/onboarding/TWO_MODES_DEEP_DIVE.md`](docs/onboarding/TWO_MODES_DEEP_DIVE.md) | How `VITE_DATA_SOURCE` switches between FastAPI mode and DuckDB WASM mode |
-
----
 
 ## Acknowledgments
 
@@ -272,7 +193,6 @@ TOXMAP would not exist without the work of others:
 - **The PostGIS, MapLibre GL JS, DuckDB, FastAPI, and React communities** — for building the open-source infrastructure that makes a zero-budget rebuild possible
 - **Protomaps** — for free, open PMTiles basemap extracts that replace the original ESRI basemap
 
----
 
 ## License
 

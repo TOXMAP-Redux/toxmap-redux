@@ -999,3 +999,31 @@ Feature: UX Design Invariants
     Then the tooltip shows the population value with "people" units
     When I click "% Over 65" sub-layer without moving mouse
     Then the tooltip shows the percentage value with "%" units
+
+  # ── Regression: 7.BUG.42 — Census Hover Tooltip Overlaps TRI/Superfund Popup ─
+  # Root cause: County hover tooltip was rendered even when TRI/Superfund popup open.
+  # Fix: Added condition to hide county tooltip when selectedFacilityId or selectedSuperfundEpaId is set.
+
+  @regression @7BUG42
+  Scenario: 7.BUG.42 — Census county hover tooltip hidden when TRI popup is open
+    Given I am on the map page
+    When I enable the Census & Health Data panel
+    And I select "Census 2020" from the census year dropdown
+    And I select "Population" from the census category
+    And I click "Total Population" sub-layer
+    Then the demographics layer is visible on the map
+    When I click on a TRI facility marker
+    Then the TRI facility popup is visible
+    And the county tooltip popup is not visible
+
+  @regression @7BUG42
+  Scenario: 7.BUG.42 — Census county hover tooltip hidden when Superfund popup is open
+    Given I am on the map page
+    When I enable the Census & Health Data panel
+    And I select "Census 2020" from the census year dropdown
+    And I select "Population" from the census category
+    And I click "Total Population" sub-layer
+    Then the demographics layer is visible on the map
+    When I click on a Superfund site marker
+    Then the Superfund site popup is visible
+    And the county tooltip popup is not visible

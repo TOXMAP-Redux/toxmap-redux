@@ -454,11 +454,16 @@ async def get_facility_detail(
     if facility is None:
         return None
 
-    # Latest reporting year for this facility
+    # First and latest reporting years for this facility (7.UX.6 — accurate year range labels)
     yr_result = await session.execute(
-        select(func.max(ReleaseEvent.reporting_year)).where(ReleaseEvent.facility_id == facility.id)
+        select(
+            func.min(ReleaseEvent.reporting_year),
+            func.max(ReleaseEvent.reporting_year),
+        ).where(ReleaseEvent.facility_id == facility.id)
     )
-    latest_year: int | None = yr_result.scalar()
+    yr_row = yr_result.one()
+    first_reporting_year: int | None = yr_row[0]
+    latest_year: int | None = yr_row[1]
 
     # Build year filter condition (used for both total and top chemicals)
     year_filter = ReleaseEvent.reporting_year == year if year is not None else True
@@ -531,6 +536,7 @@ async def get_facility_detail(
         naics_desc=facility.naics_desc,
         location={"lat": shape.y, "lon": shape.x},
         latest_year=latest_year,
+        first_reporting_year=first_reporting_year,
         top_chemicals=top_chemicals,
         total_release_lbs=total_release_lbs,
     )

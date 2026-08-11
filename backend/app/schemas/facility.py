@@ -116,6 +116,8 @@ class FacilityDetail(BaseModel):
     naics_desc: str | None = None
     location: dict[str, float]
     latest_year: int | None = None
+    # 7.UX.6: First reporting year for this facility (for accurate year range labels)
+    first_reporting_year: int | None = None
     top_chemicals: list[TopChemical]
     # 7.BUG.29: All-years aggregate for TOTAL row + "Other chemicals" calculation
     total_release_lbs: float | None = None

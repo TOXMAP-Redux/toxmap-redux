@@ -865,41 +865,44 @@ export function MapContainer({
           </Popup>
         )}
 
-        {/* Hover tooltip for demographics county layer */}
-        {hoveredCounty && demographicLayer && (
+        {/* Hover tooltip for demographics county layer — hidden when TRI/Superfund popup is open */}
+        {hoveredCounty && demographicLayer && !selectedFacilityId && !selectedSuperfundEpaId && (
           <Popup
             longitude={hoveredCounty.lng}
             latitude={hoveredCounty.lat}
             anchor="bottom"
             closeButton={false}
             closeOnClick={false}
-            offset={[0, -5]}
+            offset={[0, -20]}
             style={{ zIndex: 5 }}
+            className="county-hover-popup"
           >
             <div 
               data-testid="county-tooltip-popup"
               style={{
-                padding: '8px 12px',
+                padding: '6px 10px',
                 fontSize: '12px',
                 color: '#1f2937',
-                maxWidth: '220px',
+                maxWidth: '200px',
                 lineHeight: 1.4,
+                backgroundColor: 'rgba(255, 255, 255, 0.92)',
+                borderRadius: '4px',
               }}
             >
-              <div data-testid="county-tooltip-name" style={{ fontWeight: 600, marginBottom: '4px' }}>
+              <div data-testid="county-tooltip-name" style={{ fontWeight: 600, marginBottom: '3px' }}>
                 {hoveredCounty.name}, {hoveredCounty.stateCode}
               </div>
-              <div data-testid="county-tooltip-value" style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+              <div data-testid="county-tooltip-value" style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
                 <span style={{ color: '#6b7280' }}>{getLayerLabel(demographicLayer)}:</span>
                 <span style={{ fontWeight: 500 }}>{formatValue(demographicLayer, hoveredCounty.properties[demographicLayer] as number | null)}</span>
               </div>
               <div 
                 data-testid="county-tooltip-bin"
                 style={{ 
-                  marginTop: '4px', 
+                  marginTop: '3px', 
                   padding: '2px 6px', 
-                  backgroundColor: '#f3f4f6', 
-                  borderRadius: '4px',
+                  backgroundColor: 'rgba(243, 244, 246, 0.8)', 
+                  borderRadius: '3px',
                   textAlign: 'center',
                   fontSize: '11px',
                   color: '#4b5563',

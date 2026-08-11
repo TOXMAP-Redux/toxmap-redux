@@ -552,11 +552,22 @@ export function FacilityDrawer({ facilityId, onClose, selectedYear, width = 420,
                       const discrepancyAbs = Math.abs(discrepancy)
                       const discrepancyPct = epaTotal > 0 ? (discrepancyAbs / epaTotal) * 100 : 0
                       const hasDiscrepancy = discrepancyAbs >= 1
+                      // 7.UX.6: Format year range for aggregate discrepancy label
+                      const firstYear = detail.first_reporting_year
+                      const lastYear = detail.latest_year
+                      const yearRangeLabel = yearFilter 
+                        ? `(${yearFilter})` 
+                        : firstYear && lastYear && firstYear !== lastYear
+                          ? `(${firstYear}–${lastYear})`
+                          : firstYear
+                            ? `(since ${firstYear})`
+                            : '(all years)'
+                      
                       return (
                         <>
                           {hasDiscrepancy && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
-                          <span style={{ fontSize: '12px', color: '#6b7280' }}>Aggregate Discrepancy {yearFilter ? `(${yearFilter})` : '(all years)'}:</span>
+                          <span style={{ fontSize: '12px', color: '#6b7280' }}>Aggregate Discrepancy {yearRangeLabel}:</span>
                               <span data-testid="medium-discrepancy-value" style={{ fontSize: '12px', fontWeight: 600, color: discrepancy >= 0 ? '#059669' : '#dc2626' }}>
                                 {discrepancy >= 0 ? '+' : '−'}{formatNumber(discrepancyAbs)} lbs ({discrepancyPct.toFixed(1)}%)
                               </span>
@@ -579,9 +590,9 @@ export function FacilityDrawer({ facilityId, onClose, selectedYear, width = 420,
                                   </a>
                                 </>
                               ) : (
-                                // All years — mention year-over-year cancellation
+                                // All years — mention year-over-year cancellation and note Release Trend only shows recent years
                                 <>
-                                  <strong>Note:</strong> This aggregate discrepancy is calculated across all reporting years. Positive and negative 
+                                  <strong>Note:</strong> This aggregate discrepancy is calculated across {firstYear && lastYear ? `${lastYear - firstYear + 1} reporting years (${firstYear}–${lastYear})` : 'all reporting years'}. Positive and negative 
                                   year-over-year discrepancies may cancel out — <strong>see the Release Trend tab for per-year discrepancy details</strong>. 
                                   The EPA total combines on-site releases (air, water, land, underground) with off-site transfers. While off-site 
                                   values are consistent, the EPA&apos;s on-site total does not always equal the sum of individual mediums due to 
@@ -739,6 +750,12 @@ export function FacilityDrawer({ facilityId, onClose, selectedYear, width = 420,
                     <div style={{ fontStyle: 'italic' }}>
                       <sup style={{ fontWeight: 600, marginRight: '4px' }}>3</sup>
                       Gap in line = no TRI report filed (missing {yearsWithGaps} {yearsWithGaps === 1 ? 'year' : 'years'})
+                    </div>
+                  )}
+                  {detail?.first_reporting_year && detail.first_reporting_year < trendStartYear && (
+                    <div style={{ fontStyle: 'italic' }}>
+                      <sup style={{ fontWeight: 600, marginRight: '4px' }}>{yearsWithGaps > 0 ? '4' : '3'}</sup>
+                      Chart shows most recent 15 years only (facility reporting began {detail.first_reporting_year})
                     </div>
                   )}
                 </div>

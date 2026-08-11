@@ -56,6 +56,10 @@ export interface FacilityDetail {
   naics_code: string | null
   primary_sic: string | null
   location: { lat: number; lon: number }
+  /** Latest reporting year for this facility */
+  latest_year?: number | null
+  /** First reporting year for this facility (7.UX.6 — accurate year range labels) */
+  first_reporting_year?: number | null
   top_chemicals: Array<{
     chemical_name: string
     total_release_lbs: number

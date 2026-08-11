@@ -600,6 +600,17 @@ button[type='submit']:hover,
   top: 10px;
 }
 
+/* County hover popup — translucent, minimal styling */
+.county-hover-popup .maplibregl-popup-content {
+  background: rgba(255, 255, 255, 0.92);
+  padding: 0;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+.county-hover-popup .maplibregl-popup-tip {
+  border-top-color: rgba(255, 255, 255, 0.92);
+}
+
 /* ── Animations ─────────────────────────────────────────────────────────── */
 
 @keyframes spin {
