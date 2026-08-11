@@ -748,3 +748,63 @@ def step_no_contaminant_null_pubchem(step_context):
         f"REGRESSION 7.BUG.32: {len(missing)} contaminant(s) have null pubchem_url: "
         f"{missing[:10]}{'...' if len(missing) > 10 else ''}"
     )
+
+
+# ─── Phase 6: Browse/State-only response array assertions ────────────────────
+
+
+@then("the response is a non-empty array")
+def step_response_non_empty_array(step_context):
+    """Verify the response is a non-empty JSON array or FeatureCollection with features."""
+    body = step_context["response"].json()
+    # Handle both plain arrays and GeoJSON FeatureCollections
+    if isinstance(body, dict) and body.get("type") == "FeatureCollection":
+        features = body.get("features", [])
+        assert len(features) > 0, "FeatureCollection has no features"
+    else:
+        assert isinstance(body, list), f"Expected list, got {type(body)}"
+        assert len(body) > 0, "Response array is empty"
+
+
+@then(parsers.parse('every Superfund site has state "{expected_state}"'))
+def step_every_superfund_site_has_state(expected_state, step_context):
+    """Verify every Superfund site in a GeoJSON FeatureCollection has the expected state."""
+    body = step_context["response"].json()
+    features = body.get("features", [])
+    assert len(features) > 0, "No features in response"
+    for i, f in enumerate(features):
+        state = f.get("properties", {}).get("state_code")
+        assert state == expected_state, (
+            f"Feature[{i}] has state_code={state!r}, expected {expected_state!r}"
+        )
+
+
+@then(parsers.parse('the response field "{field}" is an empty list'))
+def step_field_empty_list(field, step_context):
+    """Verify a response field is an empty list."""
+    body = step_context["response"].json()
+    val = body.get(field)
+    assert isinstance(val, list), f"Expected {field!r} to be a list, got {type(val)}"
+    assert len(val) == 0, f"Expected {field!r} to be empty, got {len(val)} items"
+
+
+@then(parsers.parse('the response field "{field}" is greater than {value:d}'))
+def step_field_greater_than_int(field, value, step_context):
+    """Verify a response field is greater than a given integer."""
+    body = step_context["response"].json()
+    actual = body.get(field)
+    assert actual is not None, f"Field {field!r} is null"
+    assert float(actual) > value, f"Expected {field} > {value}, got {actual}"
+
+
+@then(parsers.parse('every facility has state "{expected_state}"'))
+def step_every_facility_has_state(expected_state, step_context):
+    """Verify every facility in a GeoJSON FeatureCollection has the expected state."""
+    body = step_context["response"].json()
+    features = body.get("features", [])
+    assert len(features) > 0, "No features in response"
+    for i, f in enumerate(features):
+        state = f.get("properties", {}).get("state_name")
+        assert state == expected_state, (
+            f"Feature[{i}] has state_name={state!r}, expected {expected_state!r}"
+        )

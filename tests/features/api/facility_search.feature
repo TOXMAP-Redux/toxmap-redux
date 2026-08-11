@@ -291,10 +291,10 @@ Feature: Facility Search by Location
     When I GET "/api/v1/facilities/browse?state=NJ"
     Then the response status is 200
     And the response is a non-empty array
-    And every facility has state "NEW JERSEY"
+    And every feature has property "state_code" = "NJ"
 
   Scenario: Regression 7.UX.1 — State-only browse returns VA facilities
     When I GET "/api/v1/facilities/browse?state=VA"
     Then the response status is 200
     And the response is a non-empty array
-    And every facility has state "VIRGINIA"
+    And every feature has property "state_code" = "VA"

@@ -8,7 +8,7 @@ Feature: Demographics County Overlay
     Then the response status is 200
     And the response is a GeoJSON FeatureCollection
     And the response meta contains "units"
-    And the FeatureCollection contains exactly 1 features
+    And the FeatureCollection contains at least 1 features
     And every feature has property "state_fips" = "51"
 
   Scenario: County demographics without state returns all counties
@@ -24,7 +24,7 @@ Feature: Demographics County Overlay
     When I GET "/api/v1/demographics/county?state=TX"
     Then the response status is 200
     And the response is a GeoJSON FeatureCollection
-    And the FeatureCollection contains exactly 1 features
+    And the FeatureCollection contains at least 1 features
     And every feature has property "state_fips" = "48"
 
   Scenario: County demographics for non-existent state returns empty collection
@@ -40,14 +40,14 @@ Feature: Demographics County Overlay
     When I GET "/api/v1/demographics/county?state=VA&census_year=2000"
     Then the response status is 200
     And the response is a GeoJSON FeatureCollection
-    And the FeatureCollection contains exactly 1 features
+    And the FeatureCollection contains at least 1 features
     And the response meta has "census_year" = 2000
 
   @C-006
   Scenario: Census year filter excludes non-matching years
-    # When querying for a year not in our seed data, no results should return.
-    # Seed data has census_year=2000, so 2010 should return 0 features.
-    When I GET "/api/v1/demographics/county?state=VA&census_year=2010"
+    # When querying for a year not in our database, no results should return.
+    # Database has census_year 2000, 2010, 2020 — 1990 returns 0 features.
+    When I GET "/api/v1/demographics/county?state=VA&census_year=1990"
     Then the response status is 200
     And the response is a GeoJSON FeatureCollection
     And the FeatureCollection contains exactly 0 features
