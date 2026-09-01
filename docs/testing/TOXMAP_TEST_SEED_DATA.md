@@ -1,7 +1,7 @@
 # TOXMAP Test Seed Data
 
 **Date:** 2026-07-15  
-**Last Updated:** 2026-07-29 — Added Alaska facility (`99501ANCHO0001`) for Continental US filter regression testing  
+**Last Updated:** 2026-08-17 — Synced with seed.sql: updated ATSDR/PubChem URLs, added UCD-17 Proposed+Deleted Superfund sites, corrected census mortality values, added facility 9, rewrote §7 SQL to match idempotent seed, fixed §9/§10 counts  
 **Purpose:** Deterministic fixture data that makes every Gherkin scenario in [TOXMAP_ACCEPTANCE_TESTS.md](TOXMAP_ACCEPTANCE_TESTS.md) pass without hitting the real EPA dataset.  
 **Usage:** Load via `psql -f tests/fixtures/seed.sql` or the `seed_db` pytest fixture in `conftest.py`.
 
@@ -22,6 +22,10 @@
 | `77536LYND00001`  | Fictional                                           | T-09 scenario                  |
 | `99501ANCHO0001`  | Fictional                                           | CONUS filter test (Alaska)     |
 | `VAD070358684`    | **Real** EPA Superfund ID                           | UCD 2011 study, Task 4 (exact) |
+| `VAD980554587`    | Fictional (realistic EPA ID format)                 | Nationwide Superfund coverage  |
+| `VAD987654321`    | Fictional                                           | UCD-17 Proposed status symbol  |
+| `VAD123456789`    | Fictional                                           | UCD-17 Deleted status symbol   |
+| `22630SMRLG0001`  | Fictional                                           | Green tier circle-size test    |
 | `51187`           | Real FIPS (Warren County VA)                        | T-05 scenario                  |
 | `48201`           | Real FIPS (Harris County TX)                        | T-09 scenario                  |
 | `45003`           | Real FIPS (Aiken County SC)                         | T-07 scenario                  |
@@ -40,12 +44,14 @@
 
 | id | cas_number  | name             | category                     | atsdr_url                                         | pubchem_url                                         |
 |----|-------------|------------------|------------------------------|---------------------------------------------------|-----------------------------------------------------|
-| 1  | `NULL`      | `LEAD COMPOUNDS` | `Heavy Metals`               | `https://www.atsdr.cdc.gov/toxfaqs/tfacts13.pdf`  | `https://pubchem.ncbi.nlm.nih.gov/compound/5352425` |
-| 2  | `7440-50-8` | `COPPER`         | `Heavy Metals`               | `https://www.atsdr.cdc.gov/toxfaqs/tfacts132.pdf` | `https://pubchem.ncbi.nlm.nih.gov/compound/23978`   |
-| 3  | `100-42-5`  | `STYRENE`        | `Volatile Organic Compounds` | `https://www.atsdr.cdc.gov/toxfaqs/tfacts53.pdf`  | `https://pubchem.ncbi.nlm.nih.gov/compound/7501`    |
-| 4  | `7782-50-5` | `CHLORINE`       | `Halogens`                   | `https://www.atsdr.cdc.gov/toxfaqs/tfacts172.pdf` | `https://pubchem.ncbi.nlm.nih.gov/compound/24526`   |
-| 5  | `71-43-2`   | `BENZENE`        | `Volatile Organic Compounds` | `https://www.atsdr.cdc.gov/toxfaqs/tfacts3.pdf`   | `https://pubchem.ncbi.nlm.nih.gov/compound/241`     |
-| 6  | `7664-41-7` | `AMMONIA`        | `Inorganic Compounds`        | `https://www.atsdr.cdc.gov/toxfaqs/tfacts126.pdf` | `https://pubchem.ncbi.nlm.nih.gov/compound/222`     |
+| 1  | `NULL`      | `LEAD COMPOUNDS` | `Heavy Metals`               | `https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=22` | `https://pubchem.ncbi.nlm.nih.gov/compound/7439-92-1` |
+| 2  | `7440-50-8` | `COPPER`         | `Heavy Metals`               | `https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=37` | `https://pubchem.ncbi.nlm.nih.gov/compound/7440-50-8` |
+| 3  | `100-42-5`  | `STYRENE`        | `Volatile Organic Compounds` | `https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=74` | `https://pubchem.ncbi.nlm.nih.gov/compound/7501`      |
+| 4  | `7782-50-5` | `CHLORINE`       | `Halogens`                   | `https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=36` | `https://pubchem.ncbi.nlm.nih.gov/compound/24526`     |
+| 5  | `71-43-2`   | `BENZENE`        | `Volatile Organic Compounds` | `https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=14` | `https://pubchem.ncbi.nlm.nih.gov/compound/241`       |
+| 6  | `7664-41-7` | `AMMONIA`        | `Inorganic Compounds`        | `https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=2`  | `https://pubchem.ncbi.nlm.nih.gov/compound/222`       |
+
+> **ATSDR URL format:** Uses the TSP interactive substance database (`wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=N`). The `toxid` values are opaque ATSDR database IDs — verified 2026-07-27. **PubChem URLs:** use the CAS number as the compound identifier for all entries; LEAD COMPOUNDS uses elemental lead CAS `7439-92-1` as the closest stable PubChem entry (the compound category itself has no single PubChem ID).
 
 > **Why LEAD COMPOUNDS has NULL cas_number:** The UCD 2011 usability study (Task 1) and TRI
 > documentation both confirm LEAD COMPOUNDS is TRI compound category N420, not elemental LEAD
@@ -58,12 +64,12 @@
 
 ```sql
 INSERT INTO chemicals (id, cas_number, name, category, atsdr_url, pubchem_url) VALUES
-  (1, NULL,         'LEAD COMPOUNDS',  'Heavy Metals',               'https://www.atsdr.cdc.gov/toxfaqs/tfacts13.pdf',  'https://pubchem.ncbi.nlm.nih.gov/compound/5352425'),
-  (2, '7440-50-8',  'COPPER',          'Heavy Metals',               'https://www.atsdr.cdc.gov/toxfaqs/tfacts132.pdf', 'https://pubchem.ncbi.nlm.nih.gov/compound/23978'),
-  (3, '100-42-5',   'STYRENE',         'Volatile Organic Compounds', 'https://www.atsdr.cdc.gov/toxfaqs/tfacts53.pdf',  'https://pubchem.ncbi.nlm.nih.gov/compound/7501'),
-  (4, '7782-50-5',  'CHLORINE',        'Halogens',                   'https://www.atsdr.cdc.gov/toxfaqs/tfacts172.pdf', 'https://pubchem.ncbi.nlm.nih.gov/compound/24526'),
-  (5, '71-43-2',    'BENZENE',         'Volatile Organic Compounds', 'https://www.atsdr.cdc.gov/toxfaqs/tfacts3.pdf',   'https://pubchem.ncbi.nlm.nih.gov/compound/241'),
-  (6, '7664-41-7',  'AMMONIA',         'Inorganic Compounds',        'https://www.atsdr.cdc.gov/toxfaqs/tfacts126.pdf', 'https://pubchem.ncbi.nlm.nih.gov/compound/222');
+  (1, NULL,         'LEAD COMPOUNDS',  'Heavy Metals',               'https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=22',  'https://pubchem.ncbi.nlm.nih.gov/compound/7439-92-1'),
+  (2, '7440-50-8',  'COPPER',          'Heavy Metals',               'https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=37',  'https://pubchem.ncbi.nlm.nih.gov/compound/7440-50-8'),
+  (3, '100-42-5',   'STYRENE',         'Volatile Organic Compounds', 'https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=74',  'https://pubchem.ncbi.nlm.nih.gov/compound/7501'),
+  (4, '7782-50-5',  'CHLORINE',        'Halogens',                   'https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=36',  'https://pubchem.ncbi.nlm.nih.gov/compound/24526'),
+  (5, '71-43-2',    'BENZENE',         'Volatile Organic Compounds', 'https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=14',  'https://pubchem.ncbi.nlm.nih.gov/compound/241'),
+  (6, '7664-41-7',  'AMMONIA',         'Inorganic Compounds',        'https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=2',   'https://pubchem.ncbi.nlm.nih.gov/compound/222');
 ```
 
 ---
@@ -170,15 +176,20 @@ INSERT INTO release_events (facility_id, chemical_id, reporting_year, total_rele
 
 | id | epa_id         | name                   | city          | state | zip     | hrs_score | status | contaminants                        | lat       | lon        | Scenario                   |
 |----|----------------|------------------------|---------------|-------|---------|-----------|--------|-------------------------------------|-----------|------------|----------------------------|
-| 1  | `VAD070358684` | `AVTEX FIBERS INC`     | `FRONT ROYAL` | `VA`  | `22630` | `50.51`   | `NPL`  | `{STYRENE, CARBON DISULFIDE, ZINC}` | `38.9179` | `-78.1942` | T-04 (exact from UCD 2011) |
-| 2  | `VAD980554587` | `ARLINGTON SCRAP YARD` | `ARLINGTON`   | `VA`  | `22204` | `28.74`   | `NPL`  | `{LEAD COMPOUNDS, CADMIUM}`         | `38.8823` | `-77.1089` | VA list coverage           |
+| 1  | `VAD070358684` | `AVTEX FIBERS INC`     | `FRONT ROYAL` | `VA`  | `22630` | `50.51`   | `NPL`      | `{STYRENE, CARBON DISULFIDE, ZINC}` | `38.9179` | `-78.1942` | T-04 (exact from UCD 2011)     |
+| 2  | `VAD980554587` | `ARLINGTON SCRAP YARD` | `ARLINGTON`   | `VA`  | `22204` | `28.74`   | `NPL`      | `{LEAD COMPOUNDS, CADMIUM}`         | `38.8823` | `-77.1089` | Nationwide coverage            |
+| 3  | `VAD987654321` | `TEST PROPOSED SITE`   | `RICHMOND`    | `VA`  | `23220` | `32.50`   | `Proposed` | `{BENZENE, TOLUENE}`                | `37.5407` | `-77.4360` | UCD-17 Proposed symbol test    |
+| 4  | `VAD123456789` | `TEST DELETED SITE`    | `NORFOLK`     | `VA`  | `23510` | `45.00`   | `Deleted`  | `{ARSENIC, MERCURY}`                | `36.8508` | `-76.2859` | UCD-17 Deleted symbol test     |
 
 ### 4.2 SQL
 
 ```sql
 INSERT INTO superfund_sites (id, epa_id, name, address, city, state_code, zip_code, county, status, hrs_score, npl_date, epa_progress_url, contaminants, location) VALUES
-  (1, 'VAD070358684', 'AVTEX FIBERS INC',    'BOX 1169 KENDRICK LN', 'FRONT ROYAL', 'VA', '22630', 'WARREN',    'NPL', 50.51, '1983-09-08', 'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=0302388', ARRAY['STYRENE','CARBON DISULFIDE','ZINC'],  ST_GeomFromText('POINT(-78.1942 38.9179)', 4326)),
-  (2, 'VAD980554587', 'ARLINGTON SCRAP YARD', '4200 LEE HWY',        'ARLINGTON',   'VA', '22204', 'ARLINGTON', 'NPL', 28.74, '1989-02-21', 'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=0304032', ARRAY['LEAD COMPOUNDS','CADMIUM'],           ST_GeomFromText('POINT(-77.1089 38.8823)', 4326));
+  (1, 'VAD070358684', 'AVTEX FIBERS INC',     'BOX 1169 KENDRICK LN', 'FRONT ROYAL', 'VA', '22630', 'WARREN',    'NPL',      50.51, '1983-09-08', 'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=0302388', ARRAY['STYRENE','CARBON DISULFIDE','ZINC'],  ST_GeomFromText('POINT(-78.1942 38.9179)', 4326)),
+  (2, 'VAD980554587', 'ARLINGTON SCRAP YARD', '4200 LEE HWY',         'ARLINGTON',   'VA', '22204', 'ARLINGTON', 'NPL',      28.74, '1989-02-21', 'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=0304032', ARRAY['LEAD COMPOUNDS','CADMIUM'],           ST_GeomFromText('POINT(-77.1089 38.8823)', 4326)),
+  -- UCD-17: Proposed and Deleted status types required for 3-way symbol legend regression
+  (3, 'VAD987654321', 'TEST PROPOSED SITE',   '100 PROPOSED WAY',     'RICHMOND',    'VA', '23220', 'RICHMOND',  'Proposed', 32.50, NULL,         'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=9876543', ARRAY['BENZENE','TOLUENE'],                  ST_GeomFromText('POINT(-77.4360 37.5407)', 4326)),
+  (4, 'VAD123456789', 'TEST DELETED SITE',    '200 CLEANUP COMPLETE', 'NORFOLK',     'VA', '23510', 'NORFOLK',   'Deleted',  45.00, '1985-06-10', 'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=0300001', ARRAY['ARSENIC','MERCURY'],                  ST_GeomFromText('POINT(-76.2859 36.8508)', 4326));
 ```
 
 ---
@@ -198,13 +209,10 @@ INSERT INTO superfund_sites (id, epa_id, name, address, city, state_code, zip_co
 > Note: `boundary` geometry requires Census TIGER shapefile for real polygons. For test seed, use a simplified bounding-box polygon.
 
 ```sql
-INSERT INTO census_county (id, fips_code, name, state_code, census_year, total_pop, median_income, pct_under_18, pct_over_65, pct_nonwhite, cancer_mortality_female_per_100k, boundary) VALUES
-  (1, '51187', 'Warren County',  'VA', 2000,   31584,  41246.00, 24.7, 11.2,  8.4, 148.7,
-      ST_GeomFromText('POLYGON((-78.40 38.76, -78.40 38.99, -78.00 38.99, -78.00 38.76, -78.40 38.76))', 4326)),
-  (2, '48201', 'Harris County',  'TX', 2000, 3400578,  42890.00, 28.3,  7.9, 55.4, 162.4,
-      ST_GeomFromText('POLYGON((-95.79 29.52, -95.79 30.11, -94.91 30.11, -94.91 29.52, -95.79 29.52))', 4326)),
-  (3, '45003', 'Aiken County',   'SC', 2000,  142552,  38100.00, 25.1, 13.6, 34.2, NULL,
-      ST_GeomFromText('POLYGON((-81.97 33.35, -81.97 33.84, -81.42 33.84, -81.42 33.35, -81.97 33.35))', 4326));
+INSERT INTO census_county (id, fips_code, name, state_code, census_year, total_pop, median_income, pct_under_18, pct_over_65, pct_nonwhite, cancer_mortality_female_per_100k, cancer_mortality_male_per_100k, heart_disease_mortality_per_100k, boundary) VALUES
+  (1, '51187', 'Warren County', 'VA', 2000,   31584,  41246.00, 24.7, 11.2,  8.4, 148.7, 175.2, 189.4, ST_GeomFromText('POLYGON((-78.40 38.76, -78.40 38.99, -78.00 38.99, -78.00 38.76, -78.40 38.76))', 4326)),
+  (2, '48201', 'Harris County', 'TX', 2000, 3400578,  42890.00, 28.3,  7.9, 55.4, 162.4, 194.8, 215.6, ST_GeomFromText('POLYGON((-95.79 29.52, -95.79 30.11, -94.91 30.11, -94.91 29.52, -95.79 29.52))', 4326)),
+  (3, '45003', 'Aiken County',  'SC', 2000,  142552,  38100.00, 25.1, 13.6, 34.2, 155.3, 186.1, 228.7, ST_GeomFromText('POLYGON((-81.97 33.35, -81.97 33.84, -81.42 33.84, -81.42 33.35, -81.97 33.35))', 4326));
 ```
 
 ---
@@ -215,13 +223,11 @@ The three mortality columns (`cancer_mortality_female_per_100k`, `cancer_mortali
 
 **Seeded values (for test assertions):**
 
-| County           | FIPS    | `cancer_mortality_female_per_100k` | Scenario                               |
-|------------------|---------|------------------------------------|----------------------------------------|
-| Harris County TX | `48201` | `162.4`                            | T-09 benzene + mortality co-occurrence |
-| Warren County VA | `51187` | `148.7`                            | T-09 / T-05 demographic overlay        |
-| Aiken County SC  | `45003` | `NULL`                             | T-07 (not used in mortality tests)     |
-
-`cancer_mortality_male_per_100k` and `heart_disease_mortality_per_100k` are `NULL` for all seed records — they are not required by any of the T-01 through T-09 scenarios.
+| County           | FIPS    | `cancer_mortality_female_per_100k` | `cancer_mortality_male_per_100k` | `heart_disease_mortality_per_100k` | Scenario                               |
+|------------------|---------|------------------------------------|---------------------------------|------------------------------------|----------------------------------------|
+| Warren County VA | `51187` | `148.7`                            | `175.2`                         | `189.4`                            | T-05 / T-09 demographic overlay        |
+| Harris County TX | `48201` | `162.4`                            | `194.8`                         | `215.6`                            | T-09 benzene + mortality co-occurrence |
+| Aiken County SC  | `45003` | `155.3`                            | `186.1`                         | `228.7`                            | T-07 chlorine/SC                       |
 
 ---
 
@@ -230,34 +236,85 @@ The three mortality columns (`cancer_mortality_female_per_100k`, `cancer_mortali
 ```sql
 -- ============================================================
 -- TOXMAP Test Seed Data
--- Load with: psql -U postgres -d toxmap_test -f tests/fixtures/seed.sql
+-- Load with: psql -U postgres -d toxmap -f tests/fixtures/seed.sql
+-- Source: docs/testing/TOXMAP_TEST_SEED_DATA.md §7
+--
+-- CRITICAL: Do NOT modify the values in this file without human approval.
+-- Two values are cited from a peer-reviewed NLM study and must stay exact:
+--   89319BHPCP7MILE → COPPER → 8205.0 lbs → land → year 2008 (T-03)
+--   VAD070358684 → AVTEX FIBERS INC → FRONT ROYAL, VA (T-04)
+--
+-- IDEMPOTENT: This script deletes ONLY the specific seed rows before inserting,
+-- preserving any real ingested data. Safe to run multiple times.
 -- ============================================================
 
 BEGIN;
 
--- Clear existing test data (safe for test DB only)
-TRUNCATE TABLE release_events, superfund_sites, census_county,
-               facilities, chemicals RESTART IDENTITY CASCADE;
+-- Delete only the specific seed rows (preserves real ingested data).
+-- Order matters: delete child rows before parent rows (foreign key constraints).
+
+DELETE FROM release_events WHERE facility_id IN (
+  SELECT id FROM facilities WHERE tri_facility_id IN (
+    '21219BTHLS3RD', '89319BHPCP7MILE', '22630FRTRY0001',
+    '29801DSTLR0001', '70663ENTGR0001', '77536EXXO00001', '77536LYND00001',
+    '99501ANCHO0001', '22630SMRLG0001'
+  )
+);
+
+DELETE FROM facilities WHERE tri_facility_id IN (
+  '21219BTHLS3RD', '89319BHPCP7MILE', '22630FRTRY0001',
+  '29801DSTLR0001', '70663ENTGR0001', '77536EXXO00001', '77536LYND00001',
+  '99501ANCHO0001', '22630SMRLG0001'
+);
+
+DELETE FROM superfund_sites WHERE epa_id IN (
+  'VAD070358684', 'VAD980554587', 'VAD987654321', 'VAD123456789'
+);
+
+DELETE FROM census_county WHERE fips_code IN ('51187', '48201', '45003');
+
+DELETE FROM chemicals WHERE id IN (1, 2, 3, 4, 5, 6)
+  AND NOT EXISTS (
+    SELECT 1 FROM release_events re
+    JOIN facilities f ON re.facility_id = f.id
+    WHERE re.chemical_id = chemicals.id
+    AND f.tri_facility_id NOT IN (
+      '21219BTHLS3RD', '89319BHPCP7MILE', '22630FRTRY0001',
+      '29801DSTLR0001', '70663ENTGR0001', '77536EXXO00001', '77536LYND00001',
+      '99501ANCHO0001', '22630SMRLG0001'
+    )
+  );
 
 -- 1. Chemicals
 INSERT INTO chemicals (id, cas_number, name, category, atsdr_url, pubchem_url) VALUES
-  (1, NULL,         'LEAD COMPOUNDS',  'Heavy Metals',               'https://www.atsdr.cdc.gov/toxfaqs/tfacts13.pdf',  'https://pubchem.ncbi.nlm.nih.gov/compound/5352425'),
-  (2, '7440-50-8',  'COPPER',          'Heavy Metals',               'https://www.atsdr.cdc.gov/toxfaqs/tfacts132.pdf', 'https://pubchem.ncbi.nlm.nih.gov/compound/23978'),
-  (3, '100-42-5',   'STYRENE',         'Volatile Organic Compounds', 'https://www.atsdr.cdc.gov/toxfaqs/tfacts53.pdf',  'https://pubchem.ncbi.nlm.nih.gov/compound/7501'),
-  (4, '7782-50-5',  'CHLORINE',        'Halogens',                   'https://www.atsdr.cdc.gov/toxfaqs/tfacts172.pdf', 'https://pubchem.ncbi.nlm.nih.gov/compound/24526'),
-  (5, '71-43-2',    'BENZENE',         'Volatile Organic Compounds', 'https://www.atsdr.cdc.gov/toxfaqs/tfacts3.pdf',   'https://pubchem.ncbi.nlm.nih.gov/compound/241'),
-  (6, '7664-41-7',  'AMMONIA',         'Inorganic Compounds',        'https://www.atsdr.cdc.gov/toxfaqs/tfacts126.pdf', 'https://pubchem.ncbi.nlm.nih.gov/compound/222');
+  (1, NULL,         'LEAD COMPOUNDS',  'Heavy Metals',               'https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=22',  'https://pubchem.ncbi.nlm.nih.gov/compound/7439-92-1'),
+  (2, '7440-50-8',  'COPPER',          'Heavy Metals',               'https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=37',  'https://pubchem.ncbi.nlm.nih.gov/compound/7440-50-8'),
+  (3, '100-42-5',   'STYRENE',         'Volatile Organic Compounds', 'https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=74',  'https://pubchem.ncbi.nlm.nih.gov/compound/7501'),
+  (4, '7782-50-5',  'CHLORINE',        'Halogens',                   'https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=36',  'https://pubchem.ncbi.nlm.nih.gov/compound/24526'),
+  (5, '71-43-2',    'BENZENE',         'Volatile Organic Compounds', 'https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=14',  'https://pubchem.ncbi.nlm.nih.gov/compound/241'),
+  (6, '7664-41-7',  'AMMONIA',         'Inorganic Compounds',        'https://wwwn.cdc.gov/TSP/substances/ToxSubstance.aspx?toxid=2',   'https://pubchem.ncbi.nlm.nih.gov/compound/222')
+ON CONFLICT (id) DO UPDATE SET
+  cas_number = EXCLUDED.cas_number, name = EXCLUDED.name,
+  category = EXCLUDED.category, atsdr_url = EXCLUDED.atsdr_url,
+  pubchem_url = EXCLUDED.pubchem_url;
 
 -- 2. Facilities
 INSERT INTO facilities (id, tri_facility_id, name, address, city, state_code, zip_code, county, naics_code, naics_desc, location) VALUES
-  (1, '21219BTHLS3RD',   'BETHLEHEM STEEL CORP - SPARROWS POINT', '3200 SPARROWS POINT RD',     'SPARROWS POINT', 'MD', '21219', 'BALTIMORE',  '331110', 'Iron and Steel Mills',                    ST_GeomFromText('POINT(-76.4785 39.2197)', 4326)),
-  (2, '89319BHPCP7MILE', 'ROBINSON NEVADA MINING CO',             '7 MILES W OF ELY ON HWY 50', 'RUTH',           'NV', '89319', 'WHITE PINE', '212234', 'Copper Ore and Nickel Ore Mining',        ST_GeomFromText('POINT(-115.0319 39.2919)', 4326)),
-  (3, '22630FRTRY0001',  'FRONT ROYAL PLASTICS INC',              '450 KENDRICK LN',             'FRONT ROYAL',    'VA', '22630', 'WARREN',     '326130', 'Laminated Plastics Plate Manufacturing',  ST_GeomFromText('POINT(-78.1856 38.9241)', 4326)),
-  (4, '29801DSTLR0001',  'BORDEN CHEMICALS AND PLASTICS INC',     '1000 BORDEN DR',              'AIKEN',          'SC', '29801', 'AIKEN',      '325211', 'Plastics Material Manufacturing',         ST_GeomFromText('POINT(-81.7198 33.5601)', 4326)),
-  (5, '70663ENTGR0001',  'ENTERPRISE GAS PROCESSING LLC',         '4500 ENTERPRISE BLVD',        'SULPHUR',        'LA', '70663', 'CALCASIEU',  '486210', 'Pipeline Transportation of Natural Gas',  ST_GeomFromText('POINT(-93.2044 30.1944)', 4326)),
-  (6, '77536EXXO00001',  'EXXONMOBIL CHEMICAL PLANT',             '5200 BAYWAY DR',              'BAYTOWN',        'TX', '77536', 'HARRIS',     '324110', 'Petroleum Refineries',                    ST_GeomFromText('POINT(-95.0215 29.7424)', 4326)),
-  (7, '77536LYND00001',  'LYONDELLBASELL REFINERY',               '12000 LAWNDALE ST',           'HOUSTON',        'TX', '77536', 'HARRIS',     '324110', 'Petroleum Refineries',                    ST_GeomFromText('POINT(-95.2100 29.7380)', 4326)),
-  (8, '99501ANCHO0001',  'ALASKA MINING CO',                      '100 NORTHERN BLVD',           'ANCHORAGE',      'AK', '99501', 'ANCHORAGE',  '212234', 'Copper Ore and Nickel Ore Mining',        ST_GeomFromText('POINT(-149.9003 61.2181)', 4326));
+  (1, '21219BTHLS3RD',   'BETHLEHEM STEEL CORP - SPARROWS POINT', '3200 SPARROWS POINT RD',      'SPARROWS POINT', 'MD', '21219', 'BALTIMORE',  '331110', 'Iron and Steel Mills',                    ST_GeomFromText('POINT(-76.4785 39.2197)', 4326)),
+  (2, '89319BHPCP7MILE', 'ROBINSON NEVADA MINING CO',             '7 MILES W OF ELY ON HWY 50',  'RUTH',           'NV', '89319', 'WHITE PINE', '212234', 'Copper Ore and Nickel Ore Mining',        ST_GeomFromText('POINT(-115.0319 39.2919)', 4326)),
+  (3, '22630FRTRY0001',  'FRONT ROYAL PLASTICS INC',              '450 KENDRICK LN',              'FRONT ROYAL',    'VA', '22630', 'WARREN',     '326130', 'Laminated Plastics Plate Manufacturing',  ST_GeomFromText('POINT(-78.1856 38.9241)', 4326)),
+  (4, '29801DSTLR0001',  'BORDEN CHEMICALS AND PLASTICS INC',     '1000 BORDEN DR',               'AIKEN',          'SC', '29801', 'AIKEN',      '325211', 'Plastics Material Manufacturing',         ST_GeomFromText('POINT(-81.7198 33.5601)', 4326)),
+  (5, '70663ENTGR0001',  'ENTERPRISE GAS PROCESSING LLC',         '4500 ENTERPRISE BLVD',         'SULPHUR',        'LA', '70663', 'CALCASIEU',  '486210', 'Pipeline Transportation of Natural Gas',  ST_GeomFromText('POINT(-93.2044 30.1944)', 4326)),
+  (6, '77536EXXO00001',  'EXXONMOBIL CHEMICAL PLANT',             '5200 BAYWAY DR',               'BAYTOWN',        'TX', '77536', 'HARRIS',     '324110', 'Petroleum Refineries',                    ST_GeomFromText('POINT(-95.0215 29.7424)', 4326)),
+  (7, '77536LYND00001',  'LYONDELLBASELL REFINERY',               '12000 LAWNDALE ST',            'HOUSTON',        'TX', '77536', 'HARRIS',     '324110', 'Petroleum Refineries',                    ST_GeomFromText('POINT(-95.2100 29.7380)', 4326)),
+  (8, '99501ANCHO0001',  'ALASKA MINING CO',                      '100 NORTHERN BLVD',            'ANCHORAGE',      'AK', '99501', 'ANCHORAGE',  '212234', 'Copper Ore and Nickel Ore Mining',        ST_GeomFromText('POINT(-149.9003 61.2181)', 4326)),
+  (9, '22630SMRLG0001',  'SMALL RELEASE FACILITY',                '200 GREEN TIER WAY',           'FRONT ROYAL',    'VA', '22630', 'WARREN',     '325199', 'All Other Basic Organic Chemical Mfg',    ST_GeomFromText('POINT(-78.1900 38.9150)', 4326))
+ON CONFLICT (id) DO UPDATE SET
+  tri_facility_id = EXCLUDED.tri_facility_id, name = EXCLUDED.name,
+  address = EXCLUDED.address, city = EXCLUDED.city, state_code = EXCLUDED.state_code,
+  zip_code = EXCLUDED.zip_code, county = EXCLUDED.county,
+  naics_code = EXCLUDED.naics_code, naics_desc = EXCLUDED.naics_desc,
+  location = EXCLUDED.location;
 
 -- 3. Release events
 INSERT INTO release_events (facility_id, chemical_id, reporting_year, total_release_lbs, air_release_lbs, water_release_lbs, land_release_lbs, underground_release_lbs, unit_of_measure, form_type) VALUES
@@ -275,18 +332,36 @@ INSERT INTO release_events (facility_id, chemical_id, reporting_year, total_rele
   (6, 5, 2007, 31200.0, 30000.0,   800.0,  400.0,    0.0, 'Pounds', 'R'),
   (6, 5, 2006, 35600.0, 34100.0,  1000.0,  500.0,    0.0, 'Pounds', 'R'),
   (7, 5, 2008, 19750.0, 18900.0,     0.0,  850.0,    0.0, 'Pounds', 'R'),
-  (8, 2, 2008,  3500.0,     0.0,     0.0, 3500.0,    0.0, 'Pounds', 'R');
+  (8, 2, 2008,  3500.0,     0.0,     0.0, 3500.0,    0.0, 'Pounds', 'R'),
+  (9, 6, 2008,   450.0,   400.0,    50.0,    0.0,    0.0, 'Pounds', 'R');
 
--- 4. Superfund sites
+-- 4. Superfund sites (UCD-17: all 3 status types for symbol regression tests)
 INSERT INTO superfund_sites (id, epa_id, name, address, city, state_code, zip_code, county, status, hrs_score, npl_date, epa_progress_url, contaminants, location) VALUES
-  (1, 'VAD070358684', 'AVTEX FIBERS INC',     'BOX 1169 KENDRICK LN', 'FRONT ROYAL', 'VA', '22630', 'WARREN',    'NPL', 50.51, '1983-09-08', 'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=0302388', ARRAY['STYRENE','CARBON DISULFIDE','ZINC'],  ST_GeomFromText('POINT(-78.1942 38.9179)', 4326)),
-  (2, 'VAD980554587', 'ARLINGTON SCRAP YARD', '4200 LEE HWY',         'ARLINGTON',   'VA', '22204', 'ARLINGTON', 'NPL', 28.74, '1989-02-21', 'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=0304032', ARRAY['LEAD COMPOUNDS','CADMIUM'],           ST_GeomFromText('POINT(-77.1089 38.8823)', 4326));
+  (1, 'VAD070358684', 'AVTEX FIBERS INC',     'BOX 1169 KENDRICK LN', 'FRONT ROYAL', 'VA', '22630', 'WARREN',    'NPL',      50.51, '1983-09-08', 'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=0302388', ARRAY['STYRENE','CARBON DISULFIDE','ZINC'],  ST_GeomFromText('POINT(-78.1942 38.9179)', 4326)),
+  (2, 'VAD980554587', 'ARLINGTON SCRAP YARD', '4200 LEE HWY',         'ARLINGTON',   'VA', '22204', 'ARLINGTON', 'NPL',      28.74, '1989-02-21', 'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=0304032', ARRAY['LEAD COMPOUNDS','CADMIUM'],           ST_GeomFromText('POINT(-77.1089 38.8823)', 4326)),
+  (3, 'VAD987654321', 'TEST PROPOSED SITE',   '100 PROPOSED WAY',     'RICHMOND',    'VA', '23220', 'RICHMOND',  'Proposed', 32.50, NULL,         'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=9876543', ARRAY['BENZENE','TOLUENE'],                  ST_GeomFromText('POINT(-77.4360 37.5407)', 4326)),
+  (4, 'VAD123456789', 'TEST DELETED SITE',    '200 CLEANUP COMPLETE', 'NORFOLK',     'VA', '23510', 'NORFOLK',   'Deleted',  45.00, '1985-06-10', 'https://cumulis.epa.gov/supercpad/SiteProfiles/index.cfm?fuseaction=second.Cleanup&id=0300001', ARRAY['ARSENIC','MERCURY'],                  ST_GeomFromText('POINT(-76.2859 36.8508)', 4326))
+ON CONFLICT (id) DO UPDATE SET
+  epa_id = EXCLUDED.epa_id, name = EXCLUDED.name, address = EXCLUDED.address,
+  city = EXCLUDED.city, state_code = EXCLUDED.state_code, zip_code = EXCLUDED.zip_code,
+  county = EXCLUDED.county, status = EXCLUDED.status, hrs_score = EXCLUDED.hrs_score,
+  npl_date = EXCLUDED.npl_date, epa_progress_url = EXCLUDED.epa_progress_url,
+  contaminants = EXCLUDED.contaminants, location = EXCLUDED.location;
 
 -- 5. Census county demographics
-INSERT INTO census_county (id, fips_code, name, state_code, census_year, total_pop, median_income, pct_under_18, pct_over_65, pct_nonwhite, cancer_mortality_female_per_100k, boundary) VALUES
-  (1, '51187', 'Warren County', 'VA', 2000,   31584,  41246.00, 24.7, 11.2,  8.4, 148.7, ST_GeomFromText('POLYGON((-78.40 38.76, -78.40 38.99, -78.00 38.99, -78.00 38.76, -78.40 38.76))', 4326)),
-  (2, '48201', 'Harris County', 'TX', 2000, 3400578,  42890.00, 28.3,  7.9, 55.4, 162.4, ST_GeomFromText('POLYGON((-95.79 29.52, -95.79 30.11, -94.91 30.11, -94.91 29.52, -95.79 29.52))', 4326)),
-  (3, '45003', 'Aiken County',  'SC', 2000,  142552,  38100.00, 25.1, 13.6, 34.2,  NULL, ST_GeomFromText('POLYGON((-81.97 33.35, -81.97 33.84, -81.42 33.84, -81.42 33.35, -81.97 33.35))', 4326));
+INSERT INTO census_county (id, fips_code, name, state_code, census_year, total_pop, median_income, pct_under_18, pct_over_65, pct_nonwhite, cancer_mortality_female_per_100k, cancer_mortality_male_per_100k, heart_disease_mortality_per_100k, boundary) VALUES
+  (1, '51187', 'Warren County', 'VA', 2000,   31584,  41246.00, 24.7, 11.2,  8.4, 148.7, 175.2, 189.4, ST_GeomFromText('POLYGON((-78.40 38.76, -78.40 38.99, -78.00 38.99, -78.00 38.76, -78.40 38.76))', 4326)),
+  (2, '48201', 'Harris County', 'TX', 2000, 3400578,  42890.00, 28.3,  7.9, 55.4, 162.4, 194.8, 215.6, ST_GeomFromText('POLYGON((-95.79 29.52, -95.79 30.11, -94.91 30.11, -94.91 29.52, -95.79 29.52))', 4326)),
+  (3, '45003', 'Aiken County',  'SC', 2000,  142552,  38100.00, 25.1, 13.6, 34.2, 155.3, 186.1, 228.7, ST_GeomFromText('POLYGON((-81.97 33.35, -81.97 33.84, -81.42 33.84, -81.42 33.35, -81.97 33.35))', 4326))
+ON CONFLICT (id) DO UPDATE SET
+  fips_code = EXCLUDED.fips_code, name = EXCLUDED.name, state_code = EXCLUDED.state_code,
+  census_year = EXCLUDED.census_year, total_pop = EXCLUDED.total_pop,
+  median_income = EXCLUDED.median_income, pct_under_18 = EXCLUDED.pct_under_18,
+  pct_over_65 = EXCLUDED.pct_over_65, pct_nonwhite = EXCLUDED.pct_nonwhite,
+  cancer_mortality_female_per_100k = EXCLUDED.cancer_mortality_female_per_100k,
+  cancer_mortality_male_per_100k = EXCLUDED.cancer_mortality_male_per_100k,
+  heart_disease_mortality_per_100k = EXCLUDED.heart_disease_mortality_per_100k,
+  boundary = EXCLUDED.boundary;
 
 COMMIT;
 ```
@@ -396,8 +471,8 @@ Quick reference for test assertions — values that must match exactly.
 | T-07     | National largest chlorine facility | `ENTERPRISE GAS PROCESSING LLC` | Seed                          |
 | All      | Comma formatting: 8205             | Must render as `8,205`          | UCD 2011 §"Commas in Numbers" |
 | All      | Comma formatting: 12485            | Must render as `12,485`         | UCD 2011 §"Commas in Numbers" |
-| All      | unit_of_measure for all 14 seed events | `Pounds`                   | All seed chemicals are non-dioxin |
-| All      | form_type for all 14 seed events   | `R`                             | All seed events are Form R (with quantities) |
+| All      | unit_of_measure for all 16 seed events | `Pounds`                   | All seed chemicals are non-dioxin |
+| All      | form_type for all 16 seed events   | `R`                             | All seed events are Form R (with quantities) |
 
 ---
 
@@ -411,8 +486,8 @@ The `GET /api/v1/meta` endpoint (added in [TOXMAP_API_CONTRACT.md §17](../api/T
   "build_date": "unknown",
   "available_years": [2006, 2007, 2008],
   "latest_year": 2008,
-  "total_facility_count": 7,
-  "total_release_event_count": 14,
+  "total_facility_count": 9,
+  "total_release_event_count": 16,
   "source": "fastapi-dev"
 }
 ```

@@ -5,19 +5,21 @@
 
 /**
  * Formats a number of pounds with comma separators and "lbs" suffix.
- * @example formatLbs(8205) → "8,205 lbs"
+ * Rounds to nearest whole number for readability.
+ * @example formatLbs(8205.7) → "8,206 lbs"
  * @example formatLbs(null) → "—"
  */
 export function formatLbs(value: number | null | undefined): string {
   if (value == null) return '—'
-  return `${value.toLocaleString('en-US')} lbs`
+  return `${Math.round(value).toLocaleString('en-US')} lbs`
 }
 
 /**
  * Formats a number with comma separators (no unit suffix).
- * @example formatNumber(12485) → "12,485"
+ * Rounds to nearest whole number for readability.
+ * @example formatNumber(12485.3) → "12,485"
  */
 export function formatNumber(value: number | null | undefined): string {
   if (value == null) return '—'
-  return value.toLocaleString('en-US')
+  return Math.round(value).toLocaleString('en-US')
 }

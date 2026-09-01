@@ -1,6 +1,6 @@
 # ADR Status Index
 
-**Last updated:** 2026-08-07  
+**Last updated:** 2026-08-20  
 **Purpose:** Single source of truth for the current status of every Architecture Decision Record. Agents and contributors MUST consult this file before treating any ADR as authoritative.
 
 ---
@@ -30,6 +30,7 @@
 | [ADR-008](ADR-008-geocoding-confidence-scoring.md) | Geocoding Confidence Scoring and Viewport Bias    | **✅ Accepted** | —          | —             | 2026-08-04 |
 | [ADR-009](ADR-009-cloudflare-workers-geocoding-proxy.md) | Cloudflare Workers Geocoding Proxy         | **✅ Accepted** | —          | —             | 2026-08-04 |
 | [ADR-010](ADR-010-facility-search-autocomplete.md) | Facility Search Autocomplete (ID and Name)       | **✅ Accepted** | —          | —             | 2026-08-07 |
+| [ADR-011](ADR-011-census-demographics-api.md)   | Census Bureau API for Demographics, SEER Descoped    | **✅ Accepted** | —          | —             | 2026-08-09 |
 
 ---
 

@@ -13,6 +13,7 @@ from geoalchemy2.shape import to_shape
 from sqlalchemy import cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domain.geo_utils import MILES_TO_METERS
 from app.models.chemical import Chemical
 from app.models.superfund_site import SuperfundSite
 from app.schemas.superfund import (
@@ -26,8 +27,6 @@ from app.schemas.superfund import (
 from app.services.superfund_cas_lookup import SUPERFUND_CAS_LOOKUP
 
 logger = logging.getLogger(__name__)
-
-_MILES_TO_METERS = 1609.344
 
 _VALID_STATUSES = {"NPL", "Proposed", "Deleted"}
 
@@ -90,7 +89,7 @@ async def get_superfund_near(
     status: str | None,
 ) -> SuperfundCollection:
     """Spatial Superfund search → GeoJSON FeatureCollection."""
-    radius_meters = radius_miles * _MILES_TO_METERS
+    radius_meters = radius_miles * MILES_TO_METERS
     point_geo = cast(func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326), Geography)
     site_geo = cast(SuperfundSite.location, Geography)
 

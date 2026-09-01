@@ -164,6 +164,9 @@ This document tracks the triage and resolution of defects discovered during the 
 | 7.BUG.41 | Census overlay color scheme — used per-tab colors instead of historical unified scheme | P2 | Unified 8-bin light green → dark blue gradient (ColorBrewer GnBu 8-class) matching historical TOXMAP Fig 2015-5 | ✅ 2026-08-10 |
 | 7.UX.6 | Census county hover tooltip — color bins difficult to distinguish | P2 | Added hover tooltip showing county name, formatted value, and bin label; uses `getBinLabel()` from colorUtils | ✅ 2026-08-10 |
 | 7.BUG.42 | Census county hover tooltip overlaps TRI/Superfund popup | P2 | Added condition to hide county tooltip when `selectedFacilityId` or `selectedSuperfundEpaId` is set | ✅ 2026-08-10 |
+| 7.BUG.43 | **Aggregate Discrepancy 61% error** — compared 15-year medium sum vs 38-year EPA total | P1 | Frontend fetched only 15 years of release data (for trend chart) but compared against all-years EPA total. **Fix:** When viewing "all years", fetch releases from 1987–present (not just 15-year window). Discrepancy dropped from 61% to 0.1% for Brandon Shores test case. | ✅ 2026-08-18 |
+| 7.UX.7 | Release quantities displayed with decimals — confusing at scale | P3 | Modified `formatLbs()` and `formatNumber()` to `Math.round()` before formatting. "5,609,480.2 lbs" → "5,609,480 lbs". Prevents misreading figures by factors of 10. | ✅ 2026-08-18 |
+| 7.UX.8 | Results table hover moved map to facility — disorienting UX | P3 | Removed `onMouseEnter`/`onMouseLeave` handlers from results table rows. Map now only moves to facility location on **click**, not hover. Visual row highlight on hover preserved via `onMouseOver`/`onMouseOut`. | ✅ 2026-08-18 |
 
 ---
 

@@ -279,6 +279,62 @@ def validate_parquet_seeds(output_dir: Path, year: int) -> None:
     )
 
 
+def _build_chemical_families_json(db_url: str, output_dir: Path) -> dict | None:
+    """Export chemical family mappings for frontend DuckDB WASM mode (ADR-007, Algorithms Handbook Phase 2b).
+
+    Output: chemical_families.json
+    Format: { "LEAD": ["LEAD", "LEAD COMPOUNDS"], "MERCURY": [...], ... }
+
+    This enables the frontend to expand chemical families without API calls,
+    matching the backend's in-memory cache behavior.
+    """
+    from sqlalchemy import text
+    from sqlalchemy.engine import create_engine
+
+    engine = create_engine(db_url, echo=False)
+
+    query = text("""
+        SELECT
+            cf.family_name,
+            array_agg(c.name ORDER BY c.name) AS chemicals
+        FROM chemical_families cf
+        JOIN chemical_family_members cfm ON cfm.family_id = cf.id
+        JOIN chemicals c ON c.id = cfm.chemical_id
+        GROUP BY cf.id, cf.family_name
+        ORDER BY cf.family_name
+    """)
+
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(query)
+            rows = result.fetchall()
+    except Exception as exc:
+        # Tables might not exist (e.g., fresh DB without ingestion)
+        logger.warning("Could not query chemical families: %s", exc)
+        return None
+
+    if not rows:
+        logger.info("No chemical families found, skipping chemical_families.json")
+        return None
+
+    # Build the mapping: chemical_name → list of family members
+    families: dict[str, list[str]] = {}
+    for row in rows:
+        family_name, chemicals = row
+        for chem in chemicals:
+            families[chem.upper()] = list(chemicals)
+
+    output_file = _safe_output_path(output_dir, "chemical_families.json")
+    output_file.write_text(json.dumps(families, indent=2, sort_keys=True))
+    logger.info("Wrote %s (%d chemicals in families)", output_file, len(families))
+
+    return {
+        "file": output_file.name,
+        "chemical_count": len(families),
+        "family_count": len(rows),
+    }
+
+
 def main() -> None:
     """CLI entrypoint: python scripts/build_parquet.py --year YYYY --vintage-label '...'"""
     logging.basicConfig(
@@ -336,6 +392,11 @@ def main() -> None:
             db_url=args.db_url,
             output_dir=output_dir,
             vintage_label=args.vintage_label,
+        )
+        # Phase 2b: chemical families for frontend family expansion
+        _build_chemical_families_json(
+            db_url=args.db_url,
+            output_dir=output_dir,
         )
         _update_manifest(
             output_dir=output_dir,

@@ -571,7 +571,7 @@ These are locked before development starts. Any deviation requires a new ADR.
 | Story | Description | Points |
 |-------|-------------|--------|
 | 6.1.1 | Implement all remaining API step stubs in `api_steps.py` | 5 |
-| 6.1.2 | Implement all E2E step stubs in `e2e_steps.py` | 8 |
+| 6.1.2 | Implement all E2E step stubs in `tests/steps/` modules | 8 |
 | 6.1.3 | All Gherkin scenarios green (count grows across phases): `pytest tests/features/ --tb=short` exits 0 | 8 |
 
 **Epic 6.2 — Performance Benchmarks** `BE + QA`
@@ -609,6 +609,8 @@ These are locked before development starts. Any deviation requires a new ADR.
 - [ ] Schemathesis: `--checks all` passes
 - [ ] `pytest tests/security/` → 0 failures (input validation, rate limiting, error sanitization)
 - [ ] `semgrep --config p/owasp-top-ten backend/ frontend/src/` → 0 High/Critical findings (or all documented)
+- [ ] Cross-browser smoke test: Chrome, Firefox, Safari all pass (story 6.3.3)
+- [ ] Mobile viewport test: 375px width passes smoke test (story 6.3.4)
 - [ ] **Milestone M6 — Feature Complete**
 
 ---

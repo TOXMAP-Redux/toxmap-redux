@@ -11,23 +11,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-# ---------------------------------------------------------------------------
-# Color-band helper
-# ---------------------------------------------------------------------------
+# Import from domain layer — re-exported for backward compatibility
+from app.domain.color_band import assign_color_band
 
-
-def assign_color_band(total_lbs: float | None) -> str:
-    """Map total release pounds to a NLM color band."""
-    if total_lbs is None:
-        return "green"
-    if total_lbs >= 100_000:
-        return "red"
-    if total_lbs >= 10_000:
-        return "orange"
-    if total_lbs >= 1_000:
-        return "yellow"
-    return "green"
-
+__all__ = ["assign_color_band"]
 
 # ---------------------------------------------------------------------------
 # ADR-007: Chemical family search expansion

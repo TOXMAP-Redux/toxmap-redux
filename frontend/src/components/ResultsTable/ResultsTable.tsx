@@ -273,8 +273,6 @@ export const ResultsTable = memo(function ResultsTable({
                       onMouseOver={(e) => { if (!isHighlighted) (e.currentTarget as HTMLElement).style.background = '#eff6ff' }}
                       onMouseOut={(e) => { if (!isHighlighted) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
                       onClick={() => { onHighlight(props.tri_facility_id); onSelect(props.tri_facility_id, 'tri') }}
-                      onMouseEnter={() => onHighlight(props.tri_facility_id)}
-                      onMouseLeave={() => onHighlight(null)}
                     >
                       <td style={{ padding: '7px 10px', verticalAlign: 'top' }}>
                         <div data-testid="results-row-name" style={{ fontWeight: 600, color: '#111827', fontSize: '12px' }}>{props.name}</div>
@@ -319,8 +317,6 @@ export const ResultsTable = memo(function ResultsTable({
                       onMouseOver={(e) => { if (!isHighlighted) (e.currentTarget as HTMLElement).style.background = '#fef2f2' }}
                       onMouseOut={(e) => { if (!isHighlighted) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
                       onClick={() => { onHighlight(props.epa_id); onSelect(props.epa_id, 'superfund') }}
-                      onMouseEnter={() => onHighlight(props.epa_id)}
-                      onMouseLeave={() => onHighlight(null)}
                     >
                       <td style={{ padding: '7px 10px', verticalAlign: 'top' }}>
                         <div data-testid="results-row-name" style={{ fontWeight: 600, color: '#111827', fontSize: '12px' }}>{props.name}</div>
@@ -395,8 +391,6 @@ export const ResultsTable = memo(function ResultsTable({
                     onHighlight(props.epa_id)
                     onSelect(props.epa_id, 'superfund')
                   }}
-                  onMouseEnter={() => onHighlight(props.epa_id)}
-                  onMouseLeave={() => onHighlight(null)}
                 >
                   <td style={{ padding: '7px 10px', verticalAlign: 'top' }}>
                     <div data-testid="results-row-name" className="toxmap-facility-name" style={{ fontWeight: 600, color: '#111827', fontSize: '12px' }}>
@@ -519,8 +513,6 @@ export const ResultsTable = memo(function ResultsTable({
                   onHighlight(props.tri_facility_id)
                   onSelect(props.tri_facility_id, 'tri')
                 }}
-                onMouseEnter={() => onHighlight(props.tri_facility_id)}
-                onMouseLeave={() => onHighlight(null)}
               >
                 <td style={{ padding: '7px 10px', verticalAlign: 'top' }}>
                   <div data-testid="results-row-name" className="toxmap-facility-name" style={{ fontWeight: 600, color: '#111827', fontSize: '12px' }}>

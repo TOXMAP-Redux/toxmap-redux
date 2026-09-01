@@ -1,0 +1,14 @@
+# Root-level pyproject.toml
+# Purpose: pytest configuration for running tests from the repo root.
+# CI runs `pytest tests/` from the repo root with no working-directory set,
+# so pytest-bdd needs this file to resolve feature file paths correctly.
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+bdd_features_base_dir = "tests/features"
+addopts = "-p no:xdist --base-url http://localhost:3000 --screenshot only-on-failure"
+
+# Note: Coverage configuration remains in backend/pyproject.toml (--cov=app)
+# because app/ is inside backend/. Root-level runs use backend's coverage config
+# via pytest's config discovery when working-directory=backend is set.

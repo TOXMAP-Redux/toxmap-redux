@@ -319,11 +319,15 @@ export default function App(): JSX.Element {
       
       let filtered = superfundViewportSites.features
       
-      // Apply chemical filter
+      // Apply chemical filter (check both directions: contaminant includes search term
+      // OR search term includes contaminant, e.g. "LEAD COMPOUNDS" matches "LEAD")
       if (hasChemicalFilter) {
         const chemicalUpper = submittedSearch.chemical!.toUpperCase()
         filtered = filtered.filter((f) =>
-          f.properties.contaminants.some((c) => c.toUpperCase().includes(chemicalUpper))
+          f.properties.contaminants.some((c) => {
+            const contaminantUpper = c.toUpperCase()
+            return contaminantUpper.includes(chemicalUpper) || chemicalUpper.includes(contaminantUpper)
+          })
         )
       }
       

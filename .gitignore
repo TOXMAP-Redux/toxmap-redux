@@ -152,3 +152,6 @@ jacoco/
 .wrangler/
 wrangler.toml.bak
 
+# Schemathesis local crash/test cache
+.schemathesis/
+

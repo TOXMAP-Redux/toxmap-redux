@@ -7,6 +7,8 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 3000,
+    // Allow Docker service names for E2E testing from backend container
+    allowedHosts: ['localhost', 'frontend', 'toxmap-frontend'],
     proxy: {
       '/api': {
         // Use localhost for local dev; Docker Compose overrides this via env or network

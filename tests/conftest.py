@@ -15,6 +15,11 @@
 # The session-scoped db_connection is shared across function-scoped seed_db fixtures.
 # Parallel execution would cause TRUNCATE races and corrupt test state.
 # The pyproject.toml [tool.pytest.ini_options] addopts = "-p no:xdist" enforces this.
+#
+# ── pytest-bdd step registration ──────────────────────────────────────────────
+# Step definitions must be imported in conftest.py for pytest-bdd to discover them.
+# The `from tests.steps import *` in test files is not sufficient; conftest.py
+# is the canonical location for step registration.
 # ─────────────────────────────────────────────────────────────────────────────
 
 import os
@@ -27,6 +32,22 @@ import psycopg2
 from pathlib import Path
 from fastapi.testclient import TestClient
 from app.main import create_app
+
+# ── pytest-bdd step imports ───────────────────────────────────────────────────
+# All step modules must be imported here for pytest-bdd to register them.
+# Each module contains @given/@when/@then decorated functions.
+from tests.steps import (  # noqa: F401
+    navigation_steps,
+    search_steps,
+    results_steps,
+    facility_steps,
+    superfund_steps,
+    demographics_steps,
+    map_layer_steps,
+    export_steps,
+    regression_steps,
+    stubs_steps,
+)
 
 # M-4: use explicit env var instead of undefined get_db_url() function.
 # Strip SQLAlchemy driver prefix (+psycopg2) if present — psycopg2.connect()
@@ -117,6 +138,24 @@ def browser_base_url():
     # directly. Prefer page.goto("/") in E2E step functions rather than page.goto(browser_base_url)
     # to avoid constructing a double-path URL when --base-url is already set.
     return os.getenv("TEST_BASE_URL", "http://localhost:3000")
+
+
+@pytest.fixture(scope="session")
+def browser_context_args(browser_context_args):
+    """Override pytest-playwright browser context to ignore HTTPS errors.
+
+    This is needed for E2E tests running in Docker containers where:
+    1. The Chromium browser makes HTTPS requests to external services
+       (e.g., photon.komoot.io for geocoding)
+    2. SSL certificate validation fails due to missing CA certificates
+       or network proxy issues in the container environment
+
+    See: https://playwright.dev/python/docs/test-runners#fixtures
+    """
+    return {
+        **browser_context_args,
+        "ignore_https_errors": True,
+    }
 
 
 @pytest.fixture

@@ -94,8 +94,9 @@ Tests use `pytest-playwright` with Python Page Object Model (POM) classes. All s
 │  Gherkin steps parsed by pytest-bdd
 │
 ▼
-[ tests/steps/e2e_steps.py ]
-│  Steps import POM classes from tests/e2e/pages/
+[ tests/steps/ (modular) ]
+│  Step modules: navigation, search, results, facility,
+│  superfund, demographics, map_layer, export, regression
 │  page: Page fixture injected by pytest-playwright
 │
 ▼
@@ -264,6 +265,41 @@ Run on `main`/tags only.
 | CC-06 | Production smoke (T-03) | `BASE_URL=https://toxmap.pages.dev` — ≥ 1 facility marker for copper near Ely NV |
 | CC-07 | Production smoke (T-08) | `BASE_URL=https://toxmap.pages.dev` — new tab with CDC ATSDR URL opens |
 
+### 4.6 Regression Tests (Phase 6)
+
+Regression tests added in Phase 6 for bug fixes and edge cases. Feature file: `ucd_task_scenarios.feature` (tagged `@regression`).
+
+#### 4.6.1 Nationwide Search (No Location)
+
+Covers the bug where nationwide chemical search (empty location field) failed to show Superfund sites because `/api/v1/superfund/browse` doesn't support chemical filtering — client-side filtering is required.
+
+| Scenario | Assertion |
+|----------|-----------|
+| Nationwide "Both" dataset search | Results include both TRI facility ("BETHLEHEM STEEL") and Superfund site ("ARLINGTON SCRAP YARD") |
+| Nationwide TRI-only search | Results include TRI only; summary shows "1 TRI facilities"; no "Superfund" in summary |
+| Nationwide Superfund-only search | Results include Superfund only; summary shows "1 Superfund sites"; no "TRI" in summary |
+| Nationwide search zoom | Map zooms to US continental view (zoom 3–4, center ~40°N, ~98°W) |
+
+#### 4.6.2 State Filter Dropdown
+
+Covers the state filter dropdown functionality including the "Continental US" option which excludes AK, HI, and territories.
+
+| Scenario | Assertion |
+|----------|-----------|
+| Default state filter is "All" | Dropdown shows "All" selected on page load |
+| Continental US option exists | Dropdown contains "Continental US" option |
+| Continental US filter applies | Search results include only CONUS states (no AK, HI, PR, GU, VI, AS, MP) |
+| Alaska facilities excluded | No result shows "ALASKA" in facility name when CONUS filter active |
+
+#### 4.6.3 Superfund Layer Regression (React StrictMode)
+
+Covers the `useSuperfundViewport` bug where React StrictMode aborted the first fetch but `hasFetchedRef` was already set, skipping the retry. Feature file: `ux_invariants.feature` (tagged `@regression`).
+
+| Scenario | Assertion |
+|----------|-----------|
+| Superfund markers on initial load | Superfund layer visible; in-view count > 0 without any user action |
+| Superfund markers after search | Searching for "Front Royal, VA" shows AVTEX FIBERS in results; diamond markers visible |
+
 ---
 
 ## 5. Entry & Exit Criteria
@@ -325,37 +361,40 @@ Run on `main`/tags only.
 
 ## Appendix A — Automation Traceability
 
-| Test ID | Scenario | Gherkin Section | File | Status |
-|---------|----------|----------------|------|--------|
-| E2E-01 | T-01: Lead near Sparrows Point | §Feature 7 T-01 | `ucd_task_scenarios.feature` | ❌ Phase 3 |
-| E2E-02 | T-02: Superfund chemical list | §Feature 7 T-02 | `ucd_task_scenarios.feature` | ❌ Phase 4 |
-| E2E-03 | T-03: Copper near Ely NV | §Feature 7 T-03 | `ucd_task_scenarios.feature` | ❌ Phase 3 |
-| E2E-04 | T-04: AVTEX FIBERS Superfund | §Feature 7 T-04 | `ucd_task_scenarios.feature` | ❌ Phase 4 |
-| E2E-05 | T-05: TRI + under-18 overlay | §Feature 7 T-05 | `ucd_task_scenarios.feature` | ❌ Phase 5 |
-| E2E-06 | T-06: Income overlay | §Feature 7 T-06 | `ucd_task_scenarios.feature` | ❌ Phase 5 |
-| E2E-07 | T-07: SC vs. national chlorine | §Feature 7 T-07 | `ucd_task_scenarios.feature` | ❌ Phase 5 |
-| E2E-08 | T-08: ToxFAQ link | §Feature 7 T-08 | `ucd_task_scenarios.feature` | ❌ Phase 3 |
-| E2E-09 | T-09: Benzene + cancer mortality | §Feature 7 T-09 | `ucd_task_scenarios.feature` | ❌ Phase 5 |
-| E2E-10 | Invariant 1: Single sidebar | §Feature 8 Invariant 1 | `ux_invariants.feature` | ❌ Phase 3 |
-| E2E-11 | Invariant 2: No empty rows | §Feature 8 Invariant 2 | `ux_invariants.feature` | ❌ Phase 3 |
-| E2E-12 | Invariant 3: State restriction | §Feature 8 Invariant 3 | `ux_invariants.feature` | ❌ Phase 3 |
-| E2E-13 | Invariant 4: Panel labels | §Feature 8 Invariant 4 | `ux_invariants.feature` | ❌ Phase 3 |
-| E2E-14 | Invariant 5: Inline legend | §Feature 8 Invariant 5 | `ux_invariants.feature` | ❌ Phase 5 |
-| E2E-15 | Invariant 6: Distinct icons | §Feature 8 Invariant 6 | `ux_invariants.feature` | ❌ Phase 4 |
-| E2E-16 | Invariant 7: Latest year label | §Feature 8 Invariant 7 | `ux_invariants.feature` | ❌ Phase 3 |
-| E2E-17 | Invariant 8: Comma formatting | §Feature 8 Invariant 8 | `ux_invariants.feature` | ❌ Phase 3 |
-| E2E-18 | Invariant 9: Bottom close link | §Feature 8 Invariant 9 | `ux_invariants.feature` | ❌ Phase 3 |
-| E2E-19 | Invariant 10: Disclaimer scope | §Feature 8 Invariant 10 | `ux_invariants.feature` | ❌ Phase 5 |
-| E2E-20 | Invariant 11: Vintage label | §Feature 8 Invariant 11 | `ux_invariants.feature` | ❌ Phase 3 |
-| E2E-21 | CC-01: A11y map page | — | `tests/a11y/test_wcag_compliance.py` | ❌ Phase 5 |
-| E2E-22–24 | CC-02–04: Visual regression | — | `tests/visual/test_visual_regression.py` | ❌ Phase 5 |
-| E2E-25–27 | CC-05–07: Production smoke | — | `tests/e2e_prod/test_smoke_prod.py` | ❌ Phase 5 |
+> **Status Key:** ✅ Passing · 🔴 Blocked · ⏳ Written (not yet run)
+> **Current Blocker:** Issue #5 in `QE_HANDOFF_20260811.md` — search form does not trigger API call
+
+| Test ID | Scenario | Gherkin Section | File | Target Phase | Status |
+|---------|----------|----------------|------|--------------|--------|
+| E2E-01 | T-01: Lead near Sparrows Point | §Feature 7 T-01 | `ucd_task_scenarios.feature` | Phase 3 | 🔴 Blocked |
+| E2E-02 | T-02: Superfund chemical list | §Feature 7 T-02 | `ucd_task_scenarios.feature` | Phase 4 | 🔴 Blocked |
+| E2E-03 | T-03: Copper near Ely NV | §Feature 7 T-03 | `ucd_task_scenarios.feature` | Phase 3 | 🔴 Blocked |
+| E2E-04 | T-04: AVTEX FIBERS Superfund | §Feature 7 T-04 | `ucd_task_scenarios.feature` | Phase 4 | 🔴 Blocked |
+| E2E-05 | T-05: TRI + under-18 overlay | §Feature 7 T-05 | `ucd_task_scenarios.feature` | Phase 5 | 🔴 Blocked |
+| E2E-06 | T-06: Income overlay | §Feature 7 T-06 | `ucd_task_scenarios.feature` | Phase 5 | 🔴 Blocked |
+| E2E-07 | T-07: SC vs. national chlorine | §Feature 7 T-07 | `ucd_task_scenarios.feature` | Phase 5 | 🔴 Blocked |
+| E2E-08 | T-08: ToxFAQ link | §Feature 7 T-08 | `ucd_task_scenarios.feature` | Phase 3 | 🔴 Blocked |
+| E2E-09 | T-09: Benzene + cancer mortality | §Feature 7 T-09 | `ucd_task_scenarios.feature` | Phase 5 | 🔴 Blocked |
+| E2E-10 | Invariant 1: Single sidebar | §Feature 8 Invariant 1 | `ux_invariants.feature` | Phase 3 | 🔴 Blocked |
+| E2E-11 | Invariant 2: No empty rows | §Feature 8 Invariant 2 | `ux_invariants.feature` | Phase 3 | 🔴 Blocked |
+| E2E-12 | Invariant 3: State restriction | §Feature 8 Invariant 3 | `ux_invariants.feature` | Phase 3 | 🔴 Blocked |
+| E2E-13 | Invariant 4: Panel labels | §Feature 8 Invariant 4 | `ux_invariants.feature` | Phase 3 | 🔴 Blocked |
+| E2E-14 | Invariant 5: Inline legend | §Feature 8 Invariant 5 | `ux_invariants.feature` | Phase 5 | 🔴 Blocked |
+| E2E-15 | Invariant 6: Distinct icons | §Feature 8 Invariant 6 | `ux_invariants.feature` | Phase 4 | 🔴 Blocked |
+| E2E-16 | Invariant 7: Latest year label | §Feature 8 Invariant 7 | `ux_invariants.feature` | Phase 3 | 🔴 Blocked |
+| E2E-17 | Invariant 8: Comma formatting | §Feature 8 Invariant 8 | `ux_invariants.feature` | Phase 3 | 🔴 Blocked |
+| E2E-18 | Invariant 9: Bottom close link | §Feature 8 Invariant 9 | `ux_invariants.feature` | Phase 3 | 🔴 Blocked |
+| E2E-19 | Invariant 10: Disclaimer scope | §Feature 8 Invariant 10 | `ux_invariants.feature` | Phase 5 | 🔴 Blocked |
+| E2E-20 | Invariant 11: Vintage label | §Feature 8 Invariant 11 | `ux_invariants.feature` | Phase 3 | ⏳ Written |
+| E2E-21 | CC-01: A11y map page | — | `tests/a11y/test_wcag_compliance.py` | Phase 5 | ⏳ Written |
+| E2E-22–24 | CC-02–04: Visual regression | — | `tests/visual/test_visual_regression.py` | Phase 5 | ⏳ Written |
+| E2E-25–27 | CC-05–07: Production smoke | — | `tests/e2e_prod/test_smoke_prod.py` | Phase 5 | ⏳ Written |
 
 ---
 
 ## Appendix B — Page Object Model Reference
 
-All POM classes live in `tests/e2e/pages/`. Full implementations in `e2e_steps.py`.
+All POM classes live in `tests/e2e/pages/`. Step implementations in `tests/steps/` modules.
 
 | Class | File | Key Methods |
 |-------|------|------------|

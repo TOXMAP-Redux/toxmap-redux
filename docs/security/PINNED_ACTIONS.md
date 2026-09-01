@@ -21,18 +21,17 @@ SHA pinning ensures the exact code that was reviewed is the exact code that runs
 
 Update this table every time an Action version is changed in any workflow file.
 
-> **Status:** All workflow files pinned to full 40-char SHAs as of 2026-07-25.
+> **Status:** All workflow files pinned to full 40-char SHAs as of 2026-08-11.
 > Story **0.5.4** (Security Engineer) complete — zero mutable `@vX` tags remain in any workflow file.
 > `cloudflare/wrangler-action` is listed but not yet used; pin it when story 1.5.2 (OPS) lands.
 
 | Action | Pinned SHA | Corresponds to Tag | Workflow(s) Used In | Last Verified |
 |--------|-----------|-------------------|---------------------|--------------|
-| `actions/checkout` | `fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09` | v5.1.0 | `ci.yml`, `security.yml` | 2026-07-25 |
-| `actions/checkout` | `11d5960a326750d5838078e36cf38b85af677262` | v4.4.0 | `build-data.yml` | 2026-07-25 |
-| `actions/setup-python` | `0b93645e9fea7318ecaed2b359559ac225c90a2b` | v5.3.0 | `ci.yml`, `security.yml` | 2026-07-25 |
-| `actions/setup-node` | `a0853c24544627f65ddf259abe73b1d18a591444` | v5.0.0 | `ci.yml`, `security.yml` | 2026-07-25 |
-| `actions/upload-artifact` | `330a01c490aca151604b8cf639adc76d48f6c5d4` | v5.0.0 | `ci.yml`, `security.yml` | 2026-07-25 |
-| `codecov/codecov-action` | `b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238` | v4.6.0 | `ci.yml` | 2026-07-25 |
+| `actions/checkout` | `3d3c42e5aac5ba805825da76410c181273ba90b1` | v7.0.1 | `ci.yml`, `security.yml`, `build-data.yml` | 2026-08-11 |
+| `actions/setup-python` | `5fda3b95a4ea91299a34e894583c3862153e4b97` | v7.0.0 | `ci.yml`, `security.yml`, `build-data.yml` | 2026-08-11 |
+| `actions/setup-node` | `820762786026740c76f36085b0efc47a31fe5020` | v7.0.0 | `ci.yml`, `security.yml` | 2026-08-11 |
+| `actions/upload-artifact` | `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a` | v7.0.1 | `ci.yml`, `security.yml` | 2026-08-11 |
+| `codecov/codecov-action` | `fb8b3582c8e4def4969c97caa2f19720cb33a72f` | v7.0.0 | `ci.yml` | 2026-08-11 |
 | `cloudflare/wrangler-action` | *(pin before first use — see story 0.5.4)* | v3.x | `build-data.yml` *(future)* | — |
 
 > **Note:** `gitleaks/gitleaks-action` was removed in 2026-08 because it now requires a paid license for organization repositories. We now run the gitleaks CLI directly (Apache 2.0 license, free) via `curl` + `tar` in `security.yml`. The CLI version is pinned to `v8.21.2`.

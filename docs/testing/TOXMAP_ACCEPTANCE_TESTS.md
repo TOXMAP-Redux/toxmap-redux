@@ -1,7 +1,7 @@
 # TOXMAP Acceptance Tests — Gherkin Feature Specifications
 
 **Date:** 2026-07-15  
-**Last Updated:** 2026-08-04 — Added geocoding confidence scoring regression tests (ADR-008); Feature 8 updated  
+**Last Updated:** 2026-08-17 — Updated test directory layout to reflect modular E2E step structure  
 **Format:** Gherkin BDD (pytest-bdd / behave)  
 **Test Runner:** `pytest` + `pytest-bdd` (API layer) · `pytest-playwright` (E2E layer)  
 **Seed Data:** [TOXMAP_TEST_SEED_DATA.md](TOXMAP_TEST_SEED_DATA.md)  
@@ -28,8 +28,19 @@ tests/
 │       └── ux_invariants.feature
 ├── conftest.py          # seed DB + FastAPI test client
 ├── steps/
-│   ├── api_steps.py
-│   └── e2e_steps.py
+│   ├── __init__.py             # Re-exports all E2E steps
+│   ├── _shared.py              # Constants and helper functions
+│   ├── api_steps.py            # API test steps (@given/@when/@then for F1–F6)
+│   ├── navigation_steps.py     # E2E navigation and page load
+│   ├── search_steps.py         # Search form, filters, autocomplete
+│   ├── results_steps.py        # Results table interactions
+│   ├── facility_steps.py       # TRI facility detail drawer
+│   ├── superfund_steps.py      # Superfund site detail drawer
+│   ├── demographics_steps.py   # Demographics layer steps
+│   ├── map_layer_steps.py      # MapLibre layer verification
+│   ├── export_steps.py         # CSV download, screenshots
+│   ├── regression_steps.py     # Bug regression tests (7.BUG.*, UCD-17, T-07)
+│   └── stubs_steps.py          # Placeholder stub steps
 └── fixtures/
     └── seed.sql         # see TOXMAP_TEST_SEED_DATA.md
 ```
@@ -898,10 +909,27 @@ def check_bbox(context, bbox):
         assert min_lat <= lat <= max_lat
 ```
 
-### E2E Step Stubs (`tests/steps/e2e_steps.py`)
+### E2E Step Implementations (`tests/steps/`)
+
+E2E steps are organized into domain-specific modules. Import all steps via:
+```python
+from tests.steps import *
+```
+
+Modules:
+- `navigation_steps.py` — Given steps, page load, navigation
+- `search_steps.py` — Search form, filters, autocomplete
+- `results_steps.py` — Results table interactions
+- `facility_steps.py` — TRI facility detail drawer
+- `superfund_steps.py` — Superfund site detail drawer
+- `demographics_steps.py` — Demographics layer steps
+- `map_layer_steps.py` — MapLibre layer verification
+- `export_steps.py` — CSV download, screenshots
+- `regression_steps.py` — Bug regression tests
+- `stubs_steps.py` — Placeholder stub steps
 
 ```python
-# Playwright step implementations sketch
+# Example step implementations sketch
 #
 # IMPORTANT: The `page` fixture is provided by pytest-playwright automatically.
 # Configuration lives entirely in pyproject.toml — no playwright.config.ts is used.

@@ -18,6 +18,7 @@ from geoalchemy2.shape import to_shape
 from sqlalchemy import case, cast, desc, func, literal, or_, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domain.geo_utils import MILES_TO_METERS
 from app.models.chemical import Chemical
 from app.models.facility import Facility
 from app.models.release_event import ReleaseEvent
@@ -40,7 +41,6 @@ from app.services.chemical_service import (
 
 logger = logging.getLogger(__name__)
 
-_MILES_TO_METERS = 1609.344
 _BROWSE_LIMIT = 50000  # Max facilities for browse mode (all US TRI ~22k)
 
 
@@ -126,7 +126,7 @@ async def get_facilities_near(
     release_events table (~1M rows). See 7.PERF.1.
     """
     effective_year = await _resolve_year(session, year)
-    radius_meters = radius_miles * _MILES_TO_METERS
+    radius_meters = radius_miles * MILES_TO_METERS
 
     # ADR-007: Expand chemical to family members if applicable (unless exact_match)
     family_chemicals: list[str] | None = None
@@ -698,7 +698,7 @@ async def get_export_rows(
     """Return per-chemical release rows for CSV export, same spatial filters as
     get_facilities_near but one row per (facility, chemical, year)."""
     effective_year = await _resolve_year(session, year)
-    radius_meters = radius_miles * _MILES_TO_METERS
+    radius_meters = radius_miles * MILES_TO_METERS
     point_geo = _geo_point(lon, lat)
     fac_geo = _fac_geography(Facility.location)
 

@@ -131,6 +131,24 @@ def create_app() -> FastAPI:
     app.include_router(geocode.router, prefix=_API_V1)
     app.include_router(meta_router.router, prefix=_API_V1)
 
+    # --- Startup event: load caches (Algorithms Handbook §10 Phase 2) ---
+    @app.on_event("startup")
+    async def load_caches() -> None:
+        """Load in-memory caches at startup.
+
+        Chemical family cache eliminates 6 DB queries per facility search.
+        See: docs/onboarding/ALGORITHMS_HANDBOOK.md §4.2
+        """
+        from app.database import AsyncSessionLocal
+        from app.services.chemical_service import load_family_cache
+
+        try:
+            async with AsyncSessionLocal() as session:
+                await load_family_cache(session)
+        except Exception as exc:
+            # Log but don't fail startup — cache will fallback to DB queries
+            logger.warning("Failed to load chemical family cache: %s", exc)
+
     return app
 
 

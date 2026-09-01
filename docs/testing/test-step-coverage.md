@@ -1,12 +1,12 @@
 # TOXMAP Test Step Coverage Tracker
 
-**Last updated:** 2026-07-21  
+**Last updated:** 2026-08-17  
 **Purpose:** Tracks which Gherkin step definitions are implemented, which are stubs, and which development phase each is
 targeted for. Prevents agents from over-generating all steps at once (violating the phase schedule) or under-generating
 (only the documented stubs).
 
 > **Source of truth for scenario text:** `TOXMAP_ACCEPTANCE_TESTS.md`  
-> **Step files:** `tests/steps/api_steps.py` · `tests/steps/e2e_steps.py`
+> **Step files:** `tests/steps/api_steps.py` · `tests/steps/` (modular E2E steps)
 
 ---
 

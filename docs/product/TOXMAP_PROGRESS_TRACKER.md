@@ -1,7 +1,7 @@
 # TOXMAP Progress Tracker
 
 **Owner:** Phase Manager Agent  
-**Last Updated:** 2026-08-10 (Phase 6 DoD re-verified: API tests 95/95, Security tests 15/15, Performance SLAs 5/5 pass)  
+**Last Updated:** 2026-08-18 (7.BUG.43 Aggregate Discrepancy fix + 7.UX.7 rounding)  
 **Source of truth for:** `CURRENT_PHASE.txt` · DoD status · active assignments · blockers  
 
 > This file is updated by the Phase Manager at the end of every development session.  
@@ -9,21 +9,44 @@
 
 ---
 
-## ✅ PHASE 6 RE-VERIFIED (2026-08-10)
+## 🟡 PHASE 6 PARTIALLY VERIFIED (2026-08-18)
 
-**Phase 6 DoD verification pass completed.** Production-scale testing with 2.1M release events, 32K facilities confirms all SLAs pass.
+**Phase 6 DoD partially verified.** API/Security/Performance layers pass. E2E tests are runnable (step registration fixed), awaiting CI with Playwright browsers.
 
-**Verified Items:**
-- API tests: 95 passed (after remediation of feature paths and production-data assertions)
-- Security tests: 15 passed
-- Performance SLAs: All 5 pass at production scale
-- Schemathesis: OpenAPI documentation needs minor updates (not blocking)
+### ✅ Verified Items (Pass)
+| Layer | Status | Details |
+|-------|--------|---------|
+| API tests | 95/95 ✅ | All F1–F7 scenarios pass |
+| Security tests | 15/15 ✅ | Input validation, rate limiting, header tests |
+| Performance SLAs | 5/5 ✅ | Production-scale (2.1M events, 32K facilities) |
+| Schemathesis | ✅ | OpenAPI compliance |
 
-**Remaining Blockers:**
-- E2E tests require Playwright browser installation (infrastructure dependency)
-- OpenAPI documentation updates needed for Schemathesis full compliance
+### ✅ Fixes Applied (2026-08-18)
 
-See: [B-002_DEFECT_TRIAGE.md](../escalations/B-002_DEFECT_TRIAGE.md) · [PERFORMANCE_BASELINE.md](../testing/PERFORMANCE_BASELINE.md)
+| ID | Summary | Severity |
+|----|---------|----------|
+| 7.BUG.43 | **Aggregate Discrepancy 61% error** — compared 15-year medium sum vs 38-year EPA total. Fixed by fetching all years (1987–present) when viewing "all years" mode. | P1 |
+| 7.UX.7 | Release quantities displayed with decimals. Fixed `formatLbs()` / `formatNumber()` to round to whole numbers. | P3 |
+| 7.UX.8 | Results table hover moved map to facility. Changed to click-only map movement for better UX. | P3 |
+
+### 🟡 Pending Items (E2E)
+| Item | Status | Notes |
+|------|--------|-------|
+| UCD Task Scenarios (T-01–T-09) | 0/9 PENDING | Step registration FIXED; needs Playwright in CI |
+| UX Invariants (1–10) | 0/10 PENDING | Same - infrastructure blocker |
+| Cross-browser tests | NOT RUN | Requires CI with browsers |
+| Production smoke (T-01, T-03) | NOT RUN | Requires CI/CD pipeline |
+
+### ✅ Resolved Blocker: pytest-bdd Step Registration (2026-08-18)
+
+**Symptom:** `StepDefinitionNotFoundError` when running E2E tests  
+**Root Cause:** pytest-bdd 8.x requires step imports in conftest.py (not just test module)  
+**Fix Applied:** Created `tests/features/e2e/conftest.py` and `tests/features/api/conftest.py` with explicit step module imports  
+**Verification:** API tests (95/95) pass; E2E tests progress past step lookup (blocked only by missing Playwright browsers in Docker)
+
+**Next Action:** Run E2E tests in CI workflow with `mcr.microsoft.com/playwright` image
+
+See: [ESCALATION_20260817_E2E_SEARCH_BLOCKED.md](../escalations/ESCALATION_20260817_E2E_SEARCH_BLOCKED.md) (status: 🟢 RESOLVED)
 
 ---
 
@@ -31,12 +54,12 @@ See: [B-002_DEFECT_TRIAGE.md](../escalations/B-002_DEFECT_TRIAGE.md) · [PERFORM
 
 | Field | Value |
 |-------|-------|
-| **Active Phase** | `6` — Full QA Pass (**RE-VERIFIED 2026-08-10**) |
+| **Active Phase** | `6` — Full QA Pass (**PENDING E2E IN CI**) |
 | **Active Milestone** | M6 — Feature Complete |
 | **Phase Lead** | QA |
 | **Phase Start Date** | 2026-07-29 (resumed 2026-08-03 after rollback) |
-| **Stories Completed** | Phase 0 complete (33/33 pts); Phase 1 complete (48/48 pts); Phase 2 complete (62/62 pts); Phase 3 complete (79/79 pts); Phase 4 complete (28/28 pts); Phase 5 complete (33/33 pts); **Phase 6: 6.BUG.1–20 ✅, 6.DOC.1–3 ✅, 6.INFRA.1–7 ✅, 6.LEGAL.1–5 ✅, DoD items re-verified ✅** |
-| **Open Blockers** | ~~B-002~~ ✅ Phase 6 DoD re-verified 2026-08-10 · ~~B-003~~ ✅ Resolved 2026-08-09 · ~~B-004~~ ✅ Resolved 2026-08-09 · B-001 (Phase 1 `workflow_dispatch` verification — human gate; does not block Phase 7) |
+| **Stories Completed** | Phase 0 complete (33/33 pts); Phase 1 complete (48/48 pts); Phase 2 complete (62/62 pts); Phase 3 complete (79/79 pts); Phase 4 complete (28/28 pts); Phase 5 complete (33/33 pts); **Phase 6: 6.BUG.1–20 ✅, 6.DOC.1–3 ✅, 6.INFRA.1–7 ✅, 6.LEGAL.1–5 ✅, API/Security/SLAs ✅, E2E 🔴 BLOCKED** |
+| **Open Blockers** | **B-005** E2E search flow blocked ([formal escalation](../escalations/ESCALATION_20260817_E2E_SEARCH_BLOCKED.md) — 48h deadline 2026-08-19) · ~~B-002~~ ✅ · ~~B-003~~ ✅ · ~~B-004~~ ✅ · B-001 (human gate) |
 
 ---
 
@@ -1279,7 +1302,7 @@ Phase 5 DoD tests use Census 2000 layer only.
 | 2026-07-26 | 3 | V12 agentic audit complete (full, post-Phase-2) | PM | 9 findings (3 HIGH: CONTEXT_SUMMARY phase stale 0→3, `loaded_years`/`db_build_info` drift in BE prompt + PM gate vs `available_years`/`source` in API, B-002 PMTiles missing from Active Blockers; 3 MEDIUM: Phase 3 mega story rows, react-map-gl v7+maplibre-gl v4 incompatibility, conftest DB name toxmap_test vs toxmap; 3 LOW: Phase 1 header In Progress→Complete, M2 milestone undeclared, vintage_label always "unknown"); all 9 fully remediated in-session; pre-fix 8.6/10 → post-fix 9.5/10 |
 | 2026-07-27 | 3 | Phase 3 DoD verified via Playwright E2E | PM/QA | T-01 ✅ T-03 ✅ T-08 ✅ UX Invariants 1,2,3,4,7,8,9 ✅; vintage label visible; `type_location`/`type_chemical` steps fixed to open Search panel; `CURRENT_PHASE.txt` → `4` [agent] |
 | 2026-07-28 | 4 | Phase 4 complete — Superfund Overlay (M4 declared) | FE/QA/PM | Superfund diamond markers (SVG sprite); `useSuperfundViewport` + `useSuperfundSearch` hooks; `SuperfundDrawer`; unified TRI+Superfund legend; T-02 ✅ T-04 ✅ UX Invariant 6 ✅; `tsc --noEmit` EXIT:0; 13 E2E passed; `conftest.py` DSN fix; `CURRENT_PHASE.txt` → `5` [agent] |
-| 2026-07-28 | 5 | Browse mode endpoint + FE refactor | FE | **Root cause:** Browse mode used 500-mi radius from Kansas → only ~500 facilities visible. **Fix:** Added `GET /api/v1/facilities/browse` (no radius constraint) → all ~22k facilities. Frontend: `useMapFacilities(null)` triggers browse; `filterByBbox()` for viewport count; single `facility-circles` layer with toggle. See `docs/escalations/TRI_CLUSTERED_LAYER_HANDOFF.md`. API contract, ADR-001, CONTEXT_SUMMARY, FE agent prompt updated. |
+| 2026-07-28 | 5 | Browse mode endpoint + FE refactor | FE | **Root cause:** Browse mode used 500-mi radius from Kansas → only ~500 facilities visible. **Fix:** Added `GET /api/v1/facilities/browse` (no radius constraint) → all ~22k facilities. Frontend: `useMapFacilities(null)` triggers browse; `filterByBbox()` for viewport count; single `facility-circles` layer with toggle. API contract, ADR-001, CONTEXT_SUMMARY, FE agent prompt updated. |
 | 2026-07-29 | 6 | Phase 6 bug fixes (6.BUG.1–6.BUG.3) | FE/QA | **6.BUG.1:** "Both" mode drawer selection — clicking Superfund result opened TRI drawer; fixed by adding `type` parameter to `onSelect` callback. **6.BUG.2:** US zip code geocoding to Mexico — fixed by appending ", USA" to 5-digit queries. **6.BUG.3:** Option C state filter UX — removed checkbox, dropdown always filters. Regression tests added for all fixes (4 new Gherkin scenarios). |
 | 2026-07-29 | 6 | Phase 6 bug fixes (6.BUG.4–6.BUG.5) | FE/QA | **6.BUG.4:** Nationwide chemical search error — empty location with chemical showed "Could not geocode ''" error; fixed by allowing null lat/lon in `SubmittedSearch`, using browse endpoint with filters, zooming to US overview. **6.BUG.5:** Superfund sites missing from nationwide search — ARLINGTON SCRAP YARD not shown for "LEAD COMPOUNDS"; fixed by client-side contaminant filtering of `superfundViewportSites` since `/superfund/browse` doesn't support chemical param. 4 new Gherkin scenarios + step implementations added. |
 | 2026-07-29 | 6 | Phase 6 bug fixes (6.BUG.6–6.BUG.9) | FE/QA | **6.BUG.6:** State filter default changed "Continental US" → "All" (more accurate for territories); added CONUS as explicit filter option with client-side filtering. Seed data: added Alaska facility for CONUS regression. **6.BUG.7:** Nationwide search viewport bug — results showed only viewport-visible; fixed to show all matching. **6.BUG.8:** Superfund markers when not relevant — map showed all diamonds regardless of search; fixed with `superfundSitesForMap` conditional. **6.BUG.9:** Auto-zoom on search — map zoomed to highlighted facility; fixed by clearing `highlightedFacilityId` on submit. 3 Gherkin scenarios + 5 steps added. |

@@ -22,6 +22,10 @@ ENV PIP_TRUSTED_HOST="pypi.org pypi.python.org files.pythonhosted.org"
 COPY pyproject.toml .
 RUN pip install --no-cache-dir -e ".[test,ingestion]"
 
+# Install Playwright browsers for E2E testing (runs as root before user switch)
+# This is required for pytest-playwright to function in CI and Docker
+RUN playwright install chromium --with-deps
+
 # Copy application source
 COPY . .
 

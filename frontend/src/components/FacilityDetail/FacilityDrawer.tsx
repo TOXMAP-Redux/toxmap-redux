@@ -47,13 +47,22 @@ export function FacilityDrawer({ facilityId, onClose, selectedYear, width = 420,
   // Fetch facility detail with year filter
   const { detail, loading: detailLoading } = useFacilityDetail(facilityId, yearFilter)
   
-  // Fetch releases for trend chart — if year filter is set, end at that year; otherwise use current year
-  const trendEndYear = yearFilter ?? new Date().getFullYear()
-  // TRI reporting began in 1987 — clamp start year to avoid showing misleading zeros for years that didn't exist
+  // TRI reporting began in 1987
   const TRI_FIRST_YEAR = 1987
+  
+  // Determine fetch range: ALL years when viewing "all years" mode for accurate aggregate discrepancy,
+  // or just the selected year when a specific year is chosen
+  const currentYear = new Date().getFullYear()
+  const fetchStartYear = yearFilter ?? TRI_FIRST_YEAR
+  const fetchEndYear = yearFilter ?? currentYear
+  
+  // Display range for trend chart: 15 years ending at selected year (or current year)
+  const trendEndYear = yearFilter ?? currentYear
   const trendStartYear = Math.max(TRI_FIRST_YEAR, trendEndYear - 14)
   const trendYearsAvailable = trendEndYear - trendStartYear + 1
-  const { releases, loading: releasesLoading } = useFacilityReleases(facilityId, trendStartYear, trendEndYear)
+  
+  // Fetch releases for the full range needed (all years when aggregate, single year otherwise)
+  const { releases, loading: releasesLoading } = useFacilityReleases(facilityId, fetchStartYear, fetchEndYear)
 
   // Export state (story 6.EXPORT.5–6)
   const [exportLoading, setExportLoading] = useState(false)
